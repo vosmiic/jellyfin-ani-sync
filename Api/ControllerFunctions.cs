@@ -12,7 +12,7 @@ namespace jellyfin_ani_sync.Api {
         private readonly string _redirectUrl = "http://localhost:8096/AniSync/authCallback";
         private readonly string _clientId = "";
         private readonly string _clientSecret = "";
-        private readonly string _codeChallenge = @"tsAO1I~KhhRkNz40-exn8xL6.y4uHwcUOO4FD-Y20GS93fyZR9cxUqm9.UTcx1JtpaEJ8-c1jr-wCt-vSPnJo7Wqx-JtrT~b7Fh21DIfLYraNpZefacxmrEy35v5mOyq";
+        private readonly string _codeChallenge = GeneratePkce();
 
         public ControllerFunctions(IHttpClientFactory httpClientFactory) {
             _httpClientFactory = httpClientFactory;
@@ -45,6 +45,17 @@ namespace jellyfin_ani_sync.Api {
                     break;
                 }
             }
+        }
+        public static string GeneratePkce() {
+            string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+            var chars = new char[128];
+            var random = new Random();
+
+            for (var x = 0; x < chars.Length; x++) {
+                chars[x] = characters[random.Next(characters.Length)];
+            }
+
+            return new string(chars);
         }
     }
 
