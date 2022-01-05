@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using MediaBrowser.Model.Plugins;
 
 namespace jellyfin_ani_sync.Configuration {
@@ -29,15 +30,7 @@ namespace jellyfin_ani_sync.Configuration {
             Options = SomeOptions.AnotherOption;
             TrueFalseSetting = true;
             AnInteger = 2;
-            AccessToken = "string";
             AString = "string";
-            ApiAuth = new List<ApiAuth> {
-                new() {
-                    Name = ApiName.Mal,
-                    AccessToken = "token",
-                    RefreshToken = "token"
-                }
-            };
         }
 
         /// <summary>
@@ -56,15 +49,21 @@ namespace jellyfin_ani_sync.Configuration {
         public string AString { get; set; }
 
         /// <summary>
-        /// Gets or sets the MAL access token.
-        /// </summary>
-        public string AccessToken { get; set; }
-
-        /// <summary>
         /// Gets or sets an enum option.
         /// </summary>
         public SomeOptions Options { get; set; }
 
-        public List<ApiAuth> ApiAuth { get; set; }
+        public ApiAuth[] ApiAuth { get; set; }
+        
+        public void AddApiAuth(ApiAuth apiAuth)
+        {
+            if (ApiAuth != null) {
+                var apiAuthList = ApiAuth.ToList();
+                apiAuthList.Add(apiAuth);
+                ApiAuth = apiAuthList.ToArray();
+            } else {
+                ApiAuth = new[] { apiAuth };
+            }
+        }
     }
 }
