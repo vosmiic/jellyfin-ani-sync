@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -7,6 +8,8 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Authentication;
 using Microsoft.Extensions.Logging;
@@ -17,6 +20,10 @@ public class MalApiCalls {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<MalApiCalls> _logger;
     private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
+    private readonly string _apiBaseUrl = "https://api.myanimelist.net/";
+    private readonly int _apiVersion = 2;
+
+    private string ApiUrl => _apiBaseUrl + "v" + _apiVersion;
 
     public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) {
         _httpClientFactory = httpClientFactory;
@@ -27,7 +34,10 @@ public class MalApiCalls {
     /// Get a users information.
     /// </summary>
     public User GetUserInformation() {
-        StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, "https://api.myanimelist.net/v2/users/@me").Content.ReadAsStream());
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/users/@me"
+        };
+        StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, url.Build()).Content.ReadAsStream());
         string streamText = streamReader.ReadToEnd();
 
         return JsonSerializer.Deserialize<User>(streamText);
@@ -41,6 +51,32 @@ public class MalApiCalls {
         [JsonPropertyName("picture")] public string Picture { get; set; }
     }
 
+    /// <summary>
+    /// Search the MAL database for anime.
+    /// </summary>
+    /// <param name="query">Search by title.</param>
+    /// <param name="fields">The fields you would like returned.</param>
+    /// <returns>List of anime.</returns>
+    public List<Anime> SearchAnime(string? query, string[]? fields) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/anime"
+        };
+        if (query != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("q", query));
+        }
+
+        if (fields != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("fields", String.Join(",", fields)));
+        }
+
+        string builtUrl = url.Build();
+        _logger.LogInformation($"Starting search for anime ({builtUrl})...");
+        StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, builtUrl).Content.ReadAsStream());
+        var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(streamReader.ReadToEnd());
+
+        return animeList.Data.Select(list => list.Anime).ToList();
+    }
+
     public enum CallType {
         GET,
         POST,
@@ -48,6 +84,16 @@ public class MalApiCalls {
         DELETE
     }
 
+    /// <summary>
+    /// Make an MAL API call.
+    /// </summary>
+    /// <param name="callType">The type of call to make.</param>
+    /// <param name="url">The URL that you want to make the request to.</param>
+    /// <param name="formUrlEncodedContent">The form data to be posted.</param>
+    /// <returns>API call response.</returns>
+    /// <exception cref="NullReferenceException">Authentication details not found.</exception>
+    /// <exception cref="Exception">Non-200 response.</exception>
+    /// <exception cref="AuthenticationException">Could not authenticate with the MAL API.</exception>
     private HttpResponseMessage MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
         int attempts = 0;
         var auth = Plugin.Instance.PluginConfiguration.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);

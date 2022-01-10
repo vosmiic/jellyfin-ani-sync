@@ -1,8 +1,6 @@
-using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Net.Http;
-using jellyfin_ani_sync.Configuration;
-using MediaBrowser.Common.Net;
+using jellyfin_ani_sync.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -34,6 +32,18 @@ namespace jellyfin_ani_sync.Api {
         [Route("user")]
         public MalApiCalls.User GetUser() {
             return new MalApiCalls(_httpClientFactory, _loggerFactory).GetUserInformation();
+        }
+        
+        /// <summary>
+        /// Search the MAL database for anime.
+        /// </summary>
+        /// <param name="query">Search by title.</param>
+        /// <param name="fields">The fields you would like returned.</param>
+        /// <returns>List of anime.</returns>
+        [HttpGet]
+        [Route("searchAnime")]
+        public List<Anime> SearchAnime(string query, string fields) {
+            return new MalApiCalls(_httpClientFactory, _loggerFactory).SearchAnime("railgun", fields.Split(","));
         }
     }
 }
