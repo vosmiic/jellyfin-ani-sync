@@ -30,6 +30,14 @@ public class MalApiCalls {
         _logger = loggerFactory.CreateLogger<MalApiCalls>();
     }
 
+    public class User {
+        [JsonPropertyName("id")] public int Id { get; set; }
+        [JsonPropertyName("name")] public string Name { get; set; }
+        [JsonPropertyName("location")] public string Location { get; set; }
+        [JsonPropertyName("joined_at")] public DateTime JoinedAt { get; set; }
+        [JsonPropertyName("picture")] public string Picture { get; set; }
+    }
+
     /// <summary>
     /// Get a users information.
     /// </summary>
@@ -41,14 +49,6 @@ public class MalApiCalls {
         string streamText = streamReader.ReadToEnd();
 
         return JsonSerializer.Deserialize<User>(streamText);
-    }
-
-    public class User {
-        [JsonPropertyName("id")] public int Id { get; set; }
-        [JsonPropertyName("name")] public string Name { get; set; }
-        [JsonPropertyName("location")] public string Location { get; set; }
-        [JsonPropertyName("joined_at")] public DateTime JoinedAt { get; set; }
-        [JsonPropertyName("picture")] public string Picture { get; set; }
     }
 
     /// <summary>
@@ -75,6 +75,59 @@ public class MalApiCalls {
         var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(streamReader.ReadToEnd());
 
         return animeList.Data.Select(list => list.Anime).ToList();
+    }
+
+    public enum Status {
+        Watching,
+        Completed,
+        On_hold,
+        Dropped,
+        Plan_to_watch
+    }
+
+    public enum Sort {
+        List_score,
+        List_updated_at,
+        Anime_title,
+        Anime_start_date,
+        Anime_id
+    }
+
+    public List<Anime> GetUserAnimeList(Status? status = null, Sort? sort = null, int? idSearch = null) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/users/@me/animelist"
+        };
+
+        if (status != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("status", status.Value.ToString().ToLower()));
+        }
+
+        if (sort != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("sort", sort.Value.ToString().ToLower()));
+        }
+
+        string builtUrl = url.Build();
+        UserAnimeList userAnimeList = new UserAnimeList {Data = new List<AnimeList>()};
+        while (builtUrl != null) {
+            _logger.LogInformation($"Getting user anime list ({builtUrl})...");
+            StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, builtUrl).Content.ReadAsStream());
+            UserAnimeList userAnimeListPage = JsonSerializer.Deserialize<UserAnimeList>(streamReader.ReadToEnd());
+
+            if (userAnimeListPage?.Data != null && userAnimeListPage.Data.Count > 0) {
+                if (idSearch != null) {
+                    var foundAnime = userAnimeListPage.Data.FirstOrDefault(anime => anime.Anime.Id == idSearch);
+                    if (foundAnime != null) {
+                        return new List<Anime> { foundAnime.Anime };
+                    }
+                } else {
+                    userAnimeList.Data = userAnimeList.Data.Concat(userAnimeListPage.Data).ToList();
+                }
+
+                builtUrl = userAnimeListPage.Paging.Next;
+            }
+        }
+
+        return userAnimeList.Data.Select(list => list.Anime).ToList();
     }
 
     public enum CallType {
