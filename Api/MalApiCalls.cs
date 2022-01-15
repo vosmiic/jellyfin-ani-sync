@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
@@ -41,11 +42,12 @@ public class MalApiCalls {
     /// <summary>
     /// Get a users information.
     /// </summary>
-    public User GetUserInformation() {
+    public async Task<User> GetUserInformation() {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/users/@me"
         };
-        StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, url.Build()).Content.ReadAsStream());
+        var apiCall = await MalApiCall(CallType.GET, url.Build());
+        StreamReader streamReader = new StreamReader(apiCall.Content.ReadAsStream());
         string streamText = streamReader.ReadToEnd();
 
         return JsonSerializer.Deserialize<User>(streamText);
@@ -57,7 +59,7 @@ public class MalApiCalls {
     /// <param name="query">Search by title.</param>
     /// <param name="fields">The fields you would like returned.</param>
     /// <returns>List of anime.</returns>
-    public List<Anime> SearchAnime(string? query, string[]? fields) {
+    public async Task<List<Anime>> SearchAnime(string? query, string[]? fields) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/anime"
         };
@@ -71,18 +73,11 @@ public class MalApiCalls {
 
         string builtUrl = url.Build();
         _logger.LogInformation($"Starting search for anime ({builtUrl})...");
-        StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, builtUrl).Content.ReadAsStream());
-        var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(streamReader.ReadToEnd());
+        var apiCall = await MalApiCall(CallType.GET, builtUrl);
+        StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+        var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(await streamReader.ReadToEndAsync());
 
         return animeList.Data.Select(list => list.Anime).ToList();
-    }
-
-    public enum Status {
-        Watching,
-        Completed,
-        On_hold,
-        Dropped,
-        Plan_to_watch
     }
 
     public enum Sort {
@@ -93,10 +88,12 @@ public class MalApiCalls {
         Anime_id
     }
 
-    public List<Anime> GetUserAnimeList(Status? status = null, Sort? sort = null, int? idSearch = null) {
+    public async Task<List<UserAnimeListData>> GetUserAnimeList(Status? status = null, Sort? sort = null, int? idSearch = null) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/users/@me/animelist"
         };
+
+        url.Parameters.Add(new KeyValuePair<string, string>("fields", "list_status"));
 
         if (status != null) {
             url.Parameters.Add(new KeyValuePair<string, string>("status", status.Value.ToString().ToLower()));
@@ -107,17 +104,20 @@ public class MalApiCalls {
         }
 
         string builtUrl = url.Build();
-        UserAnimeList userAnimeList = new UserAnimeList {Data = new List<AnimeList>()};
+        UserAnimeList userAnimeList = new UserAnimeList { Data = new List<UserAnimeListData>() };
         while (builtUrl != null) {
             _logger.LogInformation($"Getting user anime list ({builtUrl})...");
-            StreamReader streamReader = new StreamReader(MalApiCall(CallType.GET, builtUrl).Content.ReadAsStream());
-            UserAnimeList userAnimeListPage = JsonSerializer.Deserialize<UserAnimeList>(streamReader.ReadToEnd());
+            var apiCall = await MalApiCall(CallType.GET, builtUrl);
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            var options = new JsonSerializerOptions();
+            options.Converters.Add(new JsonStringEnumConverter());
+            UserAnimeList userAnimeListPage = JsonSerializer.Deserialize<UserAnimeList>(await streamReader.ReadToEndAsync(), options);
 
             if (userAnimeListPage?.Data != null && userAnimeListPage.Data.Count > 0) {
                 if (idSearch != null) {
                     var foundAnime = userAnimeListPage.Data.FirstOrDefault(anime => anime.Anime.Id == idSearch);
                     if (foundAnime != null) {
-                        return new List<Anime> { foundAnime.Anime };
+                        return new List<UserAnimeListData> { foundAnime };
                     }
                 } else {
                     userAnimeList.Data = userAnimeList.Data.Concat(userAnimeListPage.Data).ToList();
@@ -127,13 +127,39 @@ public class MalApiCalls {
             }
         }
 
-        return userAnimeList.Data.Select(list => list.Anime).ToList();
+        return userAnimeList.Data.ToList();
+    }
+
+    public async Task UpdateAnimeStatus(int animeId, int numberOfWatchedEpisodes, Status? status = null, 
+        bool? isRewatching = null, int? numberOfTimesRewatched = null) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/anime/{animeId}/my_list_status"
+        };
+
+        List<KeyValuePair<string, string>> body = new List<KeyValuePair<string, string>> {
+            new("num_watched_episodes", numberOfWatchedEpisodes.ToString())
+        };
+
+        if (status != null) {
+            body.Add(new KeyValuePair<string, string>("status", status.Value.ToString()));
+        }
+
+        if (isRewatching != null) {
+            body.Add(new KeyValuePair<string, string>("is_rewatching", isRewatching.Value.ToString()));
+        }
+
+        if (numberOfTimesRewatched != null) {
+            body.Add(new KeyValuePair<string, string>("num_times_rewatched", numberOfTimesRewatched.Value.ToString()));
+        }
+
+        await MalApiCall(CallType.PUT, url.Build(), new FormUrlEncodedContent(body.ToArray()));
     }
 
     public enum CallType {
         GET,
         POST,
         PATCH,
+        PUT,
         DELETE
     }
 
@@ -147,7 +173,7 @@ public class MalApiCalls {
     /// <exception cref="NullReferenceException">Authentication details not found.</exception>
     /// <exception cref="Exception">Non-200 response.</exception>
     /// <exception cref="AuthenticationException">Could not authenticate with the MAL API.</exception>
-    private HttpResponseMessage MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
+    private async Task<HttpResponseMessage> MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
         int attempts = 0;
         var auth = Plugin.Instance.PluginConfiguration.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
         while (attempts < 2) {
@@ -162,19 +188,19 @@ public class MalApiCalls {
             HttpResponseMessage responseMessage;
             switch (callType) {
                 case CallType.GET:
-                    responseMessage = client.GetAsync(url).Result;
+                    responseMessage = await client.GetAsync(url);
                     break;
                 case CallType.POST:
-                    responseMessage = client.PostAsync(url, formUrlEncodedContent).Result;
+                    responseMessage = await client.PostAsync(url, formUrlEncodedContent);
                     break;
                 case CallType.PATCH:
-                    responseMessage = client.PatchAsync(url, formUrlEncodedContent).Result;
+                    responseMessage = await client.PatchAsync(url, formUrlEncodedContent);
                     break;
                 case CallType.DELETE:
-                    responseMessage = client.DeleteAsync(url).Result;
+                    responseMessage = await client.DeleteAsync(url);
                     break;
                 default:
-                    responseMessage = client.GetAsync(url).Result;
+                    responseMessage = await client.GetAsync(url);
                     break;
             }
 
