@@ -1,14 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace jellyfin_ani_sync.Helpers; 
+namespace jellyfin_ani_sync.Helpers;
 
 public class UrlBuilder {
     /// <summary>
     /// Gets or sets the base URL.
     /// </summary>
     public string Base { get; set; }
+
     /// <summary>
     /// Gets or sets the query parameters.
     /// </summary>
@@ -24,11 +26,11 @@ public class UrlBuilder {
     /// <returns></returns>
     public string Build() {
         StringBuilder url = new StringBuilder(Base);
-        KeyValuePair<string, string> last = Parameters.Last();
         if (Parameters.Count > 0) {
+            KeyValuePair<string, string> last = Parameters.Last();
             url.Append('?');
             foreach (var parameter in Parameters) {
-                url.Append($"{parameter.Key}={parameter.Value}");
+                url.Append($"{parameter.Key}={Uri.EscapeDataString(parameter.Value)}");
                 if (!parameter.Equals(last)) {
                     url.Append('&');
                 }
