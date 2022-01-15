@@ -196,6 +196,9 @@ public class MalApiCalls {
                 case CallType.PATCH:
                     responseMessage = await client.PatchAsync(url, formUrlEncodedContent);
                     break;
+                case CallType.PUT:
+                    responseMessage = await client.PutAsync(url, formUrlEncodedContent);
+                    break;
                 case CallType.DELETE:
                     responseMessage = await client.DeleteAsync(url);
                     break;
