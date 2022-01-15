@@ -28,7 +28,7 @@ namespace jellyfin_ani_sync.Configuration {
         public PluginConfiguration() {
             // set default options here
             Options = SomeOptions.AnotherOption;
-            TrueFalseSetting = true;
+            PlanToWatchOnly = true;
             AnInteger = 2;
             AString = "string";
         }
@@ -36,7 +36,7 @@ namespace jellyfin_ani_sync.Configuration {
         /// <summary>
         /// Gets or sets a value indicating whether some true or false setting is enabled..
         /// </summary>
-        public bool TrueFalseSetting { get; set; }
+        public bool PlanToWatchOnly { get; set; }
 
         /// <summary>
         /// Gets or sets an integer setting.
