@@ -29,14 +29,20 @@ namespace jellyfin_ani_sync.Configuration {
             // set default options here
             Options = SomeOptions.AnotherOption;
             PlanToWatchOnly = true;
+            RewatchCompleted = false;
             AnInteger = 2;
             AString = "string";
         }
 
         /// <summary>
-        /// Gets or sets a value indicating whether some true or false setting is enabled..
+        /// Gets or sets a value indicating whether the API should only search for shows on the users plan to watch list.
         /// </summary>
         public bool PlanToWatchOnly { get; set; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether the plugin should automatically set completed shows as re-watching.
+        /// </summary>
+        public bool RewatchCompleted { get; set; }
 
         /// <summary>
         /// Gets or sets an integer setting.
