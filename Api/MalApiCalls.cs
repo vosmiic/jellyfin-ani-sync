@@ -72,11 +72,12 @@ public class MalApiCalls {
         }
 
         string builtUrl = url.Build();
-        _logger.LogInformation($"Starting search for anime ({builtUrl})...");
+        _logger.LogInformation($"Starting search for anime (GET {builtUrl})...");
         var apiCall = await MalApiCall(CallType.GET, builtUrl);
         StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
         var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(await streamReader.ReadToEndAsync());
 
+        _logger.LogInformation("Search complete");
         return animeList.Data.Select(list => list.Anime).ToList();
     }
 
@@ -93,7 +94,7 @@ public class MalApiCalls {
             Base = $"{ApiUrl}/users/@me/animelist"
         };
 
-        url.Parameters.Add(new KeyValuePair<string, string>("fields", "list_status"));
+        url.Parameters.Add(new KeyValuePair<string, string>("fields", "list_status,num_episodes"));
 
         if (status != null) {
             url.Parameters.Add(new KeyValuePair<string, string>("status", status.Value.ToString().ToLower()));
@@ -106,7 +107,7 @@ public class MalApiCalls {
         string builtUrl = url.Build();
         UserAnimeList userAnimeList = new UserAnimeList { Data = new List<UserAnimeListData>() };
         while (builtUrl != null) {
-            _logger.LogInformation($"Getting user anime list ({builtUrl})...");
+            _logger.LogInformation($"Getting user anime list (GET {builtUrl})...");
             var apiCall = await MalApiCall(CallType.GET, builtUrl);
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
             var options = new JsonSerializerOptions();
@@ -126,11 +127,12 @@ public class MalApiCalls {
                 builtUrl = userAnimeListPage.Paging.Next;
             }
         }
-
+        
+        _logger.LogInformation("Got user anime list");
         return userAnimeList.Data.ToList();
     }
 
-    public async Task UpdateAnimeStatus(int animeId, int numberOfWatchedEpisodes, Status? status = null, 
+    public async Task<UpdateAnimeStatusResponse> UpdateAnimeStatus(int animeId, int numberOfWatchedEpisodes, Status? status = null,
         bool? isRewatching = null, int? numberOfTimesRewatched = null) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/anime/{animeId}/my_list_status"
@@ -141,7 +143,7 @@ public class MalApiCalls {
         };
 
         if (status != null) {
-            body.Add(new KeyValuePair<string, string>("status", status.Value.ToString()));
+            body.Add(new KeyValuePair<string, string>("status", status.Value.ToString().ToLower()));
         }
 
         if (isRewatching != null) {
@@ -152,7 +154,17 @@ public class MalApiCalls {
             body.Add(new KeyValuePair<string, string>("num_times_rewatched", numberOfTimesRewatched.Value.ToString()));
         }
 
-        await MalApiCall(CallType.PUT, url.Build(), new FormUrlEncodedContent(body.ToArray()));
+        var builtUrl = url.Build();
+        
+        var apiCall = await MalApiCall(CallType.PUT, builtUrl, new FormUrlEncodedContent(body.ToArray()));
+        
+        StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+        var options = new JsonSerializerOptions();
+        options.Converters.Add(new JsonStringEnumConverter());
+        _logger.LogInformation($"Updating anime status (PUT {builtUrl})...");
+        var updateResponse = JsonSerializer.Deserialize<UpdateAnimeStatusResponse>(await streamReader.ReadToEndAsync(), options);
+        _logger.LogInformation("Update complete");
+        return updateResponse;
     }
 
     public enum CallType {
@@ -217,7 +229,7 @@ public class MalApiCalls {
                     auth = newAuth;
                     attempts++;
                 } else {
-                    _logger.LogError($"Unable to complete MAL API call, reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
+                    _logger.LogError($"Unable to complete MAL API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
                     throw new Exception();
                 }
             }
