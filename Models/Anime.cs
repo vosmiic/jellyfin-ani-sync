@@ -48,6 +48,41 @@ public class Studio {
     [JsonPropertyName("name")] public string Name { get; set; }
 }
 
+public class RelatedAnime {
+    [JsonPropertyName("node")] public Anime Anime { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyName("relation_type")] public RelationType RelationType { get; set; }
+
+    [JsonPropertyName("relation_type_formatted")]
+    public string RelationTypeFormatted { get; set; }
+}
+
+public enum RelationType {
+    Parent_Story,
+    Spin_Off,
+    Side_Story,
+    Sequel,
+    Character,
+    Prequel,
+    Alternate_Setting,
+    Alternate_Version,
+    Summary,
+    Full_Story,
+    Other
+}
+
+public class Picture {
+    [JsonPropertyName("medium")] public string Medium { get; set; }
+    [JsonPropertyName("large")] public string Large { get; set; }
+}
+
+public class Recommendation {
+    [JsonPropertyName("node")] public Anime Anime { get; set; }
+
+    [JsonPropertyName("num_recommendations")]
+    public int NumRecommendations { get; set; }
+}
+
 public class Anime {
     [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("title")] public string Title { get; set; }
@@ -83,6 +118,11 @@ public class Anime {
     public int AverageEpisodeDuration { get; set; }
 
     [JsonPropertyName("rating")] public string Rating { get; set; }
+    [JsonPropertyName("pictures")] public List<Picture> Pictures { get; set; }
+    [JsonPropertyName("background")] public string Background { get; set; }
+    [JsonPropertyName("related_anime")] public List<RelatedAnime> RelatedAnime { get; set; }
+    [JsonPropertyName("related_manga")] public List<object> RelatedManga { get; set; }
+    [JsonPropertyName("recommendations")] public List<Recommendation> Recommendations { get; set; }
     [JsonPropertyName("studios")] public List<Studio> Studios { get; set; }
 }
 
