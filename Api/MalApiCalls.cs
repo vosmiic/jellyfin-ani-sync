@@ -81,6 +81,30 @@ public class MalApiCalls {
         return animeList.Data.Select(list => list.Anime).ToList();
     }
 
+    /// <summary>
+    /// Get an anime from the MAL database.
+    /// </summary>
+    /// <returns></returns>
+    public async Task<Anime> GetAnime(int animeId, string[]? fields = null) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/anime/{animeId}"
+        };
+
+        if (fields != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("fields", String.Join(",", fields)));
+        }
+
+        string builtUrl = url.Build();
+        _logger.LogInformation($"Retrieving an anime from MAL (GET {builtUrl})...");
+        var apiCall = await MalApiCall(CallType.GET, builtUrl);
+        StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+        var options = new JsonSerializerOptions();
+        options.Converters.Add(new JsonStringEnumConverter());
+        var anime = JsonSerializer.Deserialize<Anime>(await streamReader.ReadToEndAsync(), options);
+        _logger.LogInformation("Anime retrieval complete");
+        return anime;
+    }
+
     public enum Sort {
         List_score,
         List_updated_at,
@@ -197,27 +221,32 @@ public class MalApiCalls {
             }
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
-            HttpResponseMessage responseMessage;
-            switch (callType) {
-                case CallType.GET:
-                    responseMessage = await client.GetAsync(url);
-                    break;
-                case CallType.POST:
-                    responseMessage = await client.PostAsync(url, formUrlEncodedContent);
-                    break;
-                case CallType.PATCH:
-                    responseMessage = await client.PatchAsync(url, formUrlEncodedContent);
-                    break;
-                case CallType.PUT:
-                    responseMessage = await client.PutAsync(url, formUrlEncodedContent);
-                    break;
-                case CallType.DELETE:
-                    responseMessage = await client.DeleteAsync(url);
-                    break;
-                default:
-                    responseMessage = await client.GetAsync(url);
-                    break;
+            HttpResponseMessage responseMessage = new HttpResponseMessage();
+            try {
+                switch (callType) {
+                    case CallType.GET:
+                        responseMessage = await client.GetAsync(url);
+                        break;
+                    case CallType.POST:
+                        responseMessage = await client.PostAsync(url, formUrlEncodedContent);
+                        break;
+                    case CallType.PATCH:
+                        responseMessage = await client.PatchAsync(url, formUrlEncodedContent);
+                        break;
+                    case CallType.PUT:
+                        responseMessage = await client.PutAsync(url, formUrlEncodedContent);
+                        break;
+                    case CallType.DELETE:
+                        responseMessage = await client.DeleteAsync(url);
+                        break;
+                    default:
+                        responseMessage = await client.GetAsync(url);
+                        break;
+                }
+            } catch (Exception e) {
+                _logger.LogError(e.Message);
             }
+
 
             if (responseMessage.IsSuccessStatusCode) {
                 return responseMessage;
