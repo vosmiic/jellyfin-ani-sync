@@ -64,7 +64,7 @@ public class MalApiCalls {
             Base = $"{ApiUrl}/anime"
         };
         if (query != null) {
-            url.Parameters.Add(new KeyValuePair<string, string>("q", query));
+            url.Parameters.Add(new KeyValuePair<string, string>("q", StringFormatter.RemoveSpecialCharacters(query)));
         }
 
         if (fields != null) {
