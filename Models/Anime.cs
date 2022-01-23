@@ -21,7 +21,7 @@ public class Genre {
 }
 
 public class MyListStatus {
-    [JsonPropertyName("status")] public string Status { get; set; }
+    [JsonPropertyName("status")] public Status Status { get; set; }
     [JsonPropertyName("score")] public int Score { get; set; }
 
     [JsonPropertyName("num_episodes_watched")]
