@@ -11,21 +11,27 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Session;
+using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
 using Episode = MediaBrowser.Controller.Entities.TV.Episode;
 
 namespace jellyfin_ani_sync;
 
 public class ServerEntry : IServerEntryPoint {
-    private ISessionManager _sessionManager;
-    private ILogger<ServerEntry> _logger;
-    private MalApiCalls _malApiCalls;
+    private readonly ISessionManager _sessionManager;
+    private readonly ILogger<ServerEntry> _logger;
+    private readonly MalApiCalls _malApiCalls;
     private Type _animeType;
+    private readonly ILibraryManager _libraryManager;
+    private readonly IFileSystem _fileSystem;
 
-    public ServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory) {
+    public ServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory,
+        IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem) {
         _sessionManager = sessionManager;
         _logger = loggerFactory.CreateLogger<ServerEntry>();
         _malApiCalls = new MalApiCalls(httpClientFactory, loggerFactory);
+        _libraryManager = libraryManager;
+        _fileSystem = fileSystem;
     }
 
     public Task RunAsync() {
@@ -44,7 +50,7 @@ public class ServerEntry : IServerEntryPoint {
             video.IndexNumber = 1;
         }
 
-        if (video is Episode or Movie) {
+        if (LibraryCheck(e.Item) && video is Episode or Movie) {
             // todo add played to completion after debug
             List<Anime> animeList = await _malApiCalls.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name, new[] { "id", "title", "alternative_titles" });
             foreach (var anime in animeList) {
@@ -85,6 +91,27 @@ public class ServerEntry : IServerEntryPoint {
 
             _logger.LogWarning("Series not found");
         }
+    }
+
+    private bool LibraryCheck(BaseItem item) {
+        if (Plugin.Instance.PluginConfiguration.LibraryToCheck.Length > 0) {
+            var folders = _libraryManager.GetVirtualFolders().Where(item => Plugin.Instance.PluginConfiguration.LibraryToCheck.Contains(item.ItemId));
+
+            foreach (var folder in folders) {
+                foreach (var location in folder.Locations) {
+                    if (_fileSystem.ContainsSubPath(location, item.Path)) {
+                        // item is in a path of a folder the user wants to be monitored
+                        return true;
+                    }
+                }
+            }
+        } else {
+            // user has no library filters
+            return true;
+        }
+
+        _logger.LogInformation("Item is in a folder the user does not want to be monitored; ignoring");
+        return false;
     }
 
     private async void UpdateNotBeingWatchedAnime(Anime matchingAnime, Video anime) {

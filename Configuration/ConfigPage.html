@@ -44,7 +44,19 @@
                         <input id="RewatchCompleted" name="RewatchCompleted" type="checkbox" is="emby-checkbox"/>
                         <span>Automatically set completed shows as rewatching?</span>
                     </label>
-                    <div class="fieldDescription">When watching an anime you have already seen, automatically set the anime as rewatching (or increase the rewatch value by 1 if the series is a single episode/movie).</div>
+                    <div class="fieldDescription">When watching an anime you have already seen, automatically set the
+                        anime as rewatching (or increase the rewatch value by 1 if the series is a single
+                        episode/movie).
+                    </div>
+                </div>
+                <div>
+                    <h3 class="checkboxListLabel">Libraries to check:</h3>
+                    <div id="libraries" class="paperList checkboxList checkboxList-paperList">
+                    </div>
+                    <div class="fieldDescription">The libraries to monitor completed anime for. Any non-checked
+                        libraries will not be monitored (dedicated anime-only libraries are advised if possible),
+                        unlesss it is left empty in which case <b>ALL libraries will be checked.</b>
+                    </div>
                 </div>
                 <div class="inputContainer">
                     <label class="inputeLabel inputLabelUnfocused" for="AString">A String</label>
@@ -71,26 +83,41 @@
                 .then((response) => response.json())
                 .then((json) => document.querySelector('#authorizeLink').innerHTML = json);
         }
-        
+
         function getUser() {
             document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
             fetch("/AniSync/user", {
                 method: "GET"
             })
-            .then((response) => response.json())
-            .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
+                .then((response) => response.json())
+                .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
         }
 
         document.querySelector('#TemplateConfigPage')
             .addEventListener('pageshow', function () {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(TemplateConfig.pluginUniqueId).then(function (config) {
+                    TemplateConfig.LibraryToCheck = config.LibraryToCheck || [];
                     document.querySelector('#Options').value = config.Options;
                     document.querySelector('#AnInteger').value = config.AnInteger;
                     document.querySelector('#PlanToWatchOnly').checked = config.PlanToWatchOnly;
                     document.querySelector('#RewatchCompleted').checked = config.RewatchCompleted;
                     document.querySelector('#AString').value = config.AString;
                     Dashboard.hideLoadingMsg();
+
+                    ApiClient.getVirtualFolders(TemplateConfig.pluginUniqueId).then(function (result) {
+                        var html = '';
+                        html += '<div data-role="controlgroup">';
+                        for (var x = 0; x < result.length; x++) {
+                            html += '<label><input ';
+                            if (TemplateConfig.LibraryToCheck.includes(result[x].ItemId)) {
+                                html += 'checked="true" ';
+                            }
+                            html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + result[x].ItemId + '" name="' + result[x].Name + '"/><span>' + result[x].Name + '</span></label>';
+                        }
+                        html += '</div>';
+                        document.querySelector('#libraries').innerHTML = html;
+                    });
                 });
             });
 
@@ -98,6 +125,9 @@
             .addEventListener('submit', function (e) {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(TemplateConfig.pluginUniqueId).then(function (config) {
+                    config.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
+                        return element.getAttribute('id');
+                    });
                     config.Options = document.querySelector('#Options').value;
                     config.AnInteger = document.querySelector('#AnInteger').value;
                     config.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;

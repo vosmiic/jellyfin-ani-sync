@@ -60,6 +60,7 @@ namespace jellyfin_ani_sync.Configuration {
         public SomeOptions Options { get; set; }
 
         public ApiAuth[] ApiAuth { get; set; }
+        public string[] LibraryToCheck  { get; set; }
         
         public void AddApiAuth(ApiAuth apiAuth)
         {
