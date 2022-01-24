@@ -172,11 +172,11 @@ public class ServerEntry : IServerEntryPoint {
             "num_episodes", "start_season", "broadcast", "source", "average_episode_duration", "rating", "pictures",
             "background", "related_anime", "related_manga", "recommendations", "studios", "statistics"
         });
-        if (status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) {
+        if ((status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) || status == null) {
             return anime;
         }
 
-        return anime;
+        return null;
     }
 
     /// <summary>
