@@ -157,7 +157,7 @@ public class MalApiCalls {
     }
 
     public async Task<UpdateAnimeStatusResponse> UpdateAnimeStatus(int animeId, int numberOfWatchedEpisodes, Status? status = null,
-        bool? isRewatching = null, int? numberOfTimesRewatched = null) {
+        bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/anime/{animeId}/my_list_status"
         };
@@ -176,6 +176,14 @@ public class MalApiCalls {
 
         if (numberOfTimesRewatched != null) {
             body.Add(new KeyValuePair<string, string>("num_times_rewatched", numberOfTimesRewatched.Value.ToString()));
+        }
+
+        if (startDate != null) {
+            body.Add(new KeyValuePair<string, string>("start_date", startDate.Value.ToString("yyyy-MM-dd")));
+        }
+        
+        if (endDate != null) {
+            body.Add(new KeyValuePair<string, string>("finish_date", endDate.Value.ToString("yyyy-MM-dd")));
         }
 
         var builtUrl = url.Build();

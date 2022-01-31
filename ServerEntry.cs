@@ -120,7 +120,7 @@ public class ServerEntry : IServerEntryPoint {
             // search for plan to watch first, then completed
             // todo refactor
             if (Plugin.Instance.PluginConfiguration.PlanToWatchOnly) {
-                detectedAnime = await GetAnime(matchingAnime.Id, Status.Plan_to_watch); // this also needs to be for rewatch completed or below needs reshuffling
+                detectedAnime = await GetAnime(matchingAnime.Id, Status.Plan_to_watch);
                 if (detectedAnime != null) {
                     _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({matchingAnime.Title}) found on plan to watch list");
                     await UpdateAnimeStatus(detectedAnime, anime.IndexNumber);
@@ -191,7 +191,7 @@ public class ServerEntry : IServerEntryPoint {
                     // movie has only one episode, so just mark it as finished
                     if (episodeNumber.Value == detectedAnime.NumEpisodes) {
                         // user has reached the number of episodes in the anime, set as completed
-                        var response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed);
+                        var response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
                         _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete in MAL");
                         if (detectedAnime.MyListStatus.IsRewatching || (_animeType == typeof(Movie) && detectedAnime.MyListStatus.Status == Status.Completed)) {
                             // also increase number of times re-watched by 1
@@ -205,7 +205,13 @@ public class ServerEntry : IServerEntryPoint {
                             _logger.LogInformation($"User is re-watching {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}), set as completed but update re-watch progress");
                             await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed);
                         } else {
-                            await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                            if (episodeNumber > 1) {
+                                // don't set start date after first episode
+                                await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                            } else {
+                                _logger.LogInformation($"Setting new {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}) as watching.");
+                                await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching, startDate: DateTime.Now);
+                            }
                         }
                     }
 
