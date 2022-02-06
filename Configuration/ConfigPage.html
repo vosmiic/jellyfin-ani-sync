@@ -10,6 +10,9 @@
     <div data-role="content">
         <div class="content-primary">
             <form id="TemplateConfigForm">
+                <div class="selectContainer">
+                    <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
+                </div>
                 <button is="emby-button" type="button" id="authorizeDevice" class="raised block"
                         onclick="onAuthorizeButtonClick()">Authorize device
                 </button>
@@ -72,12 +75,12 @@
         </div>
     </div>
     <script type="text/javascript">
-        var TemplateConfig = {
+        var PluginConfig = {
             pluginUniqueId: 'c78f11cf-93e6-4423-8c42-d2c255b70e47'
         };
 
         function onAuthorizeButtonClick() {
-            fetch("/AniSync/buildAuthorizeRequestUrl", {
+            fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value, {
                 method: "GET"
             })
                 .then((response) => response.json())
@@ -92,49 +95,89 @@
                 .then((response) => response.json())
                 .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
         }
+        
+        function populateUserList(users) {
+            var html = '';
+            for (var x = 0; x < users.length; x++) {
+                html += '<option value="' + users[x].Id + '">' + users[x].Name + '</option>';
+            }
+            document.querySelector('#selectUser').innerHTML = html;
+        }
+        
+        function loadUserConfiguration(userId) {
+            Dashboard.showLoadingMsg();
+            ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+                var currentUser = config.UserConfig.filter(function (item) {
+                    return item.UserId === userId;
+                });
+                
+                if (currentUser == null || currentUser === void(0)) {
+                    // user does not have an existing configuration setup so use default values.
+                    currentUser.LibraryToCheck = [];
+                    currentUser.PlanToWatchOnly = true;
+                    currentUser.RewatchCompleted = true;
+                }
+                
+                PluginConfig.LibraryToCheck = currentUser.LibraryToCheck || [];
+                document.querySelector('#PlanToWatchOnly').checked = currentUser.PlanToWatchOnly;
+                document.querySelector('#RewatchCompleted').checked = currentUser.RewatchCompleted;
+                Dashboard.hideLoadingMsg();
+
+                ApiClient.getVirtualFolders(PluginConfig.pluginUniqueId).then(function (result) {
+                    var html = '';
+                    html += '<div data-role="controlgroup">';
+                    for (var x = 0; x < result.length; x++) {
+                        html += '<label><input ';
+                        if (PluginConfig.LibraryToCheck.includes(result[x].ItemId)) {
+                            html += 'checked="true" ';
+                        }
+                        html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + result[x].ItemId + '" name="' + result[x].Name + '"/><span>' + result[x].Name + '</span></label>';
+                    }
+                    html += '</div>';
+                    document.querySelector('#libraries').innerHTML = html;
+                });
+            });
+        }
 
         document.querySelector('#TemplateConfigPage')
-            .addEventListener('pageshow', function () {
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(TemplateConfig.pluginUniqueId).then(function (config) {
-                    TemplateConfig.LibraryToCheck = config.LibraryToCheck || [];
-                    document.querySelector('#Options').value = config.Options;
-                    document.querySelector('#AnInteger').value = config.AnInteger;
-                    document.querySelector('#PlanToWatchOnly').checked = config.PlanToWatchOnly;
-                    document.querySelector('#RewatchCompleted').checked = config.RewatchCompleted;
-                    document.querySelector('#AString').value = config.AString;
-                    Dashboard.hideLoadingMsg();
-
-                    ApiClient.getVirtualFolders(TemplateConfig.pluginUniqueId).then(function (result) {
-                        var html = '';
-                        html += '<div data-role="controlgroup">';
-                        for (var x = 0; x < result.length; x++) {
-                            html += '<label><input ';
-                            if (TemplateConfig.LibraryToCheck.includes(result[x].ItemId)) {
-                                html += 'checked="true" ';
-                            }
-                            html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + result[x].ItemId + '" name="' + result[x].Name + '"/><span>' + result[x].Name + '</span></label>';
-                        }
-                        html += '</div>';
-                        document.querySelector('#libraries').innerHTML = html;
-                    });
-                });
+            .addEventListener('pageshow', function (userId) {
+                ApiClient.getUsers().then(function (users) {
+                    populateUserList(users);
+                    PluginConfig.userId = document.querySelector('#selectUser').value;
+                    loadUserConfiguration(document.querySelector('#selectUser').value)
+                })
             });
 
         document.querySelector('#TemplateConfigForm')
             .addEventListener('submit', function (e) {
                 Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(TemplateConfig.pluginUniqueId).then(function (config) {
-                    config.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
+                ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+                    var userId = document.querySelector('#selectUser').value;
+
+                    var userConfig = config.UserConfig.filter(function (item) {
+                        return item.UserId == userId;
+                    })[0];
+                    
+                    if (!userConfig) {
+                        userConfig = {};
+                        config.UserConfig.push(userConfig);
+                    }
+                    
+                    userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                         return element.getAttribute('id');
                     });
-                    config.Options = document.querySelector('#Options').value;
-                    config.AnInteger = document.querySelector('#AnInteger').value;
-                    config.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
-                    config.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
-                    config.AString = document.querySelector('#AString').value;
-                    ApiClient.updatePluginConfiguration(TemplateConfig.pluginUniqueId, config).then(function (result) {
+                    userConfig.UserId = userId;
+                    userConfig.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
+                    userConfig.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
+
+                    ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
+                        ApiClient.getUsers().then(function (users) {
+                            populateUserList(users);
+                            document.querySelector('#selectUser').value = userId;
+                            loadUserConfiguration(userId);
+                            resolve();
+                        });
                     });
                 });
                 e.preventDefault();

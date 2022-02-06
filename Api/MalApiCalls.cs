@@ -20,6 +20,7 @@ namespace jellyfin_ani_sync.Api;
 public class MalApiCalls {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<MalApiCalls> _logger;
+    public UserConfig UserConfig { get; set; }
     private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
     private readonly string _apiBaseUrl = "https://api.myanimelist.net/";
     private readonly int _apiVersion = 2;
@@ -219,7 +220,7 @@ public class MalApiCalls {
     /// <exception cref="AuthenticationException">Could not authenticate with the MAL API.</exception>
     private async Task<HttpResponseMessage> MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
         int attempts = 0;
-        var auth = Plugin.Instance.PluginConfiguration.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
+        var auth = UserConfig.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
         while (attempts < 2) {
             var client = _httpClientFactory.CreateClient(NamedClient.Default);
 
@@ -261,7 +262,7 @@ public class MalApiCalls {
             } else {
                 if (responseMessage.StatusCode == HttpStatusCode.Unauthorized) {
                     // token has probably expired; try refreshing it
-                    var newAuth = new MalApiAuthentication(_httpClientFactory).GetMalToken(refreshToken: auth.RefreshToken);
+                    var newAuth = new MalApiAuthentication(_httpClientFactory).GetMalToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                     // and then make the call again, using the new auth details
                     auth = newAuth;
                     attempts++;

@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading.Tasks;
 using jellyfin_ani_sync.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
@@ -10,40 +13,31 @@ namespace jellyfin_ani_sync.Api {
     public class AniSyncController : ControllerBase {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly IMemoryCache _memoryCache;
 
-        public AniSyncController(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) {
+        public AniSyncController(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IMemoryCache memoryCache) {
             _httpClientFactory = httpClientFactory;
             _loggerFactory = loggerFactory;
+            _memoryCache = memoryCache;
         }
 
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
-        public string BuildAuthorizeRequestUrl() {
-            return new MalApiAuthentication(_httpClientFactory).BuildAuthorizeRequestUrl();
+        public string BuildAuthorizeRequestUrl(string userId) {
+            return new MalApiAuthentication(_httpClientFactory, _memoryCache).BuildAuthorizeRequestUrl(userId);
         }
 
         [HttpGet]
         [Route("authCallback")]
         public void MalCallback(string code) {
-            new MalApiAuthentication(_httpClientFactory).GetMalToken(code);
+            new MalApiAuthentication(_httpClientFactory, _memoryCache).GetMalToken(Guid.Parse(_memoryCache.Get<string>("userId")), code);
+            _memoryCache.Remove("userId");
         }
 
         [HttpGet]
         [Route("user")]
-        public MalApiCalls.User GetUser() {
-            return new MalApiCalls(_httpClientFactory, _loggerFactory).GetUserInformation();
-        }
-        
-        /// <summary>
-        /// Search the MAL database for anime.
-        /// </summary>
-        /// <param name="query">Search by title.</param>
-        /// <param name="fields">The fields you would like returned.</param>
-        /// <returns>List of anime.</returns>
-        [HttpGet]
-        [Route("searchAnime")]
-        public List<Anime> SearchAnime(string query, string fields) {
-            return new MalApiCalls(_httpClientFactory, _loggerFactory).SearchAnime("railgun", fields.Split(","));
+        public async Task<MalApiCalls.User> GetUser() {
+            return await new MalApiCalls(_httpClientFactory, _loggerFactory).GetUserInformation();
         }
     }
 }
