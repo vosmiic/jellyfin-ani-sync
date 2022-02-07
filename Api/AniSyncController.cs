@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Models;
@@ -36,8 +37,15 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("user")]
-        public async Task<MalApiCalls.User> GetUser() {
-            return await new MalApiCalls(_httpClientFactory, _loggerFactory).GetUserInformation();
+        public async Task<MalApiCalls.User> GetUser(string userId) {
+            MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory);
+            try {
+                malApiCalls.UserConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
+            } catch (ArgumentNullException e) {
+                _loggerFactory.CreateLogger<AniSyncController>().LogError("User not found");
+                throw;
+            }
+            return await malApiCalls.GetUserInformation();
         }
     }
 }
