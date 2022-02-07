@@ -5,21 +5,6 @@ using MediaBrowser.Model.Plugins;
 
 namespace jellyfin_ani_sync.Configuration {
     /// <summary>
-    /// The configuration options.
-    /// </summary>
-    public enum SomeOptions {
-        /// <summary>
-        /// Option one.
-        /// </summary>
-        OneOption,
-
-        /// <summary>
-        /// Second option.
-        /// </summary>
-        AnotherOption
-    }
-
-    /// <summary>
     /// Plugin configuration.
     /// </summary>
     public class PluginConfiguration : BasePluginConfiguration {
