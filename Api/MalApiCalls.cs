@@ -220,14 +220,17 @@ public class MalApiCalls {
     /// <exception cref="AuthenticationException">Could not authenticate with the MAL API.</exception>
     private async Task<HttpResponseMessage> MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
         int attempts = 0;
-        var auth = UserConfig.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
+        ApiAuth auth;
+        try {
+            auth = UserConfig.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
+        } catch (ArgumentNullException) {
+            _logger.LogError("Could not find authentication details, please authenticate the plugin first");
+            throw;
+        }
+        
         while (attempts < 2) {
             var client = _httpClientFactory.CreateClient(NamedClient.Default);
-
-            if (auth == null) {
-                _logger.LogError("Could not find authentication details, please authenticate the plugin first");
-                throw new NullReferenceException();
-            }
+            
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
             HttpResponseMessage responseMessage = new HttpResponseMessage();
