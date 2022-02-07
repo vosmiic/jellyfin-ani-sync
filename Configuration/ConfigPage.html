@@ -72,11 +72,17 @@
 
         function getUser() {
             document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
-            fetch("/AniSync/user", {
+            fetch("/AniSync/user?userId=" + document.querySelector('#selectUser').value, {
                 method: "GET"
             })
-                .then((response) => response.json())
-                .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
+                .then(function (response) {
+                    if (response.ok) {
+                        return response.json()
+                            .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
+                    } else {
+                        document.querySelector('#getUserResponse').innerHTML = "Test returned an error - try authenticating again or check the logs for a detailed error reason."
+                    }
+                });
         }
 
         function populateUserList(users) {
