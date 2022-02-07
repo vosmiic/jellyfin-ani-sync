@@ -24,18 +24,6 @@
                     Test Authentication
                 </button>
                 <span id="getUserResponse"></span>
-                <div class="selectContainer">
-                    <label class="selectLabel" for="Options">Several Options</label>
-                    <select is="emby-select" id="Options" name="Options" class="emby-select-withcolor emby-select">
-                        <option id="optOneOption" value="OneOption">One Option</option>
-                        <option id="optAnotherOption" value="AnotherOption">Another Option</option>
-                    </select>
-                </div>
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="AnInteger">An Integer</label>
-                    <input id="AnInteger" name="AnInteger" type="number" is="emby-input" min="0"/>
-                    <div class="fieldDescription">A Description</div>
-                </div>
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label class="emby-checkbox-label">
                         <input id="PlanToWatchOnly" name="PlanToWatchOnly" type="checkbox" is="emby-checkbox"/>
@@ -60,11 +48,6 @@
                         libraries will not be monitored (dedicated anime-only libraries are advised if possible),
                         unlesss it is left empty in which case <b>ALL libraries will be checked.</b>
                     </div>
-                </div>
-                <div class="inputContainer">
-                    <label class="inputeLabel inputLabelUnfocused" for="AString">A String</label>
-                    <input id="AString" name="AString" type="text" is="emby-input"/>
-                    <div class="fieldDescription">Another Description</div>
                 </div>
                 <div>
                     <button is="emby-button" type="submit" class="raised button-submit block emby-button">
@@ -95,7 +78,7 @@
                 .then((response) => response.json())
                 .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
         }
-        
+
         function populateUserList(users) {
             var html = '';
             for (var x = 0; x < users.length; x++) {
@@ -103,21 +86,22 @@
             }
             document.querySelector('#selectUser').innerHTML = html;
         }
-        
+
         function loadUserConfiguration(userId) {
             Dashboard.showLoadingMsg();
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
                 var currentUser = config.UserConfig.filter(function (item) {
                     return item.UserId === userId;
-                });
-                
-                if (currentUser == null || currentUser === void(0)) {
+                })[0];
+
+                if (!currentUser) {
                     // user does not have an existing configuration setup so use default values.
+                    currentUser = {};
                     currentUser.LibraryToCheck = [];
                     currentUser.PlanToWatchOnly = true;
                     currentUser.RewatchCompleted = true;
                 }
-                
+
                 PluginConfig.LibraryToCheck = currentUser.LibraryToCheck || [];
                 document.querySelector('#PlanToWatchOnly').checked = currentUser.PlanToWatchOnly;
                 document.querySelector('#RewatchCompleted').checked = currentUser.RewatchCompleted;
@@ -140,13 +124,18 @@
         }
 
         document.querySelector('#TemplateConfigPage')
-            .addEventListener('pageshow', function (userId) {
+            .addEventListener('pageshow', function () {
                 ApiClient.getUsers().then(function (users) {
                     populateUserList(users);
-                    PluginConfig.userId = document.querySelector('#selectUser').value;
+                    var userId = document.querySelector('#selectUser').value;
                     loadUserConfiguration(document.querySelector('#selectUser').value)
                 })
             });
+
+        document.querySelector('#selectUser')
+            .addEventListener('change', function () {
+                loadUserConfiguration(document.querySelector('#selectUser').value);
+            })
 
         document.querySelector('#TemplateConfigForm')
             .addEventListener('submit', function (e) {
@@ -157,12 +146,12 @@
                     var userConfig = config.UserConfig.filter(function (item) {
                         return item.UserId == userId;
                     })[0];
-                    
+
                     if (!userConfig) {
                         userConfig = {};
                         config.UserConfig.push(userConfig);
                     }
-                    
+
                     userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                         return element.getAttribute('id');
                     });
@@ -176,7 +165,6 @@
                             populateUserList(users);
                             document.querySelector('#selectUser').value = userId;
                             loadUserConfiguration(userId);
-                            resolve();
                         });
                     });
                 });
