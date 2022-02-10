@@ -18,7 +18,7 @@
                 <div class="inputContainer">
                     <label class="inputeLabel inputLabelUnfocused" for="clientSecret">Client Secret</label>
                     <input id="clientSecret" name="clientSecret" type="text" is="emby-input" />
-                    <div class="fieldDescription">The client secret from your MAL application.</div>
+                    <div class="fieldDescription">The client secret from your MAL application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b></div>
                 </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
@@ -26,9 +26,9 @@
                 <button is="emby-button" type="button" id="authorizeDevice" class="raised block"
                         onclick="onAuthorizeButtonClick()">Authorize device
                 </button>
-                <span>Click on the button above and then open the link that appears below.</span>
+                <div class="fieldDescription">Click on the button above and then open the link that appears below.<b>The access token will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b></div>
                 <a id="authorizeLink"></a>
-                <span>Once you have authenticated your account, click the below button to test the authentication:</span>
+                <div class="fieldDescription">Once you have authenticated your account, click the below button to test the authentication:</div>
                 <button is="emby-button" type="button" id="testAuthentication" class="raised block"
                         onclick="getUser()">
                     Test Authentication
