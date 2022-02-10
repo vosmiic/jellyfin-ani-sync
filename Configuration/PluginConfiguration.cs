@@ -12,6 +12,8 @@ namespace jellyfin_ani_sync.Configuration {
         /// Initializes a new instance of the <see cref="PluginConfiguration"/> class.
         /// </summary>
         public UserConfig[] UserConfig { get; set; }
+        
+        public ProviderApiAuth[] ProviderApiAuth { get; set; }
 
         public void AddUser(UserConfig userConfig) {
             if (userConfig != null) {

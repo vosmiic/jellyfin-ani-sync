@@ -10,6 +10,16 @@
     <div data-role="content">
         <div class="content-primary">
             <form id="TemplateConfigForm">
+                <div class="inputContainer">
+                    <label class="inputeLabel inputLabelUnfocused" for="clientId">Client ID</label>
+                    <input id="clientId" name="clientId" type="text" is="emby-input" />
+                    <div class="fieldDescription">The client ID from your MAL application.</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputeLabel inputLabelUnfocused" for="clientSecret">Client Secret</label>
+                    <input id="clientSecret" name="clientSecret" type="text" is="emby-input" />
+                    <div class="fieldDescription">The client secret from your MAL application.</div>
+                </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
                 </div>
@@ -63,7 +73,11 @@
         };
 
         function onAuthorizeButtonClick() {
-            fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value, {
+            // users are unlikely to save after setting client id and secret, so we do it for them
+            saveProviderAuth();
+            fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value + 
+                "&clientId=" + document.querySelector('#clientId').value +
+                "&clientSecret=" + document.querySelector('#clientSecret').value, {
                 method: "GET"
             })
                 .then((response) => response.json())
@@ -128,14 +142,61 @@
                 });
             });
         }
+        
+        function saveProviderAuth() {
+            ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+                setProviderApiAuthConfig(config);
+                
+                ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                });
+                });
+            }
+            
+            function setProviderApiAuthConfig(config) {
+                const clientId = document.querySelector('#clientId').value;
+                const clientSecret = document.querySelector('#clientSecret').value;
+                if (config.ProviderApiAuth != null && config.ProviderApiAuth.length > 0) {
+                    let malDetails = config.ProviderApiAuth.filter(function (item) {
+                        return item.Name === "Mal"
+                    })[0];
+
+                    if (clientId && clientSecret) {
+                        malDetails.ClientId = clientId;
+                        malDetails.ClientSecret = clientSecret;
+                    } else {
+                        config.ProviderApiAuth.splice(config.ProviderApiAuth.indexOf(malDetails), 1);
+                    }
+                } else {
+                    config.ProviderApiAuth = [];
+                    config.ProviderApiAuth.push({
+                        Name: "Mal",
+                        ClientId: document.querySelector('#clientId').value,
+                        ClientSecret: document.querySelector('#clientSecret').value
+                    });
+                }
+            }
+        
+        function loadConfiguration() {
+            ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+                if (config.ProviderApiAuth != null && config.ProviderApiAuth.length > 0) {
+                    var malDetails = config.ProviderApiAuth.filter(function (item) {
+                        return item.Name === "Mal"
+                    })[0];
+                    document.querySelector('#clientId').value = malDetails.ClientId;
+                    document.querySelector('#clientSecret').value = malDetails.ClientSecret;
+                }
+            });
+        }
 
         document.querySelector('#TemplateConfigPage')
             .addEventListener('pageshow', function () {
                 ApiClient.getUsers().then(function (users) {
                     populateUserList(users);
                     var userId = document.querySelector('#selectUser').value;
-                    loadUserConfiguration(document.querySelector('#selectUser').value)
-                })
+                    loadUserConfiguration(document.querySelector('#selectUser').value);
+                    loadConfiguration();
+                });
             });
 
         document.querySelector('#selectUser')
@@ -157,6 +218,7 @@
                         userConfig = {};
                         config.UserConfig.push(userConfig);
                     }
+                    setProviderApiAuthConfig(config);
 
                     userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                         return element.getAttribute('id');

@@ -23,15 +23,15 @@ public class UserConfig {
     /// </summary>
     public bool RewatchCompleted { get; set; }
 
-    public ApiAuth[] ApiAuth { get; set; }
+    public UserApiAuth[] UserApiAuth { get; set; }
 
-    public void AddApiAuth(ApiAuth apiAuth) {
-        if (ApiAuth != null) {
-            var apiAuthList = ApiAuth.ToList();
-            apiAuthList.Add(apiAuth);
-            ApiAuth = apiAuthList.ToArray();
+    public void AddUserApiAuth(UserApiAuth userApiAuth) {
+        if (UserApiAuth != null) {
+            var apiAuthList = UserApiAuth.ToList();
+            apiAuthList.Add(userApiAuth);
+            UserApiAuth = apiAuthList.ToArray();
         } else {
-            ApiAuth = new[] { apiAuth };
+            UserApiAuth = new[] { userApiAuth };
         }
     }
 

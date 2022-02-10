@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -24,8 +25,8 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
-        public string BuildAuthorizeRequestUrl(string userId) {
-            return new MalApiAuthentication(_httpClientFactory, _memoryCache).BuildAuthorizeRequestUrl(userId);
+        public string BuildAuthorizeRequestUrl(string userId, string clientId, string clientSecret) {
+            return new MalApiAuthentication(_httpClientFactory, _memoryCache, new ProviderApiAuth{ClientId = clientId, ClientSecret = clientSecret}).BuildAuthorizeRequestUrl(userId);
         }
 
         [HttpGet]

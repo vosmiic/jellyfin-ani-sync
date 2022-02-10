@@ -152,7 +152,7 @@ public class MalApiCalls {
                 builtUrl = userAnimeListPage.Paging.Next;
             }
         }
-        
+
         _logger.LogInformation("Got user anime list");
         return userAnimeList.Data.ToList();
     }
@@ -182,15 +182,15 @@ public class MalApiCalls {
         if (startDate != null) {
             body.Add(new KeyValuePair<string, string>("start_date", startDate.Value.ToString("yyyy-MM-dd")));
         }
-        
+
         if (endDate != null) {
             body.Add(new KeyValuePair<string, string>("finish_date", endDate.Value.ToString("yyyy-MM-dd")));
         }
 
         var builtUrl = url.Build();
-        
+
         var apiCall = await MalApiCall(CallType.PUT, builtUrl, new FormUrlEncodedContent(body.ToArray()));
-        
+
         StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
         var options = new JsonSerializerOptions();
         options.Converters.Add(new JsonStringEnumConverter());
@@ -220,17 +220,17 @@ public class MalApiCalls {
     /// <exception cref="AuthenticationException">Could not authenticate with the MAL API.</exception>
     private async Task<HttpResponseMessage> MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
         int attempts = 0;
-        ApiAuth auth;
+        UserApiAuth auth;
         try {
-            auth = UserConfig.ApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
+            auth = UserConfig.UserApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
         } catch (ArgumentNullException) {
             _logger.LogError("Could not find authentication details, please authenticate the plugin first");
             throw;
         }
-        
+
         while (attempts < 2) {
             var client = _httpClientFactory.CreateClient(NamedClient.Default);
-            
+
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
             HttpResponseMessage responseMessage = new HttpResponseMessage();
