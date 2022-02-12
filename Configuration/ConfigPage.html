@@ -11,9 +11,9 @@
         <div class="content-primary">
             <form id="TemplateConfigForm">
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="apiUrl">API URL</label>
+                    <label class="inputLabel inputLabelUnfocused" for="apiUrl">API endpoint</label>
                     <input id="apiUrl" name="callbackUrl" type="text" is="emby-input"/>
-                    <div class="fieldDescription">The API URL, required by the MAL callback URL. This will change
+                    <div class="fieldDescription">The API endpoint, required by the MAL callback URL. This will change
                         depending on if you are connecting locally or via the internet.
                     </div>
                     <div class="fieldDescription" id="localApiUrl"></div>
@@ -28,13 +28,13 @@
                     <div class="fieldDescription">You can test if the URL is correct by visiting "&#60;URL&#62;/AniSync/apiUrlTest".</div>
                 </div>
                 <div class="inputContainer">
-                    <label class="inputeLabel inputLabelUnfocused" for="clientId">Client ID</label>
+                    <label class="inputLabel inputLabelUnfocused" for="clientId">Client ID</label>
                     <input id="clientId" name="clientId" type="text" is="emby-input"/>
                     <div class="fieldDescription">The client ID from your MAL application.</div>
                 </div>
                 <div class="inputContainer">
-                    <label class="inputeLabel inputLabelUnfocused" for="clientSecret">Client Secret</label>
-                    <input id="clientSecret" name="clientSecret" type="text" is="emby-input"/>
+                    <label class="inputLabel inputLabelUnfocused" for="clientSecret">Client Secret</label>
+                    <input id="clientSecret" name="clientSecret" type="password" is="emby-input"/>
                     <div class="fieldDescription">The client secret from your MAL application.<b>This value will be
                         stored in plain text in the plugin config. Make sure no untrusted users have access to the
                         file.</b></div>
@@ -43,13 +43,13 @@
                     <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
                 </div>
                 <button is="emby-button" type="button" id="authorizeDevice" class="raised block"
-                        onclick="onAuthorizeButtonClick()">Authorize device
+                        onclick="onAuthorizeButtonClick()">Authorize User
                 </button>
                 <div class="fieldDescription">Click on the button above and then open the link that appears below.<b>The
                     access token will be stored in plain text in the plugin config. Make sure no untrusted users have
                     access to the file.</b></div>
                 <a id="authorizeLink"></a>
-                <div class="fieldDescription">Once you have authenticated your account, click the below button to test
+                <div class="fieldDescription">Once you have authenticated your user, click the below button to test
                     the authentication:
                 </div>
                 <button is="emby-button" type="button" id="testAuthentication" class="raised block"
@@ -151,9 +151,14 @@
         function loadUserConfiguration(userId) {
             Dashboard.showLoadingMsg();
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
-                var currentUser = config.UserConfig.filter(function (item) {
-                    return item.UserId === userId;
-                })[0];
+                let currentUser;
+                if (config.UserConfig != null && config.UserConfig.length > 0) {
+                    currentUser = config.UserConfig.filter(function (item) {
+                        return item.UserId === userId;
+                    })[0];
+                } else {
+                    currentUser = null;
+                }
 
                 if (!currentUser) {
                     // user does not have an existing configuration setup so use default values.
@@ -264,9 +269,15 @@
                 ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
                     var userId = document.querySelector('#selectUser').value;
 
-                    var userConfig = config.UserConfig.filter(function (item) {
-                        return item.UserId == userId;
-                    })[0];
+                    let userConfig;
+                    if (config.UserConfig != null && config.UserConfig.length > 0) {
+                        userConfig = config.UserConfig.filter(function (item) {
+                            return item.UserId == userId;
+                        })[0];
+                    } else {
+                        config.UserConfig = [];
+                        userConfig = null;
+                    }
 
                     if (!userConfig) {
                         userConfig = {};
