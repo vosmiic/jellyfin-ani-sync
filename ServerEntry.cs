@@ -54,49 +54,50 @@ public class ServerEntry : IServerEntryPoint {
             video.IndexNumber = 1;
         }
 
-        foreach (User user in e.Users) {
-            _userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == user.Id);
-            if (LibraryCheck(e.Item) && video is Episode or Movie) {
-                // todo add played to completion after debug
-                _malApiCalls.UserConfig = _userConfig;
-                List<Anime> animeList = await _malApiCalls.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name, new[] { "id", "title", "alternative_titles" });
-                foreach (var anime in animeList) {
-                    if (String.Compare(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0 ||
-                        String.Compare(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0) {
-                        _logger.LogInformation($"Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
-                        Anime matchingAnime = anime;
-                        if (episode?.Season.IndexNumber is > 1) {
-                            // if this is not the first season, then we need to lookup the related season.
-                            // we dont yet support specials, which are considered season 0 in jellyfin.
-                            try {
-                                matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
-                            } catch (NullReferenceException exception) {
-                                _logger.LogError(exception.Message);
-                                _logger.LogWarning("Could not find next season");
-                                return;
+        if (Plugin.Instance.PluginConfiguration.ProviderApiAuth is { Length: > 0 }) {
+            foreach (User user in e.Users) {
+                _userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == user.Id);
+                if (LibraryCheck(e.Item) && video is Episode or Movie && video.IsCompleteMedia) {
+                    _malApiCalls.UserConfig = _userConfig;
+                    List<Anime> animeList = await _malApiCalls.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name, new[] { "id", "title", "alternative_titles" });
+                    foreach (var anime in animeList) {
+                        if (String.Compare(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0 ||
+                            String.Compare(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0) {
+                            _logger.LogInformation($"Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
+                            Anime matchingAnime = anime;
+                            if (episode?.Season.IndexNumber is > 1) {
+                                // if this is not the first season, then we need to lookup the related season.
+                                // we dont yet support specials, which are considered season 0 in jellyfin.
+                                try {
+                                    matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
+                                } catch (NullReferenceException exception) {
+                                    _logger.LogError(exception.Message);
+                                    _logger.LogWarning("Could not find next season");
+                                    return;
+                                }
+
+                                _logger.LogInformation(matchingAnime.Title);
                             }
 
-                            _logger.LogInformation(matchingAnime.Title);
-                        }
-
-                        if (video is Episode) {
-                            Anime detectedAnime = await GetAnime(matchingAnime.Id, Status.Watching);
-                            if (detectedAnime != null) {
-                                _logger.LogInformation($"Series ({matchingAnime.Title}) found on watching list");
-                                await UpdateAnimeStatus(detectedAnime, episode.IndexNumber);
-                                return;
+                            if (video is Episode) {
+                                Anime detectedAnime = await GetAnime(matchingAnime.Id, Status.Watching);
+                                if (detectedAnime != null) {
+                                    _logger.LogInformation($"Series ({matchingAnime.Title}) found on watching list");
+                                    await UpdateAnimeStatus(detectedAnime, episode.IndexNumber);
+                                    return;
+                                } else {
+                                    UpdateNotBeingWatchedAnime(matchingAnime, video);
+                                    return;
+                                }
                             } else {
                                 UpdateNotBeingWatchedAnime(matchingAnime, video);
                                 return;
                             }
-                        } else {
-                            UpdateNotBeingWatchedAnime(matchingAnime, video);
-                            return;
                         }
                     }
-                }
 
-                _logger.LogWarning("Series not found");
+                    _logger.LogWarning("Series not found");
+                }
             }
         }
     }
