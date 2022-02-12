@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Models;
 using Jellyfin.Data.Entities;
+using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
@@ -28,10 +29,11 @@ public class ServerEntry : IServerEntryPoint {
     private readonly IFileSystem _fileSystem;
 
     public ServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory,
-        IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem) {
+        IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem,
+        IServerApplicationHost serverApplicationHost) {
         _sessionManager = sessionManager;
         _logger = loggerFactory.CreateLogger<ServerEntry>();
-        _malApiCalls = new MalApiCalls(httpClientFactory, loggerFactory);
+        _malApiCalls = new MalApiCalls(httpClientFactory, loggerFactory, serverApplicationHost);
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
     }

@@ -12,6 +12,7 @@ using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
+using MediaBrowser.Controller;
 using MediaBrowser.Controller.Authentication;
 using Microsoft.Extensions.Logging;
 
@@ -20,6 +21,7 @@ namespace jellyfin_ani_sync.Api;
 public class MalApiCalls {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<MalApiCalls> _logger;
+    private readonly IServerApplicationHost _serverApplicationHost;
     public UserConfig UserConfig { get; set; }
     private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
     private readonly string _apiBaseUrl = "https://api.myanimelist.net/";
@@ -27,9 +29,10 @@ public class MalApiCalls {
 
     private string ApiUrl => _apiBaseUrl + "v" + _apiVersion;
 
-    public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) {
+    public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost) {
         _httpClientFactory = httpClientFactory;
         _logger = loggerFactory.CreateLogger<MalApiCalls>();
+        _serverApplicationHost = serverApplicationHost;
     }
 
     public class User {
@@ -265,7 +268,7 @@ public class MalApiCalls {
             } else {
                 if (responseMessage.StatusCode == HttpStatusCode.Unauthorized) {
                     // token has probably expired; try refreshing it
-                    var newAuth = new MalApiAuthentication(_httpClientFactory).GetMalToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
+                    var newAuth = new MalApiAuthentication(_httpClientFactory, _serverApplicationHost).GetMalToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                     // and then make the call again, using the new auth details
                     auth = newAuth;
                     attempts++;

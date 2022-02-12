@@ -11,14 +11,33 @@
         <div class="content-primary">
             <form id="TemplateConfigForm">
                 <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="apiUrl">API URL</label>
+                    <input id="apiUrl" name="callbackUrl" type="text" is="emby-input"/>
+                    <div class="fieldDescription">The API URL, required by the MAL callback URL. This will change
+                        depending on if you are connecting locally or via the internet.
+                    </div>
+                    <div class="fieldDescription" id="localApiUrl"></div>
+                    <div class="fieldDescription" id="userAddress"></div>
+                    <div class="fieldDescription">If you are connecting locally, you probably don't have to change
+                        anything and can leave the above value blank. If you are connecting from the internet, please
+                        change the value to your IP address or DNS.
+                    </div>
+                    <div class="fieldDescription">The entered IP/URL should include http/https and the port if required.
+                        An example URL: "https://myjellyfinserver:8096".
+                    </div>
+                    <div class="fieldDescription">You can test if the URL is correct by visiting "&#60;URL&#62;/AniSync/apiUrlTest".</div>
+                </div>
+                <div class="inputContainer">
                     <label class="inputeLabel inputLabelUnfocused" for="clientId">Client ID</label>
-                    <input id="clientId" name="clientId" type="text" is="emby-input" />
+                    <input id="clientId" name="clientId" type="text" is="emby-input"/>
                     <div class="fieldDescription">The client ID from your MAL application.</div>
                 </div>
                 <div class="inputContainer">
                     <label class="inputeLabel inputLabelUnfocused" for="clientSecret">Client Secret</label>
-                    <input id="clientSecret" name="clientSecret" type="text" is="emby-input" />
-                    <div class="fieldDescription">The client secret from your MAL application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b></div>
+                    <input id="clientSecret" name="clientSecret" type="text" is="emby-input"/>
+                    <div class="fieldDescription">The client secret from your MAL application.<b>This value will be
+                        stored in plain text in the plugin config. Make sure no untrusted users have access to the
+                        file.</b></div>
                 </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
@@ -26,9 +45,13 @@
                 <button is="emby-button" type="button" id="authorizeDevice" class="raised block"
                         onclick="onAuthorizeButtonClick()">Authorize device
                 </button>
-                <div class="fieldDescription">Click on the button above and then open the link that appears below.<b>The access token will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b></div>
+                <div class="fieldDescription">Click on the button above and then open the link that appears below.<b>The
+                    access token will be stored in plain text in the plugin config. Make sure no untrusted users have
+                    access to the file.</b></div>
                 <a id="authorizeLink"></a>
-                <div class="fieldDescription">Once you have authenticated your account, click the below button to test the authentication:</div>
+                <div class="fieldDescription">Once you have authenticated your account, click the below button to test
+                    the authentication:
+                </div>
                 <button is="emby-button" type="button" id="testAuthentication" class="raised block"
                         onclick="getUser()">
                     Test Authentication
@@ -75,9 +98,10 @@
         function onAuthorizeButtonClick() {
             // users are unlikely to save after setting client id and secret, so we do it for them
             saveProviderAuth();
-            fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value + 
+            fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value +
                 "&clientId=" + document.querySelector('#clientId').value +
-                "&clientSecret=" + document.querySelector('#clientSecret').value, {
+                "&clientSecret=" + document.querySelector('#clientSecret').value +
+                "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"), {
                 method: "GET"
             })
                 .then((response) => response.json())
@@ -97,6 +121,23 @@
                         document.querySelector('#getUserResponse').innerHTML = "Test returned an error - try authenticating again or check the logs for a detailed error reason."
                     }
                 });
+        }
+
+        function setLocalApiUrl() {
+            fetch("/AniSync/localApiUrl", {
+                method: "GET"
+            }).then(function (response) {
+                if (response.ok) {
+                    return response.json()
+                        .then((json) => document.querySelector('#localApiUrl').innerHTML = "Local (server) URL: <b>" + json + "</b>")
+                } else {
+                    document.querySelector('#localApiUrl').innerHTML = "Could not fetch local URL.";
+                }
+            });
+        }
+
+        function setUserAddress() {
+            document.querySelector('#userAddress').innerHTML = "User URL: <b>" + ApiClient.serverAddress() + "</b>";
         }
 
         function populateUserList(users) {
@@ -142,41 +183,48 @@
                 });
             });
         }
-        
+
         function saveProviderAuth() {
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
                 setProviderApiAuthConfig(config);
-                
+
                 ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
                     Dashboard.processPluginConfigurationUpdateResult(result);
                 });
+            });
+        }
+
+        function setProviderApiAuthConfig(config) {
+            const clientId = document.querySelector('#clientId').value;
+            const clientSecret = document.querySelector('#clientSecret').value;
+            const apiUrl = document.querySelector('#apiUrl').value;
+            if (config.ProviderApiAuth != null && config.ProviderApiAuth.length > 0) {
+                let malDetails = config.ProviderApiAuth.filter(function (item) {
+                    return item.Name === "Mal"
+                })[0];
+
+                if (clientId && clientSecret) {
+                    malDetails.ClientId = clientId;
+                    malDetails.ClientSecret = clientSecret;
+                } else {
+                    config.ProviderApiAuth.splice(config.ProviderApiAuth.indexOf(malDetails), 1);
+                }
+            } else {
+                config.ProviderApiAuth = [];
+                config.ProviderApiAuth.push({
+                    Name: "Mal",
+                    ClientId: document.querySelector('#clientId').value,
+                    ClientSecret: document.querySelector('#clientSecret').value
                 });
             }
-            
-            function setProviderApiAuthConfig(config) {
-                const clientId = document.querySelector('#clientId').value;
-                const clientSecret = document.querySelector('#clientSecret').value;
-                if (config.ProviderApiAuth != null && config.ProviderApiAuth.length > 0) {
-                    let malDetails = config.ProviderApiAuth.filter(function (item) {
-                        return item.Name === "Mal"
-                    })[0];
 
-                    if (clientId && clientSecret) {
-                        malDetails.ClientId = clientId;
-                        malDetails.ClientSecret = clientSecret;
-                    } else {
-                        config.ProviderApiAuth.splice(config.ProviderApiAuth.indexOf(malDetails), 1);
-                    }
-                } else {
-                    config.ProviderApiAuth = [];
-                    config.ProviderApiAuth.push({
-                        Name: "Mal",
-                        ClientId: document.querySelector('#clientId').value,
-                        ClientSecret: document.querySelector('#clientSecret').value
-                    });
-                }
+            if (apiUrl) {
+                config.callbackUrl = apiUrl;
+            } else {
+                delete config.callbackUrl;
             }
-        
+        }
+
         function loadConfiguration() {
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
                 if (config.ProviderApiAuth != null && config.ProviderApiAuth.length > 0) {
@@ -185,6 +233,10 @@
                     })[0];
                     document.querySelector('#clientId').value = malDetails.ClientId;
                     document.querySelector('#clientSecret').value = malDetails.ClientSecret;
+                }
+                
+                if (config.callbackUrl != null) {
+                    document.querySelector('#apiUrl').value = config.callbackUrl;
                 }
             });
         }
@@ -196,6 +248,8 @@
                     var userId = document.querySelector('#selectUser').value;
                     loadUserConfiguration(document.querySelector('#selectUser').value);
                     loadConfiguration();
+                    setLocalApiUrl();
+                    setUserAddress();
                 });
             });
 

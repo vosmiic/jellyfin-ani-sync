@@ -14,6 +14,8 @@ namespace jellyfin_ani_sync.Configuration {
         public UserConfig[] UserConfig { get; set; }
         
         public ProviderApiAuth[] ProviderApiAuth { get; set; }
+        
+        public string callbackUrl { get; set; }
 
         public void AddUser(UserConfig userConfig) {
             if (userConfig != null) {
