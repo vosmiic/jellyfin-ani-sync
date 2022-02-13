@@ -97,7 +97,7 @@
 
         function onAuthorizeButtonClick() {
             // users are unlikely to save after setting client id and secret, so we do it for them
-            saveProviderAuth();
+            saveUserConfig();
             fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value +
                 "&clientId=" + document.querySelector('#clientId').value +
                 "&clientSecret=" + document.querySelector('#clientSecret').value +
@@ -239,10 +239,48 @@
                     document.querySelector('#clientId').value = malDetails.ClientId;
                     document.querySelector('#clientSecret').value = malDetails.ClientSecret;
                 }
-                
+
                 if (config.callbackUrl != null) {
                     document.querySelector('#apiUrl').value = config.callbackUrl;
                 }
+            });
+        }
+
+        function saveUserConfig() {
+            ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+                var userId = document.querySelector('#selectUser').value;
+
+                let userConfig;
+                if (config.UserConfig != null && config.UserConfig.length > 0) {
+                    userConfig = config.UserConfig.filter(function (item) {
+                        return item.UserId == userId;
+                    })[0];
+                } else {
+                    config.UserConfig = [];
+                    userConfig = null;
+                }
+
+                if (!userConfig) {
+                    userConfig = {};
+                    config.UserConfig.push(userConfig);
+                }
+                setProviderApiAuthConfig(config);
+
+                userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
+                    return element.getAttribute('id');
+                });
+                userConfig.UserId = userId;
+                userConfig.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
+                userConfig.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
+
+                ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                    ApiClient.getUsers().then(function (users) {
+                        populateUserList(users);
+                        document.querySelector('#selectUser').value = userId;
+                        loadUserConfiguration(userId);
+                    });
+                });
             });
         }
 
@@ -266,41 +304,7 @@
         document.querySelector('#TemplateConfigForm')
             .addEventListener('submit', function (e) {
                 Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
-                    var userId = document.querySelector('#selectUser').value;
-
-                    let userConfig;
-                    if (config.UserConfig != null && config.UserConfig.length > 0) {
-                        userConfig = config.UserConfig.filter(function (item) {
-                            return item.UserId == userId;
-                        })[0];
-                    } else {
-                        config.UserConfig = [];
-                        userConfig = null;
-                    }
-
-                    if (!userConfig) {
-                        userConfig = {};
-                        config.UserConfig.push(userConfig);
-                    }
-                    setProviderApiAuthConfig(config);
-
-                    userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
-                        return element.getAttribute('id');
-                    });
-                    userConfig.UserId = userId;
-                    userConfig.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
-                    userConfig.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
-
-                    ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
-                        Dashboard.processPluginConfigurationUpdateResult(result);
-                        ApiClient.getUsers().then(function (users) {
-                            populateUserList(users);
-                            document.querySelector('#selectUser').value = userId;
-                            loadUserConfiguration(userId);
-                        });
-                    });
-                });
+                saveUserConfig();
                 e.preventDefault();
                 return false;
             });

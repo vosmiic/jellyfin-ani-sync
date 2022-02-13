@@ -8,7 +8,7 @@ public class UserConfig {
     public UserConfig() {
         // set default options here
         PlanToWatchOnly = true;
-        RewatchCompleted = false;
+        RewatchCompleted = true;
     }
 
     public Guid UserId { get; set; }
