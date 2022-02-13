@@ -25,3 +25,8 @@ Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular serv
 
 3. Place the dll-file in the `plugins/ani-sync` folder (you might need to create the folders) of your JF install
 
+## In progress
+
+The current list of unsupported features (that are being worked on):
+1. OVAs. Attempting to find them via the API is mildly difficult and unreliable, so they are currently not supported.
+2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated. 
