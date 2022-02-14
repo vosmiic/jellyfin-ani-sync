@@ -14,9 +14,9 @@ namespace jellyfin_ani_sync {
             Instance = this;
         }
 
-        public override string Name => "ani-sync";
+        public override string Name => "Ani-Sync";
         public override Guid Id => Guid.Parse("c78f11cf-93e6-4423-8c42-d2c255b70e47");
-        public override string Description => "sync anime with mal";
+        public override string Description => "Synchronize watch status between Jellyfin and MAL (other services will follow)";
         public PluginConfiguration PluginConfiguration => Configuration;
         public static Plugin? Instance { get; private set; }
 
