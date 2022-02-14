@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net5.0</TargetFramework>
         <RootNamespace>jellyfin_ani_sync</RootNamespace>
     </PropertyGroup>
 
@@ -14,10 +14,10 @@
     </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.*-*" />
-    <PackageReference Include="Jellyfin.Model" Version="10.*-*" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.7.7" />
+    <PackageReference Include="Jellyfin.Model" Version="10.7.7" />
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
-            <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
+            <PackageReference Include="Microsoft.Extensions.Http" Version="5.0.0" />
             <PackageReference Include="System.Collections" Version="4.3.0" />
   </ItemGroup>
     

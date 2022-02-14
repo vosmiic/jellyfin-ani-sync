@@ -14,6 +14,7 @@ using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
@@ -21,6 +22,7 @@ namespace jellyfin_ani_sync.Api {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<MalApiCalls> _logger;
         private readonly IServerApplicationHost _serverApplicationHost;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         public UserConfig UserConfig { get; set; }
         private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
         private readonly string _apiBaseUrl = "https://api.myanimelist.net/";
@@ -28,10 +30,11 @@ namespace jellyfin_ani_sync.Api {
 
         private string ApiUrl => _apiBaseUrl + "v" + _apiVersion;
 
-        public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost) {
+        public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
             _httpClientFactory = httpClientFactory;
             _logger = loggerFactory.CreateLogger<MalApiCalls>();
             _serverApplicationHost = serverApplicationHost;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public class User {
@@ -281,7 +284,7 @@ namespace jellyfin_ani_sync.Api {
                         // token has probably expired; try refreshing it
                         UserApiAuth newAuth;
                         try {
-                            newAuth = new MalApiAuthentication(_httpClientFactory, _serverApplicationHost).GetMalToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
+                            newAuth = new MalApiAuthentication(_httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetMalToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                         } catch (Exception) {
                             _logger.LogError("Could not re-authenticate. Please manually re-authenticate the user via the AniSync configuration page");
                             throw;

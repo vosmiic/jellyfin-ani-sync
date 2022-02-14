@@ -14,6 +14,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.IO;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Episode = MediaBrowser.Controller.Entities.TV.Episode;
 
@@ -29,10 +30,10 @@ namespace jellyfin_ani_sync {
 
         public ServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory,
             IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem,
-            IServerApplicationHost serverApplicationHost) {
+            IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
             _sessionManager = sessionManager;
             _logger = loggerFactory.CreateLogger<ServerEntry>();
-            _malApiCalls = new MalApiCalls(httpClientFactory, loggerFactory, serverApplicationHost);
+            _malApiCalls = new MalApiCalls(httpClientFactory, loggerFactory, serverApplicationHost, httpContextAccessor);
             _libraryManager = libraryManager;
             _fileSystem = fileSystem;
         }
