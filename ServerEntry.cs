@@ -67,10 +67,8 @@ namespace jellyfin_ani_sync {
                                 if (episode?.Season.IndexNumber is > 1) {
                                     // if this is not the first season, then we need to lookup the related season.
                                     // we dont yet support specials, which are considered season 0 in jellyfin.
-                                    try {
-                                        matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
-                                    } catch (NullReferenceException exception) {
-                                        _logger.LogError(exception.Message);
+                                    matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
+                                    if (matchingAnime != null) {
                                         _logger.LogWarning("Could not find next season");
                                         return;
                                     }
@@ -102,7 +100,7 @@ namespace jellyfin_ani_sync {
         }
 
         private bool LibraryCheck(BaseItem item) {
-            if (_userConfig.LibraryToCheck.Length > 0) {
+            if (_userConfig.LibraryToCheck is { Length: > 0 }) {
                 var folders = _libraryManager.GetVirtualFolders().Where(item => _userConfig.LibraryToCheck.Contains(item.ItemId));
 
                 foreach (var folder in folders) {
@@ -180,7 +178,7 @@ namespace jellyfin_ani_sync {
                 "num_episodes", "start_season", "broadcast", "source", "average_episode_duration", "rating", "pictures",
                 "background", "related_anime", "related_manga", "recommendations", "studios", "statistics"
             });
-            if ((status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) || status == null) {
+            if (anime != null && ((status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) || status == null)) {
                 return anime;
             }
 
@@ -194,48 +192,58 @@ namespace jellyfin_ani_sync {
         /// <param name="episodeNumber">The episode number to update the anime to.</param>
         private async Task UpdateAnimeStatus(Anime detectedAnime, int? episodeNumber, bool? setRewatching = null) {
             if (episodeNumber != null) {
+                UpdateAnimeStatusResponse response;
                 if (detectedAnime.MyListStatus != null) {
                     if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || _animeType == typeof(Movie)) {
                         // movie has only one episode, so just mark it as finished
                         if (episodeNumber.Value == detectedAnime.NumEpisodes) {
                             // user has reached the number of episodes in the anime, set as completed
-                            var response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
+                            response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
                             _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete in MAL");
                             if (detectedAnime.MyListStatus.IsRewatching || (_animeType == typeof(Movie) && detectedAnime.MyListStatus.Status == Status.Completed)) {
                                 // also increase number of times re-watched by 1
                                 // only way to get the number of times re-watched is by doing the update and capturing the response, and then re-updating :/
                                 _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) has also been re-watched, increasing re-watch count by 1");
-                                await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, numberOfTimesRewatched: response.NumTimesRewatched + 1);
+                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, numberOfTimesRewatched: response.NumTimesRewatched + 1);
                             }
                         } else {
                             if (detectedAnime.MyListStatus.IsRewatching) {
                                 // MAL likes to mark re-watching shows as completed, instead of watching. I guess technically both are correct
                                 _logger.LogInformation($"User is re-watching {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}), set as completed but update re-watch progress");
-                                await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed);
+                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed);
                             } else {
                                 if (episodeNumber > 1) {
                                     // don't set start date after first episode
-                                    await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                                    response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching);
                                 } else {
                                     _logger.LogInformation($"Setting new {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}) as watching.");
-                                    await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching, startDate: DateTime.Now);
+                                    response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching, startDate: DateTime.Now);
                                 }
                             }
                         }
 
-                        _logger.LogInformation($"Updated {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}) progress to {episodeNumber.Value}");
+                        if (response != null) {
+                            _logger.LogInformation($"Updated {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}) progress to {episodeNumber.Value}");
+                        } else {
+                            _logger.LogError("Could not update anime status");
+                        }
                     } else {
                         if (setRewatching != null && setRewatching.Value) {
                             _logger.LogInformation($"Series ({detectedAnime.Title}) has already been watched, marking anime as re-watching");
-                            await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, true);
+                            response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, true);
                         } else {
+                            response = null;
                             _logger.LogInformation("MAL reports episode already watched; not updating");
                         }
                     }
                 } else {
                     // status is not set, must be a new anime
                     _logger.LogInformation($"Adding new {(_animeType == typeof(Episode) ? "series" : "movie")} ({detectedAnime.Title}) to user list as watching with a progress of {episodeNumber.Value}");
-                    await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                    response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                }
+
+                if (response == null) {
+                    _logger.LogError("Could not update anime status");
                 }
             }
         }
@@ -250,23 +258,29 @@ namespace jellyfin_ani_sync {
             _logger.LogInformation($"Attempting to get season 1...");
             Anime initialSeason = await _malApiCalls.GetAnime(animeId, new[] { "related_anime" });
 
-            int i = 1;
-            while (i != seasonNumber) {
-                RelatedAnime initialSeasonRelatedAnime = initialSeason.RelatedAnime.FirstOrDefault(item => item.RelationType == RelationType.Sequel);
-                if (initialSeasonRelatedAnime != null) {
-                    _logger.LogInformation($"Attempting to get season {i + 1}...");
-                    Anime nextSeason = await _malApiCalls.GetAnime(initialSeasonRelatedAnime.Anime.Id, new[] { "related_anime" });
+            if (initialSeason != null) {
+                int i = 1;
+                while (i != seasonNumber) {
+                    RelatedAnime initialSeasonRelatedAnime = initialSeason.RelatedAnime.FirstOrDefault(item => item.RelationType == RelationType.Sequel);
+                    if (initialSeasonRelatedAnime != null) {
+                        _logger.LogInformation($"Attempting to get season {i + 1}...");
+                        Anime nextSeason = await _malApiCalls.GetAnime(initialSeasonRelatedAnime.Anime.Id, new[] { "related_anime" });
 
-                    initialSeason = nextSeason;
-                } else {
-                    _logger.LogInformation("Could not find any related anime");
-                    throw new NullReferenceException();
+                        if (nextSeason != null) {
+                            initialSeason = nextSeason;
+                        }
+                    } else {
+                        _logger.LogInformation("Could not find any related anime");
+                        throw new NullReferenceException();
+                    }
+
+                    i++;
                 }
 
-                i++;
+                return initialSeason;
             }
 
-            return initialSeason;
+            return null;
         }
 
         public void Dispose() {

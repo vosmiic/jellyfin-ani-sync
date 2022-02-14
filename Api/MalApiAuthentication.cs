@@ -9,6 +9,7 @@ using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Authentication;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace jellyfin_ani_sync.Api {
@@ -81,31 +82,39 @@ namespace jellyfin_ani_sync.Api {
 
             var response = client.PostAsync(new Uri($"{_malAuthApiUrl}/token"), formUrlEncodedContent).Result;
 
-            var content = response.Content.ReadAsStream();
+            if (response.IsSuccessStatusCode) {
+                var content = response.Content.ReadAsStream();
 
-            StreamReader streamReader = new StreamReader(content);
+                StreamReader streamReader = new StreamReader(content);
 
-            TokenResponse tokenResponse = JsonSerializer.Deserialize<TokenResponse>(streamReader.ReadToEnd());
+                TokenResponse tokenResponse = JsonSerializer.Deserialize<TokenResponse>(streamReader.ReadToEnd());
+                
+                UserConfig? pluginConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == userId);
 
-            UserConfig pluginConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == userId);
+                if (pluginConfig != null) {
+                    var apiAuth = pluginConfig.UserApiAuth?.FirstOrDefault(item => item.Name == ApiName.Mal);
 
-            var apiAuth = pluginConfig.UserApiAuth?.FirstOrDefault(item => item.Name == ApiName.Mal);
+                    UserApiAuth newUserApiAuth = new UserApiAuth {
+                        Name = ApiName.Mal,
+                        AccessToken = tokenResponse.access_token,
+                        RefreshToken = tokenResponse.refresh_token
+                    };
 
-            UserApiAuth newUserApiAuth = new UserApiAuth {
-                Name = ApiName.Mal,
-                AccessToken = tokenResponse.access_token,
-                RefreshToken = tokenResponse.refresh_token
-            };
+                    if (apiAuth != null) {
+                        apiAuth.AccessToken = tokenResponse.access_token;
+                        apiAuth.RefreshToken = tokenResponse.refresh_token;
+                    } else {
+                        pluginConfig.AddUserApiAuth(newUserApiAuth);
+                    }
 
-            if (apiAuth != null) {
-                apiAuth.AccessToken = tokenResponse.access_token;
-                apiAuth.RefreshToken = tokenResponse.refresh_token;
-            } else {
-                pluginConfig.AddUserApiAuth(newUserApiAuth);
+                    Plugin.Instance.SaveConfiguration();
+                    return newUserApiAuth;
+                }
+
+                throw new NullReferenceException("The user you are attempting to authenticate does not exist in the plugins config file");
             }
 
-            Plugin.Instance.SaveConfiguration();
-            return newUserApiAuth;
+            throw new AuthenticationException("Could not retrieve MAL token: " + response.StatusCode + " - " + response.ReasonPhrase);
         }
 
         public static string GeneratePkce() {
