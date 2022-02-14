@@ -189,16 +189,6 @@
             });
         }
 
-        function saveProviderAuth() {
-            ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
-                setProviderApiAuthConfig(config);
-
-                ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
-                    Dashboard.processPluginConfigurationUpdateResult(result);
-                });
-            });
-        }
-
         function setProviderApiAuthConfig(config) {
             const clientId = document.querySelector('#clientId').value;
             const clientSecret = document.querySelector('#clientSecret').value;
@@ -299,6 +289,7 @@
         document.querySelector('#selectUser')
             .addEventListener('change', function () {
                 loadUserConfiguration(document.querySelector('#selectUser').value);
+                document.querySelector('#authorizeLink').innerHTML = '';
             })
 
         document.querySelector('#TemplateConfigForm')
