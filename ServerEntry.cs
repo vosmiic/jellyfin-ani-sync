@@ -57,9 +57,14 @@ namespace jellyfin_ani_sync {
             if (Plugin.Instance.PluginConfiguration.ProviderApiAuth is { Length: > 0 }) {
                 foreach (User user in e.Users) {
                     _userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == user.Id);
-                    if (LibraryCheck(e.Item) && video is Episode or Movie && video.IsCompleteMedia) {
+                    if (_userConfig == null) {
+                        _logger.LogWarning($"The user {user.Id} does not exist in the plugins config file. Skipping");
+                        continue;
+                    }
+                    if (LibraryCheck(e.Item) && video is Episode or Movie && e.PlayedToCompletion) {
                         _malApiCalls.UserConfig = _userConfig;
                         List<Anime> animeList = await _malApiCalls.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name, new[] { "id", "title", "alternative_titles" });
+                        bool found = false;
                         foreach (var anime in animeList) {
                             if (String.Compare(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0 ||
                                 String.Compare(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0) {
@@ -71,7 +76,8 @@ namespace jellyfin_ani_sync {
                                     matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
                                     if (matchingAnime != null) {
                                         _logger.LogWarning("Could not find next season");
-                                        return;
+                                        found = true;
+                                        break;
                                     }
 
                                     _logger.LogInformation(matchingAnime.Title);
@@ -82,19 +88,24 @@ namespace jellyfin_ani_sync {
                                     if (detectedAnime != null) {
                                         _logger.LogInformation($"Series ({matchingAnime.Title}) found on watching list");
                                         await UpdateAnimeStatus(detectedAnime, episode.IndexNumber);
-                                        return;
+                                        found = true;
+                                        break;
                                     } else {
                                         UpdateNotBeingWatchedAnime(matchingAnime, video);
-                                        return;
+                                        found = true;
+                                        break;
                                     }
                                 } else {
                                     UpdateNotBeingWatchedAnime(matchingAnime, video);
-                                    return;
+                                    found = true;
+                                    break;
                                 }
                             }
                         }
 
-                        _logger.LogWarning("Series not found");
+                        if (!found) {
+                            _logger.LogWarning("Series not found");
+                        }
                     }
                 }
             }
