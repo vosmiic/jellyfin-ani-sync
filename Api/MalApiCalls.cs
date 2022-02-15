@@ -240,7 +240,7 @@ namespace jellyfin_ani_sync.Api {
             UserApiAuth auth;
             try {
                 auth = UserConfig.UserApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
-            } catch (ArgumentNullException) {
+            } catch (NullReferenceException) {
                 _logger.LogError("Could not find authentication details, please authenticate the plugin first");
                 throw;
             }
