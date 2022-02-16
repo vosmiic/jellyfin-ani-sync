@@ -74,13 +74,13 @@ namespace jellyfin_ani_sync {
                                     // if this is not the first season, then we need to lookup the related season.
                                     // we dont yet support specials, which are considered season 0 in jellyfin.
                                     matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
-                                    if (matchingAnime != null) {
+                                    if (matchingAnime == null) {
                                         _logger.LogWarning("Could not find next season");
                                         found = true;
                                         break;
                                     }
 
-                                    _logger.LogInformation(matchingAnime.Title);
+                                    _logger.LogInformation($"Season being watched is {matchingAnime.Title}");
                                 }
 
                                 if (video is Episode) {
@@ -283,7 +283,7 @@ namespace jellyfin_ani_sync {
                         }
                     } else {
                         _logger.LogInformation("Could not find any related anime");
-                        throw new NullReferenceException();
+                        return null;
                     }
 
                     i++;
