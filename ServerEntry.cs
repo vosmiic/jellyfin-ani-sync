@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
+using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Models;
 using Jellyfin.Data.Entities;
 using MediaBrowser.Controller;
@@ -60,6 +61,15 @@ namespace jellyfin_ani_sync {
                     if (_userConfig == null) {
                         _logger.LogWarning($"The user {user.Id} does not exist in the plugins config file. Skipping");
                         continue;
+                    }
+
+                    if (_userConfig.UserApiAuth != null) {
+                        var auth = _userConfig.UserApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
+                        if (auth is not { AccessToken: { }, RefreshToken: { } }) {
+                            _logger.LogWarning($"The user {user.Id} does not have an access or refresh token. Skipping");
+                        }
+                    } else {
+                        _logger.LogWarning($"The user {user.Id} is not authenticated. Skipping");
                     }
 
                     if (LibraryCheck(e.Item) && video is Episode or Movie && e.PlayedToCompletion) {
@@ -202,8 +212,13 @@ namespace jellyfin_ani_sync {
                     if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || _animeType == typeof(Movie)) {
                         // movie has only one episode, so just mark it as finished
                         if (episodeNumber.Value == detectedAnime.NumEpisodes) {
-                            // user has reached the number of episodes in the anime, set as completed
-                            response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
+                            if (_animeType == typeof(Movie)) {
+                                // its a movie, so the start and end date is the same
+                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, startDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
+                            } else {
+                                // user has reached the number of episodes in the anime, set as completed
+                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
+                            }
                             _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete in MAL");
                             if (detectedAnime.MyListStatus.IsRewatching || (_animeType == typeof(Movie) && detectedAnime.MyListStatus.Status == Status.Completed)) {
                                 // also increase number of times re-watched by 1
