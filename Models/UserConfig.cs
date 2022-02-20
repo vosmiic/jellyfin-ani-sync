@@ -10,6 +10,9 @@ namespace jellyfin_ani_sync.Models {
             RewatchCompleted = true;
         }
 
+        /// <summary>
+        /// ID of the user.
+        /// </summary>
         public Guid UserId { get; set; }
 
         /// <summary>
@@ -22,6 +25,9 @@ namespace jellyfin_ani_sync.Models {
         /// </summary>
         public bool RewatchCompleted { get; set; }
 
+        /// <summary>
+        /// API authentication details of the user.
+        /// </summary>
         public UserApiAuth[] UserApiAuth { get; set; }
 
         public void AddUserApiAuth(UserApiAuth userApiAuth) {
