@@ -16,15 +16,13 @@ using Microsoft.Extensions.Caching.Memory;
 namespace jellyfin_ani_sync.Api {
     public class MalApiAuthentication {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IMemoryCache _memoryCache;
         private readonly string _malAuthApiUrl = "https://myanimelist.net/v1/oauth2";
         private readonly string _redirectUrl;
         private readonly ProviderApiAuth _providerApiAuth;
         private readonly string _codeChallenge = "eZBLUX_JPk4~el62z_k3Q4fV5CzCYHoTz4iLKvwJ~9QTsTJNlzwveKCSYCSiSOa5zAm5Zt~cfyVM~3BuO4kQ0iYwCxPoeN0SOmBYR_C.QgnzyYE4KY-xIe4Vy1bf7_B4";
 
-        public MalApiAuthentication(IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache? memoryCache = null, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
+        public MalApiAuthentication(IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
             _httpClientFactory = httpClientFactory;
-            if (memoryCache != null) _memoryCache = memoryCache;
             if (overrideProviderApiAuth != null) {
                 _providerApiAuth = overrideProviderApiAuth;
             } else {
@@ -55,12 +53,7 @@ namespace jellyfin_ani_sync.Api {
             }
         }
 
-        public string BuildAuthorizeRequestUrl(string userId) {
-            var memoryCacheOptions = new MemoryCacheEntryOptions {
-                Priority = CacheItemPriority.NeverRemove,
-                AbsoluteExpiration = DateTimeOffset.Now + TimeSpan.FromDays(1)
-            };
-            _memoryCache.Set("userId", userId, memoryCacheOptions);
+        public string BuildAuthorizeRequestUrl() {
             return $"{_malAuthApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&code_challenge={_codeChallenge}&redirect_uri={_redirectUrl}";
         }
 

@@ -16,29 +16,36 @@ namespace jellyfin_ani_sync.Api {
     public class AniSyncController : ControllerBase {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly IMemoryCache _memoryCache;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<AniSyncController> _logger;
 
-        public AniSyncController(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IMemoryCache memoryCache, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
+        public AniSyncController(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
             _httpClientFactory = httpClientFactory;
             _loggerFactory = loggerFactory;
-            _memoryCache = memoryCache;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
+            _logger = loggerFactory.CreateLogger<AniSyncController>();
         }
 
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
-        public string BuildAuthorizeRequestUrl(string userId, string clientId, string clientSecret, string? url) {
-            return new MalApiAuthentication(_httpClientFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, new ProviderApiAuth{ClientId = clientId, ClientSecret = clientSecret}, url).BuildAuthorizeRequestUrl(userId);
+        public string BuildAuthorizeRequestUrl(string clientId, string clientSecret, string? url) {
+            return new MalApiAuthentication(_httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth{ClientId = clientId, ClientSecret = clientSecret}, url).BuildAuthorizeRequestUrl();
         }
 
         [HttpGet]
         [Route("authCallback")]
         public void MalCallback(string code) {
-            new MalApiAuthentication(_httpClientFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache).GetMalToken(Guid.Parse(_memoryCache.Get<string>("userId")), code);
-            _memoryCache.Remove("userId");
+            Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
+            Console.WriteLine("plugin user id: " + userId);
+            if (userId != null) {
+                new MalApiAuthentication(_httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetMalToken(userId, code);
+                Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser = Guid.Empty;
+                Plugin.Instance.SaveConfiguration();
+            } else {
+                _logger.LogError("Authenticated user ID could not be found in the configuration. Please regenerate the authentication URL and try again");
+            }
         }
 
         [HttpGet]
@@ -48,7 +55,7 @@ namespace jellyfin_ani_sync.Api {
             try {
                 malApiCalls.UserConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
             } catch (ArgumentNullException) {
-                _loggerFactory.CreateLogger<AniSyncController>().LogError("User not found");
+                _logger.LogError("User not found");
                 throw;
             }
             return await malApiCalls.GetUserInformation();

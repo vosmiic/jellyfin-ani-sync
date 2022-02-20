@@ -10,7 +10,8 @@
     <div data-role="content">
         <div class="content-primary">
             <form id="TemplateConfigForm">
-                <p>Please follow the <a href="https://github.com/vosmiic/jellyfin-ani-sync/wiki/Installation-&-Config">plugin installation guide</a> for a more detailed explanation of what the below config options do.</p>
+                <p>Please follow the <a href="https://github.com/vosmiic/jellyfin-ani-sync/wiki/Installation-&-Config">plugin
+                    installation guide</a> for a more detailed explanation of what the below config options do.</p>
                 <div class="inputContainer">
                     <label class="inputLabel inputLabelUnfocused" for="apiUrl">API endpoint</label>
                     <input id="apiUrl" name="callbackUrl" type="text" is="emby-input"/>
@@ -46,9 +47,9 @@
                 <button is="emby-button" type="button" id="authorizeDevice" class="raised block"
                         onclick="onAuthorizeButtonClick()">Authorize User
                 </button>
-                <div class="fieldDescription">Click on the button above and then open the link that appears below.<b>The
-                    access token will be stored in plain text in the plugin config. Make sure no untrusted users have
-                    access to the file.</b></div>
+                <div class="fieldDescription">Click on the button above and then open the link that appears below. Only
+                    authenticate one user at a time.<b>The access token will be stored in plain text in the plugin
+                        config. Make sure no untrusted users have access to the file.</b></div>
                 <a id="authorizeLink"></a>
                 <div class="fieldDescription">Once you have authenticated your user, click the below button to test
                     the authentication:
@@ -98,9 +99,8 @@
 
         function onAuthorizeButtonClick() {
             // users are unlikely to save after setting client id and secret, so we do it for them
-            saveUserConfig();
-            fetch("/AniSync/buildAuthorizeRequestUrl?userId=" + document.querySelector('#selectUser').value +
-                "&clientId=" + document.querySelector('#clientId').value +
+            saveUserConfig(true);
+            fetch("/AniSync/buildAuthorizeRequestUrl?clientId=" + document.querySelector('#clientId').value +
                 "&clientSecret=" + document.querySelector('#clientSecret').value +
                 "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"), {
                 method: "GET"
@@ -237,7 +237,8 @@
             });
         }
 
-        function saveUserConfig() {
+
+        function saveUserConfig(saveUserId) {
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
                 var userId = document.querySelector('#selectUser').value;
 
@@ -263,6 +264,10 @@
                 userConfig.UserId = userId;
                 userConfig.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
                 userConfig.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
+
+                if (saveUserId) {
+                    config.currentlyAuthenticatingUser = userId;
+                }
 
                 ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
                     Dashboard.processPluginConfigurationUpdateResult(result);
