@@ -133,6 +133,12 @@ namespace jellyfin_ani_sync {
             Anime detectedAnime = await GetAnime(matchingAnimeId);
 
             if (detectedAnime == null) return;
+            if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Watching) {
+                _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on watching list");
+                await UpdateAnimeStatus(detectedAnime, anime.IndexNumber);
+                return;
+            }
+
             // only plan to watch
             if (_userConfig.PlanToWatchOnly) {
                 if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Plan_to_watch) {
@@ -219,6 +225,7 @@ namespace jellyfin_ani_sync {
                                 // user has reached the number of episodes in the anime, set as completed
                                 response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
                             }
+
                             _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete in MAL");
                             if (detectedAnime.MyListStatus.IsRewatching || (_animeType == typeof(Movie) && detectedAnime.MyListStatus.Status == Status.Completed)) {
                                 // also increase number of times re-watched by 1
