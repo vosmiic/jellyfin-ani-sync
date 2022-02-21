@@ -1,0 +1,27 @@
+[
+  {
+    "category": "General",
+    "guid": "c78f11cf-93e6-4423-8c42-d2c255b70e47",
+    "name": "Ani-Sync",
+    "description": "Synchronize anime watch status between Jellyfin and anime tracking sites.",
+    "owner": "vosmiic",
+    "overview": "Synchronize anime watch status",
+    "versions": [
+      {
+        "checksum": "bd90049041dc0768ecb3e7ee60512169",
+        "changelog": "Initial release",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1/10.8.0.-.ani-sync_1.0.0.0.zip",
+        "timestamp": "2022-02-21 21:09:38",
+        "version": "1.0.0.0"
+      },{
+        "checksum": "36759af89cc368bb02d26b5e74c98444",
+        "changelog": "Initial release",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1/10.7.7.-.ani-sync_1.0.0.0.zip",
+        "timestamp": "2022-02-21 21:09:38",
+        "version": "1.0.0.0"
+      }
+    ]
+  }
+]
