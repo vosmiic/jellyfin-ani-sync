@@ -2,7 +2,7 @@
 
 ## About
 
-Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular services (currently only MyAnimeList is supported).
+Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular services (currently only MyAnimeList is supported, please [create an issue](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) if you have a different provider you would like to be supported).
 
 ## Installation
 
@@ -25,8 +25,15 @@ Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular serv
 
 3. Place the dll-file in the `plugins/ani-sync` folder (you might need to create the folders) of your JF install
 
+## Services/providers
+### Currently supported
+1. MyAnimeList
+### In-progress
+1. Kitsu
+2. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)
+
 ## In progress
 
 The current list of unsupported features (that are being worked on):
 1. OVAs. Attempting to find them via the API is mildly difficult and unreliable, so they are currently not supported.
-2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated. 
+2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
