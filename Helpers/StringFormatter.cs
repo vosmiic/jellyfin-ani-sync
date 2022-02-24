@@ -5,7 +5,7 @@ namespace jellyfin_ani_sync.Helpers {
         public static string RemoveSpecialCharacters(string str) {
             StringBuilder stringBuilder = new StringBuilder();
             foreach (char c in str) {
-                if (c is not ((< '0' or > '9') and (< 'A' or > 'Z') and (< 'a' or > 'z') and ' ')) {
+                if (c is >= '0' and <= '9' || c is >= 'A' and <= 'Z' || c is >= 'a' and <= 'z') {
                     stringBuilder.Append(c);
                 }
             }

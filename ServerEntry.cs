@@ -76,27 +76,29 @@ namespace jellyfin_ani_sync {
                         _malApiCalls.UserConfig = _userConfig;
                         List<Anime> animeList = await _malApiCalls.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name, new[] { "id", "title", "alternative_titles" });
                         bool found = false;
-                        foreach (var anime in animeList) {
-                            if (String.Compare(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0 ||
-                                String.Compare(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0) {
-                                _logger.LogInformation($"Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
-                                Anime matchingAnime = anime;
-                                if (episode?.Season.IndexNumber is > 1) {
-                                    // if this is not the first season, then we need to lookup the related season.
-                                    // we dont yet support specials, which are considered season 0 in jellyfin.
-                                    matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
-                                    if (matchingAnime == null) {
-                                        _logger.LogWarning("Could not find next season");
-                                        found = true;
-                                        break;
+                        if (animeList != null) {
+                            foreach (var anime in animeList) {
+                                if (String.Compare(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0 ||
+                                    String.Compare(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0) {
+                                    _logger.LogInformation($"Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
+                                    Anime matchingAnime = anime;
+                                    if (episode?.Season.IndexNumber is > 1) {
+                                        // if this is not the first season, then we need to lookup the related season.
+                                        // we dont yet support specials, which are considered season 0 in jellyfin.
+                                        matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
+                                        if (matchingAnime == null) {
+                                            _logger.LogWarning("Could not find next season");
+                                            found = true;
+                                            break;
+                                        }
+
+                                        _logger.LogInformation($"Season being watched is {matchingAnime.Title}");
                                     }
 
-                                    _logger.LogInformation($"Season being watched is {matchingAnime.Title}");
+                                    CheckUserListAnimeStatus(matchingAnime.Id, video);
+                                    found = true;
+                                    break;
                                 }
-
-                                CheckUserListAnimeStatus(matchingAnime.Id, video);
-                                found = true;
-                                break;
                             }
                         }
 
