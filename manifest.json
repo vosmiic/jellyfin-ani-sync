@@ -8,6 +8,21 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "b69e1336c936a914694bf48e778e16c1",
+        "changelog": "Hotfix - Fixing anime with a name longer than 64 characters causing crashes",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.1/10.8.0.-.ani-sync_1.1.0.0.zip",
+        "timestamp": "2022-02-24 20:50:38",
+        "version": "1.1.0.0"
+      },{
+        "checksum": "a9dcdebdedbff5a6755d9aa721f9cde9",
+        "changelog": "Hotfix - Fixing anime with a name longer than 64 characters causing crashes",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.1/10.7.7.-.ani-sync_1.1.0.0.zip",
+        "timestamp": "2022-02-24 20:50:38",
+        "version": "1.1.0.0"
+      },
+      {
         "checksum": "bd90049041dc0768ecb3e7ee60512169",
         "changelog": "Initial release",
         "targetAbi": "10.8.0.0",
