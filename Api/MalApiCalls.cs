@@ -75,7 +75,11 @@ namespace jellyfin_ani_sync.Api {
             };
             if (query != null) {
                 // must truncate query to 64 characters. MAL API returns an error otherwise
-                url.Parameters.Add(new KeyValuePair<string, string>("q", StringFormatter.RemoveSpecialCharacters(query).Substring(0, 64)));
+                query = StringFormatter.RemoveSpecialCharacters(query);
+                if (query.Length > 64) {
+                    query = query.Substring(0, 64);
+                }
+                url.Parameters.Add(new KeyValuePair<string, string>("q", query));
             }
 
             if (fields != null) {
