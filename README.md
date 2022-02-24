@@ -47,4 +47,4 @@ The current list of unsupported features (that are being worked on):
 2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
 
 ## Known issues
-1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.
+~~1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.~~ Fixed in build 1.1
