@@ -6,6 +6,14 @@ Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular serv
 
 ## Installation
 
+### Automatic (recommended)
+1. Navigate to Settings > Admin Dashboard > Plugins > Repositories
+2. Add a new repository with a `Repository URL` of `https://raw.githubusercontent.com/vosmiic/jellyfin-ani-sync/master/manifest.json`. The name can be anything you like.
+3. Save, and navigate to Catalogue.
+4. Ani-Sync should be present. Click on it and install the latest version.
+
+### Manual
+
 [See the official Jellyfin documentation for install instructions](https://jellyfin.org/docs/general/server/plugins/index.html#installing).
 
 1. Download a version from the [releases tab](https://github.com/vosmiic/jellyfin-ani-sync/releases) that matches your Jellyfin version.
@@ -37,3 +45,6 @@ Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular serv
 The current list of unsupported features (that are being worked on):
 1. OVAs. Attempting to find them via the API is mildly difficult and unreliable, so they are currently not supported.
 2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
+
+## Known issues
+1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.
