@@ -8,6 +8,21 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "3e6b3850c16bbb372a36189484b0690a",
+        "changelog": "1. Added OVA/special support \n 2. Restored symbols to query when searching for anime",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.2/10.8.0.-.ani-sync_1.2.0.0.zip",
+        "timestamp": "2022-02-26 17:00:00",
+        "version": "1.2.0.0"
+      },{
+        "checksum": "7a3044bda8d14e76c8f73a4f90a9248f",
+        "changelog": "1. Added OVA/special support \n 2. Restored symbols to query when searching for anime",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.2/10.7.7.-.ani-sync_1.2.0.0.zip",
+        "timestamp": "2022-02-26 17:00:00",
+        "version": "1.2.0.0"
+      },
+      {
         "checksum": "16464e695f5c4480ea284f7f6051453d",
         "changelog": "Hotfix - Fixing anime with a name longer than 64 characters causing crashes",
         "targetAbi": "10.8.0.0",
