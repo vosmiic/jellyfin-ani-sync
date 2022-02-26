@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using Jellyfin.Data.Entities;
 using MediaBrowser.Controller;
@@ -78,13 +79,12 @@ namespace jellyfin_ani_sync {
                         bool found = false;
                         if (animeList != null) {
                             foreach (var anime in animeList) {
-                                if (String.Compare(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0 ||
-                                    String.Compare(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0) {
+                                if (CompareStrings(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name) ||
+                                    CompareStrings(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name)) {
                                     _logger.LogInformation($"Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
                                     Anime matchingAnime = anime;
                                     if (episode?.Season.IndexNumber is > 1) {
                                         // if this is not the first season, then we need to lookup the related season.
-                                        // we dont yet support specials, which are considered season 0 in jellyfin.
                                         matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
                                         if (matchingAnime == null) {
                                             _logger.LogWarning("Could not find next season");
@@ -93,6 +93,14 @@ namespace jellyfin_ani_sync {
                                         }
 
                                         _logger.LogInformation($"Season being watched is {matchingAnime.Title}");
+                                    } else if (episode?.Season.IndexNumber == 0) {
+                                        // the episode is an ova or special
+                                        matchingAnime = await GetOva(anime.Id, episode.Name);
+                                        if (matchingAnime == null) {
+                                            _logger.LogWarning("Could not find OVA");
+                                            found = true;
+                                            break;
+                                        }
                                     }
 
                                     CheckUserListAnimeStatus(matchingAnime.Id, video);
@@ -108,6 +116,26 @@ namespace jellyfin_ani_sync {
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Compare two strings, ignoring symbols and case.
+        /// </summary>
+        /// <param name="first">The first string.</param>
+        /// <param name="second">The second string.</param>
+        /// <returns>True if first string is equal to second string, false if not.</returns>
+        private bool CompareStrings(string first, string second) {
+            return String.Compare(first, second, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols) == 0;
+        }
+
+        /// <summary>
+        /// Check if a string exists in another, ignoring symbols and case.
+        /// </summary>
+        /// <param name="first">The first string.</param>
+        /// <param name="second">The second string.</param>
+        /// <returns>True if first string contains second string, false if not.</returns>
+        private bool ContainsExtended(string first, string second) {
+            return StringFormatter.RemoveSpecialCharacters(first).Contains(StringFormatter.RemoveSpecialCharacters(second), StringComparison.OrdinalIgnoreCase);
         }
 
         private bool LibraryCheck(BaseItem item) {
@@ -217,19 +245,20 @@ namespace jellyfin_ani_sync {
             if (episodeNumber != null) {
                 UpdateAnimeStatusResponse response;
                 if (detectedAnime.MyListStatus != null) {
-                    if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || _animeType == typeof(Movie)) {
-                        // movie has only one episode, so just mark it as finished
-                        if (episodeNumber.Value == detectedAnime.NumEpisodes) {
-                            if (_animeType == typeof(Movie)) {
-                                // its a movie, so the start and end date is the same
-                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, startDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
+                    if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || detectedAnime.NumEpisodes == 1) {
+                        // movie or ova has only one episode, so just mark it as finished
+                        if (episodeNumber.Value == detectedAnime.NumEpisodes || detectedAnime.NumEpisodes == 1) {
+                            // either watched all episodes or the anime only has a single episode (ova)
+                            if (detectedAnime.NumEpisodes == 1) {
+                                // its a movie or ova since it only has one "episode", so the start and end date is the same
+                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, 1, Status.Completed, startDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false);
                             } else {
                                 // user has reached the number of episodes in the anime, set as completed
-                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching ? null : DateTime.Now);
+                                response = await _malApiCalls.UpdateAnimeStatus(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false);
                             }
 
                             _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete in MAL");
-                            if (detectedAnime.MyListStatus.IsRewatching || (_animeType == typeof(Movie) && detectedAnime.MyListStatus.Status == Status.Completed)) {
+                            if (detectedAnime.MyListStatus.IsRewatching || (detectedAnime.NumEpisodes == 1 && detectedAnime.MyListStatus.Status == Status.Completed)) {
                                 // also increase number of times re-watched by 1
                                 // only way to get the number of times re-watched is by doing the update and capturing the response, and then re-updating :/
                                 _logger.LogInformation($"{(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) has also been re-watched, increasing re-watch count by 1");
@@ -311,6 +340,27 @@ namespace jellyfin_ani_sync {
 
             return null;
         }
+
+        private async Task<Anime> GetOva(int animeId, string episodeName) {
+            Anime anime = await _malApiCalls.GetAnime(animeId, new[] { "related_anime" });
+
+            if (anime != null) {
+                var listOfRelatedAnime = anime.RelatedAnime.Where(relation => relation.RelationType is RelationType.Side_Story or RelationType.Alternative_Version or RelationType.Alternative_Setting);
+                foreach (RelatedAnime relatedAnime in listOfRelatedAnime) {
+                    var detailedRelatedAnime = await _malApiCalls.GetAnime(relatedAnime.Anime.Id, new[] { "alternative_titles" });
+                    if (detailedRelatedAnime != null) {
+                        if (ContainsExtended(detailedRelatedAnime.Title, episodeName) || ContainsExtended(detailedRelatedAnime.AlternativeTitles.En, episodeName)) {
+                            // rough match
+                            return detailedRelatedAnime;
+                        }
+                    }
+                }
+            }
+
+            // no matches
+            return null;
+        }
+
 
         public void Dispose() {
             _sessionManager.PlaybackStopped -= PlaybackStopped;

@@ -65,8 +65,8 @@ namespace jellyfin_ani_sync.Models {
         Sequel,
         Character,
         Prequel,
-        Alternate_Setting,
-        Alternate_Version,
+        Alternative_Setting,
+        Alternative_Version,
         Summary,
         Full_Story,
         Other
