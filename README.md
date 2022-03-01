@@ -48,3 +48,6 @@ The current list of unsupported features (that are being worked on):
 
 ## Known issues
 ~~1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.~~ Fixed in build 1.1
+
+## Development
+Unit tests can be found [here](https://github.com/vosmiic/jellyfin-ani-sync-unit-tests).
