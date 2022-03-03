@@ -36,6 +36,25 @@ public class AniListSearch {
         [JsonPropertyName("userPreferred")]
         public string UserPreferred { get; set; }
     }
+    
+    public class MediaEdge
+    {
+        [JsonPropertyName("relationType")]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public MediaRelation RelationType { get; set; }
+
+        [JsonPropertyName("node")]
+        public Media Media { get; set; }
+    }
+
+    /// <summary>
+    /// Relations.
+    /// </summary>
+    public class MediaConnection
+    {
+        [JsonPropertyName("edges")]
+        public List<MediaEdge> Edges { get; set; }
+    }
 
     public class Media
     {
@@ -44,6 +63,12 @@ public class AniListSearch {
 
         [JsonPropertyName("title")]
         public Title Title { get; set; }
+        
+        [JsonPropertyName("episodes")]
+        public int Episodes { get; set; }
+
+        [JsonPropertyName("relations")]
+        public MediaConnection MediaConnection { get; set; }
     }
 
     public class Page
@@ -65,5 +90,21 @@ public class AniListSearch {
     {
         [JsonPropertyName("data")]
         public AniListSearchData Data { get; set; }
+    }
+    
+    public enum MediaRelation {
+        Adaptation,
+        Prequel,
+        Sequel,
+        Parent,
+        Side_Story,
+        Character,
+        Summary,
+        Alternative,
+        Spin_Off,
+        Other,
+        Source,
+        Compilation,
+        Contains
     }
 }
