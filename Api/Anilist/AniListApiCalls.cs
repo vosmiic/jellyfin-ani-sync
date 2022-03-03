@@ -18,7 +18,12 @@ public class AniListApiCalls {
         _httpClient = httpClientFactory.CreateClient(NamedClient.Default);
     }
 
-    public async Task<AniListSearch.AniListSearchMedia> SearchAnime(string searchString) {
+    /// <summary>
+    /// Search for an anime based upon its name.
+    /// </summary>
+    /// <param name="searchString">The name to search for.</param>
+    /// <returns>List of anime.</returns>
+    public async Task<List<AniListSearch.Media>> SearchAnime(string searchString) {
         string query = @"query ($search: String!) {
         Page(perPage: 100, page: 1) {
             pageInfo {
@@ -47,8 +52,19 @@ public class AniListApiCalls {
             }
         };
         var apiCall = await _httpClient.PostAsync(endpoint, new StringContent(JsonSerializer.Serialize(garphql), Encoding.UTF8, "application/json"));
-        StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-        return JsonSerializer.Deserialize<AniListSearch.AniListSearchMedia>(await streamReader.ReadToEndAsync());
+        if (apiCall.IsSuccessStatusCode) {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            var result = JsonSerializer.Deserialize<AniListSearch.AniListSearchMedia>(await streamReader.ReadToEndAsync());
+
+            if (result != null) {
+                return result.Data.Page.Media;
+            }
+        }
+
+        return null;
+    }
+
+    public async Task GetAnime(int id) {
     }
 
     public class GraphQl {
