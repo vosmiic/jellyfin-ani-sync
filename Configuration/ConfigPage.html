@@ -103,7 +103,7 @@
         function onAuthorizeButtonClick() {
             // users are unlikely to save after setting client id and secret, so we do it for them
             saveUserConfig(true);
-            fetch("/AniSync/buildAuthorizeRequestUrl?clientId=" + document.querySelector('#clientId').value +
+            fetch("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + document.querySelector('#clientId').value +
                 "&clientSecret=" + document.querySelector('#clientSecret').value +
                 "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"), {
                 method: "GET"
@@ -276,7 +276,7 @@
             }
         }
 
-        function saveUserConfig(saveUserId) {
+        function saveUserConfig(saveTempAuth) {
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
                 var userId = document.querySelector('#selectUser').value;
 
@@ -303,8 +303,9 @@
                 userConfig.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
                 userConfig.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
 
-                if (saveUserId) {
+                if (saveTempAuth) {
                     config.currentlyAuthenticatingUser = userId;
+                    config.currentlyAuthenticatingProvider = document.querySelector('#selectProvider').value;
                 }
 
                 ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {

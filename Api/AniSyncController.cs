@@ -33,17 +33,17 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
-        public string BuildAuthorizeRequestUrl(string clientId, string clientSecret, string? url) {
-            return new MalApiAuthentication(ApiName.Mal, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
+        public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url) {
+            return new MalApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
         }
 
         [HttpGet]
         [Route("authCallback")]
         public void MalCallback(string code) {
             Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
-            Console.WriteLine("plugin user id: " + userId);
-            if (userId != null) {
-                new MalApiAuthentication(ApiName.Mal, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(userId, code);
+            ApiName provider = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingProvider;
+            if (userId != null && provider != null) {
+                new MalApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(userId, code);
                 Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser = Guid.Empty;
                 Plugin.Instance.SaveConfiguration();
             } else {
