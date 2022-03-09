@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Configuration;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
@@ -53,15 +54,33 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("user")]
-        public async Task<MalApiCalls.User> GetUser(string userId) {
-            MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor);
-            try {
-                malApiCalls.UserConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
-            } catch (ArgumentNullException) {
-                _logger.LogError("User not found");
-                throw;
+        // this only works for mal atm, needs to work for anilist as well
+        public async Task<MalApiCalls.User> GetUser(ApiName apiName, string userId) {
+            if (apiName == ApiName.Mal) {
+                MalApiCalls malApiCalls;
+                try {
+                    malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                } catch (ArgumentNullException) {
+                    _logger.LogError("User not found");
+                    throw;
+                }
+
+                return await malApiCalls.GetUserInformation();
+            } else if (apiName == ApiName.AniList) {
+                AniListApiCalls aniListApiCalls;
+                try {
+                    aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                } catch (ArgumentNullException) {
+                    _logger.LogError("User not found");
+                    throw;
+                }
+
+                return new MalApiCalls.User {
+                    Name = await aniListApiCalls.GetCurrentUser()
+                };
             }
-            return await malApiCalls.GetUserInformation();
+
+            throw new Exception("Provider not supported.");
         }
 
         [HttpGet]
