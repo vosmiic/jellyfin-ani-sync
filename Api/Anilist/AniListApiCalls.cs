@@ -16,14 +16,21 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync.Api.Anilist;
 
 public class AniListApiCalls {
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly IServerApplicationHost _serverApplicationHost;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly HttpClient _httpClient;
-    public UserConfig _userConfig;
-    private readonly ApiCall _apiCall;
+    private readonly UserConfig _userConfig;
 
 
     public AniListApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
+        _httpClientFactory = httpClientFactory;
+        _loggerFactory = loggerFactory;
+        _serverApplicationHost = serverApplicationHost;
+        _httpContextAccessor = httpContextAccessor;
         _httpClient = httpClientFactory.CreateClient(NamedClient.Default);
-        _apiCall = new ApiCall(ApiName.AniList, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
+        _userConfig = userConfig;
     }
 
     /// <summary>
@@ -116,7 +123,7 @@ public class AniListApiCalls {
           }
         }";
 
-        var response = await GraphQlHelper.AuthenticatedRequest(_apiCall, query);
+        var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query);
         if (response != null) {
             StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
             var result = JsonSerializer.Deserialize<AniListViewer.AniListGetViewer>(await streamReader.ReadToEndAsync());
@@ -127,5 +134,31 @@ public class AniListApiCalls {
         }
 
         return null;
+    }
+
+    public async Task<bool> UpdateAnime(int id, Status status, int progress) {
+        string query = @"mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
+          SaveMediaListEntry (mediaId: $mediaId, status: $status, progress: $progress) {
+            id
+          }
+        }";
+
+        Dictionary<string, string> variables = new Dictionary<string, string> {
+            { "mediaId", id.ToString() },
+            { "status", status.ToString().ToUpper() },
+            { "progress", progress.ToString() }
+        };
+
+        var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
+        return response != null;
+    }
+
+    public enum Status {
+        Current,
+        Planning,
+        Completed,
+        Dropped,
+        Paused,
+        Repeating
     }
 }

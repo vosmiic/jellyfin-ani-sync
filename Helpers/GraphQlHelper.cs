@@ -6,6 +6,10 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Models;
+using MediaBrowser.Controller;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Helpers; 
 
@@ -16,7 +20,9 @@ public class GraphQlHelper {
         return call.IsSuccessStatusCode ? call : null;
     }
 
-    public static async Task<HttpResponseMessage> AuthenticatedRequest(ApiCall apiCall, string query, Dictionary<string, string> variables = null) {
+    public static async Task<HttpResponseMessage> AuthenticatedRequest(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig, string query, Dictionary<string, string> variables = null) {
+        ApiCall apiCall = new ApiCall(ApiName.AniList, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig);
+        var xd = JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables });
         var call = await apiCall.AuthenticatedApiCall(ApiName.AniList, MalApiCalls.CallType.POST, "https://graphql.anilist.co", stringContent: new StringContent(JsonSerializer.Serialize(new GraphQl {Query = query, Variables = variables}), Encoding.UTF8, "application/json"));
 
         return call.IsSuccessStatusCode ? call : null;
