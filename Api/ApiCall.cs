@@ -21,7 +21,7 @@ public class ApiCall {
     private readonly ILogger<ApiCall> _logger;
     public UserConfig UserConfig { get; set; }
     
-    public ApiCall(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null, UserConfig userConfig = null) {
+    public ApiCall(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, UserConfig userConfig, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
         _provider = provider;
         _httpClientFactory = httpClientFactory;
         _serverApplicationHost = serverApplicationHost;
