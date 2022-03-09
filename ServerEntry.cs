@@ -22,9 +22,13 @@ using Episode = MediaBrowser.Controller.Entities.TV.Episode;
 
 namespace jellyfin_ani_sync {
     public class ServerEntry : IServerEntryPoint {
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IServerApplicationHost _serverApplicationHost;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ISessionManager _sessionManager;
         private readonly ILogger<ServerEntry> _logger;
-        private readonly MalApiCalls _malApiCalls;
+        private MalApiCalls _malApiCalls;
         private UserConfig _userConfig;
         private Type _animeType;
         private readonly ILibraryManager _libraryManager;
@@ -33,9 +37,12 @@ namespace jellyfin_ani_sync {
         public ServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory,
             IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem,
             IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
+            _httpClientFactory = httpClientFactory;
+            _serverApplicationHost = serverApplicationHost;
+            _httpContextAccessor = httpContextAccessor;
+            _loggerFactory = loggerFactory;
             _sessionManager = sessionManager;
             _logger = loggerFactory.CreateLogger<ServerEntry>();
-            _malApiCalls = new MalApiCalls(httpClientFactory, loggerFactory, serverApplicationHost, httpContextAccessor);
             _libraryManager = libraryManager;
             _fileSystem = fileSystem;
         }
@@ -74,7 +81,7 @@ namespace jellyfin_ani_sync {
                     }
 
                     if (LibraryCheck(e.Item) && video is Episode or Movie && e.PlayedToCompletion) {
-                        _malApiCalls.UserConfig = _userConfig;
+                        _malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig: _userConfig);
                         List<Anime> animeList = await _malApiCalls.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name, new[] { "id", "title", "alternative_titles" });
                         bool found = false;
                         if (animeList != null) {

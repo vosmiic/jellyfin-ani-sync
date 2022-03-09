@@ -19,22 +19,17 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
     public class MalApiCalls {
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<MalApiCalls> _logger;
-        private readonly IServerApplicationHost _serverApplicationHost;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        public UserConfig UserConfig { get; set; }
+        private readonly ApiCall _apiCall;
         private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
         private readonly string _apiBaseUrl = "https://api.myanimelist.net/";
         private readonly int _apiVersion = 2;
 
         private string ApiUrl => _apiBaseUrl + "v" + _apiVersion;
 
-        public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
-            _httpClientFactory = httpClientFactory;
+        public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
             _logger = loggerFactory.CreateLogger<MalApiCalls>();
-            _serverApplicationHost = serverApplicationHost;
-            _httpContextAccessor = httpContextAccessor;
+            _apiCall = new ApiCall(ApiName.Mal, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
         }
 
         public class User {
@@ -52,7 +47,7 @@ namespace jellyfin_ani_sync.Api {
             UrlBuilder url = new UrlBuilder {
                 Base = $"{ApiUrl}/users/@me"
             };
-            var apiCall = await MalApiCall(CallType.GET, url.Build());
+            var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, url.Build());
             if (apiCall != null) {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 string streamText = await streamReader.ReadToEndAsync();
@@ -79,6 +74,7 @@ namespace jellyfin_ani_sync.Api {
                 if (query.Length > 64) {
                     query = query.Substring(0, 64);
                 }
+
                 url.Parameters.Add(new KeyValuePair<string, string>("q", query));
             }
 
@@ -88,7 +84,7 @@ namespace jellyfin_ani_sync.Api {
 
             string builtUrl = url.Build();
             _logger.LogInformation($"Starting search for anime (GET {builtUrl})...");
-            var apiCall = await MalApiCall(CallType.GET, builtUrl);
+            var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
             if (apiCall != null) {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(await streamReader.ReadToEndAsync());
@@ -116,7 +112,7 @@ namespace jellyfin_ani_sync.Api {
             string builtUrl = url.Build();
             _logger.LogInformation($"Retrieving an anime from MAL (GET {builtUrl})...");
             try {
-                var apiCall = await MalApiCall(CallType.GET, builtUrl);
+                var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var options = new JsonSerializerOptions();
@@ -160,7 +156,7 @@ namespace jellyfin_ani_sync.Api {
             UserAnimeList userAnimeList = new UserAnimeList { Data = new List<UserAnimeListData>() };
             while (builtUrl != null) {
                 _logger.LogInformation($"Getting user anime list (GET {builtUrl})...");
-                var apiCall = await MalApiCall(CallType.GET, builtUrl);
+                var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var options = new JsonSerializerOptions();
@@ -222,7 +218,7 @@ namespace jellyfin_ani_sync.Api {
 
             UpdateAnimeStatusResponse updateResponse;
             try {
-                var apiCall = await MalApiCall(CallType.PUT, builtUrl, new FormUrlEncodedContent(body.ToArray()));
+                var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.PUT, builtUrl, new FormUrlEncodedContent(body.ToArray()));
 
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
@@ -248,85 +244,6 @@ namespace jellyfin_ani_sync.Api {
             PATCH,
             PUT,
             DELETE
-        }
-
-        /// <summary>
-        /// Make an MAL API call.
-        /// </summary>
-        /// <param name="callType">The type of call to make.</param>
-        /// <param name="url">The URL that you want to make the request to.</param>
-        /// <param name="formUrlEncodedContent">The form data to be posted.</param>
-        /// <returns>API call response.</returns>
-        /// <exception cref="NullReferenceException">Authentication details not found.</exception>
-        /// <exception cref="Exception">Non-200 response.</exception>
-        /// <exception cref="AuthenticationException">Could not authenticate with the MAL API.</exception>
-        private async Task<HttpResponseMessage> MalApiCall(CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null) {
-            int attempts = 0;
-            UserApiAuth auth;
-            try {
-                auth = UserConfig.UserApiAuth.FirstOrDefault(item => item.Name == ApiName.Mal);
-            } catch (NullReferenceException) {
-                _logger.LogError("Could not find authentication details, please authenticate the plugin first");
-                throw;
-            }
-
-            while (attempts < 2) {
-                var client = _httpClientFactory.CreateClient(NamedClient.Default);
-
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
-                HttpResponseMessage responseMessage = new HttpResponseMessage();
-                try {
-                    switch (callType) {
-                        case CallType.GET:
-                            responseMessage = await client.GetAsync(url);
-                            break;
-                        case CallType.POST:
-                            responseMessage = await client.PostAsync(url, formUrlEncodedContent);
-                            break;
-                        case CallType.PATCH:
-                            responseMessage = await client.PatchAsync(url, formUrlEncodedContent);
-                            break;
-                        case CallType.PUT:
-                            responseMessage = await client.PutAsync(url, formUrlEncodedContent);
-                            break;
-                        case CallType.DELETE:
-                            responseMessage = await client.DeleteAsync(url);
-                            break;
-                        default:
-                            responseMessage = await client.GetAsync(url);
-                            break;
-                    }
-                } catch (Exception e) {
-                    _logger.LogError(e.Message);
-                }
-
-
-                if (responseMessage.IsSuccessStatusCode) {
-                    return responseMessage;
-                } else {
-                    if (responseMessage.StatusCode == HttpStatusCode.Unauthorized) {
-                        // token has probably expired; try refreshing it
-                        UserApiAuth newAuth;
-                        try {
-                            newAuth = new MalApiAuthentication(ApiName.Mal, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
-                        } catch (Exception) {
-                            _logger.LogError("Could not re-authenticate. Please manually re-authenticate the user via the AniSync configuration page");
-                            return null;
-                        }
-
-                        // and then make the call again, using the new auth details
-                        auth = newAuth;
-                        attempts++;
-                    } else {
-                        _logger.LogError($"Unable to complete MAL API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
-                        return null;
-                    }
-                }
-            }
-
-            _logger.LogError("Unable to authenticate the MAL API call, re-authenticate the plugin");
-            return null;
         }
     }
 }

@@ -114,7 +114,8 @@
 
         function getUser() {
             document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
-            fetch("/AniSync/user?userId=" + document.querySelector('#selectUser').value, {
+            fetch("/AniSync/user?apiName=" + document.querySelector('#selectProvider').value +
+                "&userId=" + document.querySelector('#selectUser').value, {
                 method: "GET"
             })
                 .then(function (response) {
@@ -132,22 +133,22 @@
                 method: "GET"
             }).then(function (response) {
                 if (response.ok) {
-                    
+
                     return response.json()
                         .then(function (json) {
-                           setLocalApiUrl(json.localApiUrl);
-                           setProviderSelection(json.providerList);
+                            setLocalApiUrl(json.localApiUrl);
+                            setProviderSelection(json.providerList);
                         });
                 } else {
                     document.querySelector('#localApiUrl').innerHTML = "Could not fetch local URL.";
                 }
             });
         }
-        
+
         function setLocalApiUrl(localApiUrl) {
             document.querySelector('#localApiUrl').innerHTML = "Local (server) URL: <b>" + localApiUrl + "</b>";
         }
-        
+
         function setProviderSelection(providerList) {
             var html = '';
             for (var x = 0; x < providerList.length; x++) {
@@ -208,7 +209,7 @@
                 });
             });
         }
-        
+
         function loadProviderConfiguration(providerName) {
             Dashboard.showLoadingMsg();
             ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
@@ -220,14 +221,14 @@
                 } else {
                     provider = null;
                 }
-                
+
                 if (!provider) {
                     provider = {};
                     provider.Name = providerName;
                     provider.ClientId = "";
                     provider.ClientSecret = "";
                 }
-                
+
                 document.querySelector('#clientId').value = provider.ClientId;
                 document.querySelector('#clientSecret').value = provider.ClientSecret;
                 Dashboard.hideLoadingMsg();
@@ -250,10 +251,10 @@
                         ClientId: clientId,
                         clientSecret: clientSecret
                     };
-                    
+
                     config.ProviderApiAuth.push(authConfig);
                 }
-                
+
                 if (clientId && clientSecret) {
                     authConfig.ClientId = clientId;
                     authConfig.ClientSecret = clientSecret;
@@ -336,7 +337,7 @@
                 loadUserConfiguration(document.querySelector('#selectUser').value);
                 document.querySelector('#authorizeLink').innerHTML = '';
             });
-        
+
         document.querySelector('#selectProvider')
             .addEventListener('change', function () {
                 loadProviderConfiguration(document.querySelector('#selectProvider').value);
