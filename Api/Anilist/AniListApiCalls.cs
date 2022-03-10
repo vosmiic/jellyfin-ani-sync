@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
-using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
@@ -22,6 +22,7 @@ public class AniListApiCalls {
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly HttpClient _httpClient;
     private readonly UserConfig _userConfig;
+    public static readonly int PageSize = 50;
 
 
     public AniListApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
@@ -39,8 +40,8 @@ public class AniListApiCalls {
     /// <param name="searchString">The name to search for.</param>
     /// <returns>List of anime.</returns>
     public async Task<List<AniListSearch.Media>> SearchAnime(string searchString) {
-        string query = @"query ($search: String!) {
-            Page(perPage: 100, page: 1) {
+        string query = @"query ($search: String!, $perPage: Int, $page: Int) {
+            Page(perPage: $perPage, page: $page) {
                 pageInfo {
                     total
                         perPage
@@ -61,18 +62,43 @@ public class AniListApiCalls {
         }
         ";
 
+        int page = 1;
         Dictionary<string, string> variables = new Dictionary<string, string> {
-            { "search", searchString }
+            { "search", searchString },
+            { "perPage", PageSize.ToString() },
+            { "page", page.ToString() }
         };
 
+        AniListSearch.AniListSearchMedia result = await SearchRequest(query, variables);
+
+        if (result != null) {
+            if (result.Data.Page.PageInfo.HasNextPage) {
+                // impose a hard limit of 10 pages
+                while (page < 10) {
+                    page++;
+                    AniListSearch.AniListSearchMedia nextPageResult = await SearchRequest(query, variables);
+
+                    result.Data.Page.Media = result.Data.Page.Media.Concat(nextPageResult.Data.Page.Media).ToList();
+                    if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
+                        break;
+                    }
+
+                    // sleeping thread so we dont hammer the API
+                    Thread.Sleep(1000);
+                }
+            }
+
+            return result.Data.Page.Media;
+        }
+
+        return null;
+    }
+
+    private async Task<AniListSearch.AniListSearchMedia> SearchRequest(string query, Dictionary<string, string> variables) {
         var response = await GraphQlHelper.Request(_httpClient, query, variables);
         if (response != null) {
             StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
-            var result = JsonSerializer.Deserialize<AniListSearch.AniListSearchMedia>(await streamReader.ReadToEndAsync());
-
-            if (result != null) {
-                return result.Data.Page.Media;
-            }
+            return JsonSerializer.Deserialize<AniListSearch.AniListSearchMedia>(await streamReader.ReadToEndAsync());
         }
 
         return null;
