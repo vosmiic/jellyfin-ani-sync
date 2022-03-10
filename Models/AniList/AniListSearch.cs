@@ -56,6 +56,18 @@ public class AniListSearch {
         public List<MediaEdge> Edges { get; set; }
     }
 
+    public class MediaListEntry {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        [JsonPropertyName("status")]
+        public MediaListStatus MediaListStatus { get; set; }
+        
+        [JsonPropertyName("progress")]
+        public int Progress { get; set; }
+        
+        [JsonPropertyName("repeat")]
+        public int RepeatCount { get; set; }
+    }
+
     public class Media
     {
         [JsonPropertyName("id")]
@@ -66,6 +78,9 @@ public class AniListSearch {
         
         [JsonPropertyName("episodes")]
         public int Episodes { get; set; }
+        
+        [JsonPropertyName("mediaListEntry")]
+        public MediaListEntry MediaListEntry { get; set; }
 
         [JsonPropertyName("relations")]
         public MediaConnection MediaConnection { get; set; }
@@ -106,5 +121,14 @@ public class AniListSearch {
         Source,
         Compilation,
         Contains
+    }
+    
+    public enum MediaListStatus {
+        Current,
+        Planning,
+        Completed,
+        Dropped,
+        Paused,
+        Repeating
     }
 }

@@ -122,6 +122,11 @@ public class AniListApiCalls {
                 }
               }
             }
+            mediaListEntry {
+              status
+              progress
+              repeat
+            }
           }
         }";
 
@@ -130,7 +135,7 @@ public class AniListApiCalls {
             { "id", id.ToString() }
         };
 
-        var response = await GraphQlHelper.Request(_httpClient, query, variables);
+        var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
         if (response != null) {
             StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
             var result = JsonSerializer.Deserialize<AniListGet.AniListGetMedia>(await streamReader.ReadToEndAsync());
