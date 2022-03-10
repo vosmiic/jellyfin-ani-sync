@@ -40,7 +40,7 @@ public class AniListApiCalls {
     /// <param name="searchString">The name to search for.</param>
     /// <returns>List of anime.</returns>
     public async Task<List<AniListSearch.Media>> SearchAnime(string searchString) {
-        string query = @"query ($search: String!, $perPage: Int, $page: Int) {
+        string query = @"query ($search: String!, $type: MediaType, $perPage: Int, $page: Int) {
             Page(perPage: $perPage, page: $page) {
                 pageInfo {
                     total
@@ -49,7 +49,7 @@ public class AniListApiCalls {
                         lastPage
                     hasNextPage
                 }
-                media(search: $search) {
+                media(search: $search, type: $type) {
                     id
                     title {
                         romaji
@@ -65,6 +65,7 @@ public class AniListApiCalls {
         int page = 1;
         Dictionary<string, string> variables = new Dictionary<string, string> {
             { "search", searchString },
+            { "type", "ANIME" },
             { "perPage", PageSize.ToString() },
             { "page", page.ToString() }
         };
