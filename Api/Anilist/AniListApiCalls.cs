@@ -113,12 +113,25 @@ public class AniListApiCalls {
     public async Task<AniListSearch.Media> GetAnime(int id) {
         string query = @"query ($id: Int) {
           Media(id: $id) {
+            id
             episodes
+            title {
+              romaji
+              english
+              native
+              userPreferred
+            }
             relations {
               edges {
                 relationType
                 node {
                   id
+                  title {
+                    romaji
+                    english
+                    native
+                    userPreferred
+                  }
                 }
               }
             }
@@ -126,6 +139,16 @@ public class AniListApiCalls {
               status
               progress
               repeat
+              startedAt {
+                day
+                month
+                year
+              }
+              completedAt {
+                day
+                month
+                year
+              }
             }
           }
         }";
@@ -168,9 +191,17 @@ public class AniListApiCalls {
         return null;
     }
 
-    public async Task<bool> UpdateAnime(int id, Status status, int progress) {
-        string query = @"mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
-          SaveMediaListEntry (mediaId: $mediaId, status: $status, progress: $progress) {
+    public async Task<bool> UpdateAnime(int id, AniListSearch.MediaListStatus status, int progress, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
+        string query = @"mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int" +
+                       (numberOfTimesRewatched != null ? ", $repeat: Int" : "") +
+                       (startDate != null ? ",$startDay: Int, $startMonth: Int, $startYear: Int" : "") +
+                       (endDate != null ? ",$endDay: Int, $endMonth: Int, $endYear: Int" : "") +
+                       @") {
+          SaveMediaListEntry (mediaId: $mediaId, status: $status, progress: $progress" +
+                       (numberOfTimesRewatched != null ? ", repeat: $repeat" : "") +
+                       (startDate != null ? @", startedAt: {day: $startDay, month: $startMonth, year: $startYear}" : "") +
+                       (endDate != null ? @", completedAt: {day: $endDay, month: $endMonth, year: $endYear}" : "") +
+                       @") {
             id
           }
         }";
@@ -181,16 +212,23 @@ public class AniListApiCalls {
             { "progress", progress.ToString() }
         };
 
+        if (numberOfTimesRewatched != null) {
+            variables.Add("repeat", "1");
+        }
+
+        if (startDate != null) {
+            variables.Add("startDay", startDate.Value.Day.ToString());
+            variables.Add("startMonth", startDate.Value.Month.ToString());
+            variables.Add("startYear", startDate.Value.Year.ToString());
+        }
+
+        if (endDate != null) {
+            variables.Add("endDay", endDate.Value.Day.ToString());
+            variables.Add("endMonth", endDate.Value.Month.ToString());
+            variables.Add("endYear", endDate.Value.Year.ToString());
+        }
+
         var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
         return response != null;
-    }
-
-    public enum Status {
-        Current,
-        Planning,
-        Completed,
-        Dropped,
-        Paused,
-        Repeating
     }
 }

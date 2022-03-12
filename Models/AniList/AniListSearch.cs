@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -53,7 +54,7 @@ public class AniListSearch {
     public class MediaConnection
     {
         [JsonPropertyName("edges")]
-        public List<MediaEdge> Edges { get; set; }
+        public List<MediaEdge> Media { get; set; }
     }
 
     public class MediaListEntry {
@@ -66,6 +67,23 @@ public class AniListSearch {
         
         [JsonPropertyName("repeat")]
         public int RepeatCount { get; set; }
+        
+        [JsonPropertyName("startedAt")]
+        public FuzzyDate StartedAt { get; set; }
+        
+        [JsonPropertyName("completedAt")]
+        public FuzzyDate CompletedAt { get; set; }
+    }
+
+    public class FuzzyDate {
+        [JsonPropertyName("day")]
+        public int? Day { get; set; }
+        
+        [JsonPropertyName("month")]
+        public int? Month { get; set; }
+        
+        [JsonPropertyName("year")]
+        public int? Year { get; set; }
     }
 
     public class Media
@@ -80,10 +98,10 @@ public class AniListSearch {
         public int Episodes { get; set; }
         
         [JsonPropertyName("mediaListEntry")]
-        public MediaListEntry MediaListEntry { get; set; }
+        public MediaListEntry? MediaListEntry { get; set; }
 
         [JsonPropertyName("relations")]
-        public MediaConnection MediaConnection { get; set; }
+        public MediaConnection Relations { get; set; }
     }
 
     public class Page
