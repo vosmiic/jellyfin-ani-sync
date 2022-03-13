@@ -30,6 +30,7 @@ namespace jellyfin_ani_sync.Models {
         [JsonPropertyName("updated_at")] public DateTime UpdatedAt { get; set; }
         [JsonPropertyName("start_date")] public string StartDate { get; set; }
         [JsonPropertyName("finish_date")] public string FinishDate { get; set; }
+        public int? RewatchCount { get; set; }
     }
 
     public class StartSeason {
