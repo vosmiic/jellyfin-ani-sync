@@ -52,7 +52,7 @@ public class ApiCallHelpers {
 
     public async Task<Anime> GetAnime(int id) {
         if (_malApiCalls != null) {
-            return await _malApiCalls.GetAnime(id, new[] { "title", "related_anime", "my_list_status" });
+            return await _malApiCalls.GetAnime(id, new[] { "title", "related_anime", "my_list_status", "num_episodes" });
         }
 
         if (_aniListApiCalls != null) {
