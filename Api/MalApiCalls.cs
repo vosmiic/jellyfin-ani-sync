@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync.Api {
     public class MalApiCalls {
         private readonly ILogger<MalApiCalls> _logger;
-        private readonly ApiCall _apiCall;
+        private readonly AuthApiCall _authApiCall;
         private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
         private readonly string _apiBaseUrl = "https://api.myanimelist.net/";
         private readonly int _apiVersion = 2;
@@ -29,7 +29,7 @@ namespace jellyfin_ani_sync.Api {
 
         public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
             _logger = loggerFactory.CreateLogger<MalApiCalls>();
-            _apiCall = new ApiCall(ApiName.Mal, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
+            _authApiCall = new AuthApiCall(ApiName.Mal, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
         }
 
         public class User {
@@ -47,7 +47,7 @@ namespace jellyfin_ani_sync.Api {
             UrlBuilder url = new UrlBuilder {
                 Base = $"{ApiUrl}/users/@me"
             };
-            var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, url.Build());
+            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, url.Build());
             if (apiCall != null) {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 string streamText = await streamReader.ReadToEndAsync();
@@ -84,7 +84,7 @@ namespace jellyfin_ani_sync.Api {
 
             string builtUrl = url.Build();
             _logger.LogInformation($"Starting search for anime (GET {builtUrl})...");
-            var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
+            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
             if (apiCall != null) {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 var animeList = JsonSerializer.Deserialize<SearchAnimeResponse>(await streamReader.ReadToEndAsync());
@@ -112,7 +112,7 @@ namespace jellyfin_ani_sync.Api {
             string builtUrl = url.Build();
             _logger.LogInformation($"Retrieving an anime from MAL (GET {builtUrl})...");
             try {
-                var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
+                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var options = new JsonSerializerOptions();
@@ -156,7 +156,7 @@ namespace jellyfin_ani_sync.Api {
             UserAnimeList userAnimeList = new UserAnimeList { Data = new List<UserAnimeListData>() };
             while (builtUrl != null) {
                 _logger.LogInformation($"Getting user anime list (GET {builtUrl})...");
-                var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
+                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var options = new JsonSerializerOptions();
@@ -218,7 +218,7 @@ namespace jellyfin_ani_sync.Api {
 
             UpdateAnimeStatusResponse updateResponse;
             try {
-                var apiCall = await _apiCall.AuthenticatedApiCall(ApiName.Mal, CallType.PUT, builtUrl, new FormUrlEncodedContent(body.ToArray()));
+                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, CallType.PUT, builtUrl, new FormUrlEncodedContent(body.ToArray()));
 
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
