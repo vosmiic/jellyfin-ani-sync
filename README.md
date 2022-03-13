@@ -2,7 +2,7 @@
 
 ## About
 
-Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular services (currently only MyAnimeList is supported, please [create an issue](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) if you have a different provider you would like to be supported).
+Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular services (currently MyAnimeList and AniList are supported, please [create an issue](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) if you have a different provider you would like to be supported).
 
 ## Installation
 
