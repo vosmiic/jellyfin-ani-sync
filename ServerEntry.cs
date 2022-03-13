@@ -205,14 +205,14 @@ namespace jellyfin_ani_sync {
 
                 // also check if rewatch completed is checked
                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) not found in plan to watch list{(_userConfig.RewatchCompleted ? ", checking completed list.." : null)}");
-                CheckIfRewatchCompleted(detectedAnime, anime.IndexNumber.Value);
+                await CheckIfRewatchCompleted(detectedAnime, anime.IndexNumber.Value);
                 return;
             }
 
             _logger.LogInformation("User does not have plan to watch only ticked");
 
             // check if rewatch completed is checked
-            CheckIfRewatchCompleted(detectedAnime, anime.IndexNumber.Value);
+            await CheckIfRewatchCompleted(detectedAnime, anime.IndexNumber.Value);
 
             _logger.LogInformation("User does not have rewatch completed ticked");
 
@@ -231,7 +231,7 @@ namespace jellyfin_ani_sync {
             await UpdateAnimeStatus(detectedAnime, anime.IndexNumber);
         }
 
-        private async void CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber) {
+        private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber) {
             if (_userConfig.RewatchCompleted) {
                 if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
                     _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on completed list, setting as re-watching");
@@ -262,24 +262,26 @@ namespace jellyfin_ani_sync {
         /// </summary>
         /// <param name="detectedAnime">The anime search result to update.</param>
         /// <param name="episodeNumber">The episode number to update the anime to.</param>
+        /// <param name="setRewatching">Whether to set the show as being re-watched or not.</param>
         private async Task UpdateAnimeStatus(Anime detectedAnime, int? episodeNumber, bool? setRewatching = null) {
             if (episodeNumber != null) {
                 UpdateAnimeStatusResponse response;
                 if (detectedAnime.MyListStatus != null) {
-                    if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || detectedAnime.NumEpisodes == 1) {
+                    if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || detectedAnime.NumEpisodes == 1 || 
+                        (setRewatching != null && setRewatching.Value && detectedAnime.MyListStatus.NumEpisodesWatched == episodeNumber.Value)) { // covers the very rare occurence of re-watching the show and starting at the last episode
                         // movie or ova has only one episode, so just mark it as finished
                         if (episodeNumber.Value == detectedAnime.NumEpisodes || detectedAnime.NumEpisodes == 1) {
                             // either watched all episodes or the anime only has a single episode (ova)
                             if (detectedAnime.NumEpisodes == 1) {
                                 // its a movie or ova since it only has one "episode", so the start and end date is the same
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, 1, Status.Completed, startDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false, numberOfTimesRewatched: detectedAnime.MyListStatus.RewatchCount);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, 1, Status.Completed, startDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false, numberOfTimesRewatched: (setRewatching != null && setRewatching.Value) || detectedAnime.MyListStatus.IsRewatching ? detectedAnime.MyListStatus.RewatchCount + 1 : null);
                             } else {
                                 // user has reached the number of episodes in the anime, set as completed
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false, numberOfTimesRewatched: detectedAnime.MyListStatus.RewatchCount);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false, numberOfTimesRewatched: (setRewatching != null && setRewatching.Value) || detectedAnime.MyListStatus.IsRewatching ? detectedAnime.MyListStatus.RewatchCount + 1 : null);
                             }
 
-                            _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete");
-                            if (detectedAnime.MyListStatus.IsRewatching || (detectedAnime.NumEpisodes == 1 && detectedAnime.MyListStatus.Status == Status.Completed) || detectedAnime.MyListStatus.RewatchCount == null) {
+                            _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) complete, marking anime as complete{(ApiName != ApiName.Mal && (setRewatching != null && setRewatching.Value) ? ", increasing re-watch count by 1" : "")}");
+                            if ((detectedAnime.MyListStatus.IsRewatching || (detectedAnime.NumEpisodes == 1 && detectedAnime.MyListStatus.Status == Status.Completed) || (setRewatching != null && setRewatching.Value)) && ApiName == ApiName.Mal) {
                                 // also increase number of times re-watched by 1
                                 // only way to get the number of times re-watched is by doing the update and capturing the response, and then re-updating for MAL :/
                                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) has also been re-watched, increasing re-watch count by 1");
