@@ -36,6 +36,7 @@ Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular serv
 ## Services/providers
 ### Currently supported
 1. MyAnimeList
+2. AniList
 ### In-progress
 1. Kitsu
 2. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)

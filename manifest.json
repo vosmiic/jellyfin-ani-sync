@@ -8,6 +8,21 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "39e3413612f58c54a9d28ca05949a35d",
+        "changelog": "1. Added AniList provider support",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.3/10.8.0.-.ani-sync_1.3.0.0.zip",
+        "timestamp": "2022-03-13 17:00:00",
+        "version": "1.3.0.0"
+      },{
+        "checksum": "e509aa07978fabc2e3629dafda58445b",
+        "changelog": "1. Added AniList provider support.",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.3/10.7.7.-.ani-sync_1.3.0.0.zip",
+        "timestamp": "2022-03-13 17:00:00",
+        "version": "1.3.0.0"
+      },
+      {
         "checksum": "3e6b3850c16bbb372a36189484b0690a",
         "changelog": "1. Added OVA/special support \n 2. Restored symbols to query when searching for anime",
         "targetAbi": "10.8.0.0",
