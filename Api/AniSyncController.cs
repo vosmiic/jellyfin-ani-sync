@@ -35,7 +35,7 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
         public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url) {
-            return new MalApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
+            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
         }
 
         [HttpGet]
@@ -44,7 +44,7 @@ namespace jellyfin_ani_sync.Api {
             Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
             ApiName provider = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingProvider;
             if (userId != null && provider != null) {
-                new MalApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(userId, code);
+                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(userId, code);
                 Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser = Guid.Empty;
                 Plugin.Instance.SaveConfiguration();
             } else {
