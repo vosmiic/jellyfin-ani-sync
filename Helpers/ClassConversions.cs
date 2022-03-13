@@ -7,6 +7,7 @@ public class ClassConversions {
     public static Anime ConvertAnime(AniListSearch.Media aniListAnime) {
         Anime anime = new Anime {
             Id = aniListAnime.Id,
+            NumEpisodes = aniListAnime.Episodes,
             Title = aniListAnime.Title.English,
             AlternativeTitles = new AlternativeTitles {
                 En = aniListAnime.Title.English,
