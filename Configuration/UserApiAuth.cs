@@ -1,6 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace jellyfin_ani_sync.Configuration {
     public enum ApiName {
-        Mal
+        [Display(Name = "MyAnimeList")]
+        Mal,
+        [Display(Name = "AniList")]
+        AniList
     }
 
     public class UserApiAuth {

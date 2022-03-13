@@ -31,5 +31,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// ID of the user that is currently authenticating. Used during the API provider callback.
         /// </summary>
         public Guid currentlyAuthenticatingUser { get; set; }
+        
+        /// <summary>
+        /// Name of the provider that is currently being authenticated. Used during the API provider callback.
+        /// </summary>
+        public ApiName currentlyAuthenticatingProvider { get; set; }
     }
 }
