@@ -213,7 +213,7 @@ public class AniListApiCalls {
         };
 
         if (numberOfTimesRewatched != null) {
-            variables.Add("repeat", "1");
+            variables.Add("repeat", numberOfTimesRewatched.ToString());
         }
 
         if (startDate != null) {
