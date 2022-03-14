@@ -231,6 +231,8 @@
 
                 document.querySelector('#clientId').value = provider.ClientId;
                 document.querySelector('#clientSecret').value = provider.ClientSecret;
+                if (config.callbackUrl)
+                    document.querySelector('#apiUrl').value = config.callbackUrl;
                 Dashboard.hideLoadingMsg();
             });
         }
