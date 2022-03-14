@@ -29,6 +29,13 @@
                     </div>
                     <div class="fieldDescription">You can test if the URL is correct by visiting "&#60;URL&#62;/AniSync/apiUrlTest".</div>
                 </div>
+                <div class="inputContainer">
+                    <button is="emby-button" type="button" id="generateCallbackUrlButton" class="raised block" onclick="generateCallbackUrl()">
+                        Generate Callback URL
+                    </button>
+                    <div class="fieldDescription">This generates an example callback URL based upon the information supplied (or not supplied) above.</div>
+                    <input id="generalCallbackUrlInput" type="text" is="emby-input" disabled />
+                </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
                 </div>
@@ -99,6 +106,15 @@
         var PluginConfig = {
             pluginUniqueId: 'c78f11cf-93e6-4423-8c42-d2c255b70e47'
         };
+        
+        function generateCallbackUrl() {
+            const userApiUrl = document.querySelector('#apiUrl').value;
+            if (userApiUrl) {
+                document.querySelector('#generalCallbackUrlInput').value = userApiUrl + "/AniSync/authCallback"
+            } else {
+                document.querySelector('#generalCallbackUrlInput').value = PluginConfig.localApiUrl + "/AniSync/authCallback"
+            }
+        }
 
         function onAuthorizeButtonClick() {
             // users are unlikely to save after setting client id and secret, so we do it for them
@@ -146,6 +162,7 @@
         }
 
         function setLocalApiUrl(localApiUrl) {
+            PluginConfig.localApiUrl = localApiUrl;
             document.querySelector('#localApiUrl').innerHTML = "Local (server) URL: <b>" + localApiUrl + "</b>";
         }
 
