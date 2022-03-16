@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Mal;
 
 namespace jellyfin_ani_sync.Helpers {
     public class ApiCallHelpers {

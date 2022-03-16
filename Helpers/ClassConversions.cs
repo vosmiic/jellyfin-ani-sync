@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Mal;
 
 namespace jellyfin_ani_sync.Helpers {
     public class ClassConversions {

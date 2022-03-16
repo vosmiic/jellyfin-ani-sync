@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace jellyfin_ani_sync.Models {
+namespace jellyfin_ani_sync.Models.Mal {
     public class MainPicture {
         [JsonPropertyName("medium")] public string Medium { get; set; }
         [JsonPropertyName("large")] public string Large { get; set; }
