@@ -40,12 +40,12 @@
                     <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
                 </div>
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="clientId">Client ID</label>
+                    <label class="inputLabel inputLabelUnfocused" for="clientId" id="clientIdLabel">Client ID</label>
                     <input id="clientId" name="clientId" type="text" is="emby-input"/>
                     <div class="fieldDescription">The client ID from your provider application.</div>
                 </div>
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="clientSecret">Client Secret</label>
+                    <label class="inputLabel inputLabelUnfocused" for="clientSecret" id="clientSecretLabel">Client Secret</label>
                     <input id="clientSecret" name="clientSecret" type="password" is="emby-input"/>
                     <div class="fieldDescription">The client secret from your provider application.<b>This value will be
                         stored in plain text in the plugin config. Make sure no untrusted users have access to the
@@ -119,13 +119,21 @@
         function onAuthorizeButtonClick() {
             // users are unlikely to save after setting client id and secret, so we do it for them
             saveUserConfig(true);
-            fetch("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + document.querySelector('#clientId').value +
-                "&clientSecret=" + document.querySelector('#clientSecret').value +
-                "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"), {
-                method: "GET"
-            })
-                .then((response) => response.json())
-                .then((json) => document.querySelector('#authorizeLink').innerHTML = json);
+            if (document.querySelector('#selectProvider').value === "Kitsu") {
+                fetch("/AniSync/passwordGrant?provider=Kitsu&userId=" + document.querySelector('#selectUser').value + 
+                    "&username=" + document.querySelector('#clientId').value + 
+                    "&password=" + document.querySelector('#clientSecret').value, {
+                    method: "GET"
+                })
+            } else {
+                fetch("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + document.querySelector('#clientId').value +
+                    "&clientSecret=" + document.querySelector('#clientSecret').value +
+                    "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"), {
+                    method: "GET"
+                })
+                    .then((response) => response.json())
+                    .then((json) => document.querySelector('#authorizeLink').innerHTML = json);
+            }
         }
 
         function getUser() {
@@ -248,6 +256,15 @@
 
                 document.querySelector('#clientId').value = provider.ClientId;
                 document.querySelector('#clientSecret').value = provider.ClientSecret;
+                
+                if (providerName === "Kitsu") {
+                    document.querySelector('#clientIdLabel').innerHTML = "Username";
+                    document.querySelector('#clientSecretLabel').innerHTML = "Password";
+                } else {
+                    document.querySelector('#clientIdLabel').innerHTML = "Client ID";
+                    document.querySelector('#clientSecretLabel').innerHTML = "Client Secret";
+                }
+                
                 if (config.callbackUrl)
                     document.querySelector('#apiUrl').value = config.callbackUrl;
                 Dashboard.hideLoadingMsg();
@@ -274,7 +291,7 @@
                     config.ProviderApiAuth.push(authConfig);
                 }
 
-                if (clientId && clientSecret) {
+                if (clientId && clientSecret && name !== "Kitsu") {
                     authConfig.ClientId = clientId;
                     authConfig.ClientSecret = clientSecret;
                 } else {

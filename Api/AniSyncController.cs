@@ -39,6 +39,15 @@ namespace jellyfin_ani_sync.Api {
         }
 
         [HttpGet]
+        [Route("passwordGrant")]
+        public IActionResult PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
+            if (new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId)) != null) {
+                return Ok();
+            };
+            return BadRequest();
+        }
+
+        [HttpGet]
         [Route("authCallback")]
         public void MalCallback(string code) {
             Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
