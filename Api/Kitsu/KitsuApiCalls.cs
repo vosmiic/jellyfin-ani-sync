@@ -47,4 +47,25 @@ public class KitsuApiCalls {
 
         return null;
     }
+
+    public async Task<string> GetUserInformation() {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/users",
+            Parameters = new List<KeyValuePair<string, string>> {
+                new KeyValuePair<string, string>("filter[self]", "true")
+            }
+        };
+        
+        _logger.LogInformation($"(Kitsu) Retrieving user information...");
+        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, url.Build());
+        if (apiCall != null) {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            var animeList = JsonSerializer.Deserialize<KitsuUser.KitsuUserRoot>(await streamReader.ReadToEndAsync());
+            
+            _logger.LogInformation("Retrieved user information");
+            return animeList.KitsuUserList[0].Attributes.Name;
+        }
+
+        return null;
+    }
 }
