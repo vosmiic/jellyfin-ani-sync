@@ -49,7 +49,7 @@ public class KitsuSearch {
         public string Last { get; set; }
     }
 
-    public class KitsuSearchData {
+    public class KitsuAnime {
         [JsonPropertyName("type")]
         public string Type { get; set; }
 
@@ -68,7 +68,7 @@ public class KitsuSearch {
         public Links Links { get; set; }
 
         [JsonPropertyName("data")]
-        public List<KitsuSearchData> Data { get; set; }
+        public List<KitsuAnime> Data { get; set; }
     }
 
     public class Relationships {
@@ -78,7 +78,7 @@ public class KitsuSearch {
 
     public class KitsuSearchMedia {
         [JsonPropertyName("data")]
-        public List<KitsuSearchData> KitsuSearchData { get; set; }
+        public List<KitsuAnime> KitsuSearchData { get; set; }
         
         [JsonPropertyName("links")]
         public Links Links { get; set; }
