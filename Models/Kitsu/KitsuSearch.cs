@@ -54,7 +54,8 @@ public class KitsuSearch {
         public string Type { get; set; }
 
         [JsonPropertyName("id")]
-        public string Id { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public int Id { get; set; }
 
         [JsonPropertyName("attributes")]
         public Attributes Attributes { get; set; }

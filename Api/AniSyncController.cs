@@ -98,8 +98,9 @@ namespace jellyfin_ani_sync.Api {
                         throw;
                     }
 
+                    var apiCall = await kitsuApiCalls.GetUserInformation();
                     return new MalApiCalls.User {
-                        Name = await kitsuApiCalls.GetUserInformation()
+                        Name = apiCall.Name
                     };
             }
 
