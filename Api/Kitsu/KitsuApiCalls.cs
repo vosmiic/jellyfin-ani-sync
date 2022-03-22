@@ -54,6 +54,19 @@ public class KitsuApiCalls {
         return null;
     }
 
+    public async Task<int?> GetUserId() {
+        var userIdKeyPair = _userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId")?.Value;
+        int? userId = null;
+        if (userIdKeyPair != null) {
+            return int.Parse(userIdKeyPair);
+        } else {
+            var userInformation = await GetUserInformation();
+            if (userInformation != null) return userInformation.Id;
+        }
+
+        return null;
+    }
+
     public async Task<MalApiCalls.User> GetUserInformation() {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/users",
@@ -102,14 +115,7 @@ public class KitsuApiCalls {
         bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
         _logger.LogInformation($"(Kitsu) Preparing to update anime {animeId} status...");
 
-        var userIdKeyPair = _userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId")?.Value;
-        int? userId = null;
-        if (userIdKeyPair != null) {
-            userId = int.Parse(userIdKeyPair);
-        } else {
-            var userInformation = await GetUserInformation();
-            if (userInformation != null) userId = userInformation.Id;
-        }
+        int? userId = await GetUserId();
         
         if (userId != null) {
             var libraryStatus = await GetUserAnimeStatus(userId.Value, animeId);
