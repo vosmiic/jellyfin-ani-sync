@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using jellyfin_ani_sync.Configuration;
 
@@ -29,6 +30,11 @@ namespace jellyfin_ani_sync.Models {
         /// API authentication details of the user.
         /// </summary>
         public UserApiAuth[] UserApiAuth { get; set; }
+        
+        /// <summary>
+        /// Key pair values for any data that needs to be stored but doesn't fit anywhere else.
+        /// </summary>
+        public List<KeyPairs> KeyPairs { get; set; }
 
         public void AddUserApiAuth(UserApiAuth userApiAuth) {
             if (UserApiAuth != null) {

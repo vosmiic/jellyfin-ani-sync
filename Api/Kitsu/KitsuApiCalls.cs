@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -20,10 +21,12 @@ public class KitsuApiCalls {
     private readonly string ApiUrl = "https://kitsu.io/api/edge";
     private readonly ILogger<KitsuApiCalls> _logger;
     private readonly AuthApiCall _authApiCall;
+    private readonly UserConfig _userConfig;
 
-    public KitsuApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
+    public KitsuApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig) {
         _logger = loggerFactory.CreateLogger<KitsuApiCalls>();
         _authApiCall = new AuthApiCall(ApiName.Kitsu, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
+        _userConfig = userConfig;
     }
 
     public async Task<List<KitsuSearch.KitsuAnime>> SearchAnime(string query) {
@@ -99,9 +102,17 @@ public class KitsuApiCalls {
         bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
         _logger.LogInformation($"(Kitsu) Preparing to update anime {animeId} status...");
 
-        MalApiCalls.User user = await GetUserInformation();
-        if (user != null) {
-            var libraryStatus = await GetUserAnimeStatus(user.Id, animeId);
+        var userIdKeyPair = _userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId")?.Value;
+        int? userId = null;
+        if (userIdKeyPair != null) {
+            userId = int.Parse(userIdKeyPair);
+        } else {
+            var userInformation = await GetUserInformation();
+            if (userInformation != null) userId = userInformation.Id;
+        }
+        
+        if (userId != null) {
+            var libraryStatus = await GetUserAnimeStatus(userId.Value, animeId);
             // if this is populated, it means there is already a record of the anime in the users anime list. therefore we update the record instead of create a new one
             UrlBuilder url = new UrlBuilder {
                 Base = $"{ApiUrl}/library-entries{(libraryStatus != null ? $"/{libraryStatus.Id}" : "")}"
@@ -124,7 +135,7 @@ public class KitsuApiCalls {
                         UserData = new KitsuUpdate.UserData {
                             User = new KitsuGetUser.KitsuUser {
                                 Type = "users",
-                                Id = user.Id
+                                Id = userId.Value
                             }
                         }
                     }
