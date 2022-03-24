@@ -83,13 +83,13 @@ public class KitsuApiCalls {
             var animeList = JsonSerializer.Deserialize<KitsuGetUser.KitsuUserRoot>(await streamReader.ReadToEndAsync());
 
             _logger.LogInformation("(Kitsu) Retrieved user information");
-            return new MalApiCalls.User{ Id = animeList.KitsuUserList[0].Id, Name = animeList.KitsuUserList[0].KitsuUser.Name};
+            return new MalApiCalls.User { Id = animeList.KitsuUserList[0].Id, Name = animeList.KitsuUserList[0].KitsuUser.Name };
         }
 
         return null;
     }
 
-    public async Task<KitsuSearch.KitsuAnime> GetAnime(int animeId) {
+    public async Task<KitsuGet.KitsuGetAnime> GetAnime(int animeId) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiUrl}/anime/{animeId}",
         };
@@ -102,7 +102,48 @@ public class KitsuApiCalls {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 var anime = JsonSerializer.Deserialize<KitsuGet.KitsuGetAnime>(await streamReader.ReadToEndAsync());
                 _logger.LogInformation("(Kitsu) Anime retrieval complete");
-                return anime.KitsuAnimeData;
+                List<KitsuSearch.KitsuAnime> relatedAnime = await GetRelatedAnime(animeId);
+                if (relatedAnime != null && anime != null) {
+                    anime.KitsuAnimeData.RelatedAnime = relatedAnime;
+                }
+
+                return anime;
+            }
+        } catch (Exception e) {
+            _logger.LogError(e.Message);
+        }
+
+        return null;
+    }
+
+    public async Task<List<KitsuSearch.KitsuAnime>> GetRelatedAnime(int animeId) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiUrl}/anime/{animeId}/media-relationships"
+        };
+
+        url.Parameters.Add(new KeyValuePair<string, string>("include", "destination"));
+
+        string builtUrl = url.Build();
+        try {
+            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, builtUrl);
+            if (apiCall != null) {
+                StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+                var mediaRelationships = JsonSerializer.Deserialize<KitsuMediaRelationship.MediaRelationship>(await streamReader.ReadToEndAsync());
+
+                List<int> listOfRelatedAnimeIds = new List<int>();
+                if (mediaRelationships != null) {
+                    foreach (KitsuMediaRelationship.RelationshipData relationshipData in mediaRelationships.Data) {
+                        if (relationshipData.Relationships.Destination.RelationshipData.Type == "anime") {
+                            listOfRelatedAnimeIds.Add(int.Parse(relationshipData.Relationships.Destination.RelationshipData.Id));
+                        }
+                    }
+
+                    for (var i = 0; i < mediaRelationships.Included.Count; i++) {
+                        mediaRelationships.Included[i].RelationType = mediaRelationships.Data[i].Attributes.RelationType;
+                    }
+
+                    return mediaRelationships.Included.Where(anime => listOfRelatedAnimeIds.Any(ids => anime.Id == ids)).ToList();
+                }
             }
         } catch (Exception e) {
             _logger.LogError(e.Message);
@@ -114,9 +155,8 @@ public class KitsuApiCalls {
     public async Task<bool> UpdateAnimeStatus(int animeId, int numberOfWatchedEpisodes, KitsuUpdate.Status status,
         bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
         _logger.LogInformation($"(Kitsu) Preparing to update anime {animeId} status...");
-
         int? userId = await GetUserId();
-        
+
         if (userId != null) {
             var libraryStatus = await GetUserAnimeStatus(userId.Value, animeId);
             // if this is populated, it means there is already a record of the anime in the users anime list. therefore we update the record instead of create a new one
@@ -174,9 +214,11 @@ public class KitsuApiCalls {
 
             var stringContent = new StringContent(JsonSerializer.Serialize(payload, jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
             var xd = new StringContent(JsonSerializer.Serialize(payload, jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json").ReadAsStringAsync().Result;
-            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? MalApiCalls.CallType.PATCH : MalApiCalls.CallType.POST, url.Build(), stringContent: stringContent);
+            HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? MalApiCalls.CallType.PATCH : MalApiCalls.CallType.POST, url.Build(), stringContent: stringContent);
 
-            return apiCall.IsSuccessStatusCode;
+            if (apiCall != null) {
+                return apiCall.IsSuccessStatusCode;
+            }
         }
 
         return false;

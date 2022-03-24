@@ -62,6 +62,10 @@ public class KitsuSearch {
 
         [JsonPropertyName("relationships")]
         public Relationships Relationships { get; set; }
+        
+        public List<KitsuAnime> RelatedAnime { get; set; }
+        
+        public KitsuMediaRelationship.RelationType? RelationType { get; set; }
     }
 
     public class MediaRelationships {
