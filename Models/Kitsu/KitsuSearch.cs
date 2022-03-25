@@ -29,7 +29,7 @@ public class KitsuSearch {
         public List<string> AbbreviatedTitles { get; set; }
 
         [JsonPropertyName("episodeCount")]
-        public int EpisodeCount { get; set; }
+        public int? EpisodeCount { get; set; }
     }
 
     public class Links {
