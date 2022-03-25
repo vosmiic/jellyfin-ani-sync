@@ -137,7 +137,7 @@ namespace jellyfin_ani_sync.Helpers {
                             RewatchCount = userAnimeStatus.Attributes.ReconsumeCount ?? 0
                         };
 
-                    if (userAnimeStatus.Attributes != null)
+                    if (userAnimeStatus is { Attributes: { } })
                         switch (userAnimeStatus.Attributes.Status) {
                             case KitsuUpdate.Status.completed:
                                 convertedAnime.MyListStatus.Status = Status.Completed;
@@ -236,7 +236,8 @@ namespace jellyfin_ani_sync.Helpers {
                         kitsuStatus = KitsuUpdate.Status.current;
                         break;
                     case Status.Completed:
-                        kitsuStatus = KitsuUpdate.Status.completed;
+                    case Status.Rewatching:
+                        kitsuStatus = isRewatching != null && isRewatching.Value ? KitsuUpdate.Status.current : KitsuUpdate.Status.completed;
                         break;
                     case Status.On_hold:
                         kitsuStatus = KitsuUpdate.Status.on_hold;
