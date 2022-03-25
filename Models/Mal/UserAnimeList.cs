@@ -13,7 +13,8 @@ namespace jellyfin_ani_sync.Models.Mal {
         [EnumMember(Value = "completed")] Completed,
         [EnumMember(Value = "on_hold")] On_hold,
         [EnumMember(Value = "dropped")] Dropped,
-        [EnumMember(Value = "plan_to_watch")] Plan_to_watch
+        [EnumMember(Value = "plan_to_watch")] Plan_to_watch,
+        Rewatching
     }
 
     public class ListStatus {
