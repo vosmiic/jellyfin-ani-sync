@@ -41,8 +41,13 @@ namespace jellyfin_ani_sync.Helpers {
                         kitsuAnime.Attributes.Slug,
                         kitsuAnime.Attributes.CanonicalTitle
                     }
-                }
+                },
             };
+
+            if (kitsuAnime.Attributes.EpisodeCount != null) {
+                anime.NumEpisodes = kitsuAnime.Attributes.EpisodeCount.Value;
+            }
+
             anime.AlternativeTitles.Synonyms.AddRange(kitsuAnime.Attributes.AbbreviatedTitles);
 
             return anime;
