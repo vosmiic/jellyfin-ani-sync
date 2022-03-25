@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Anilist;
+using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
@@ -39,6 +40,33 @@ namespace jellyfin_ani_sync.Api {
         }
 
         [HttpGet]
+        [Route("passwordGrant")]
+        public async Task<IActionResult> PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
+            if (new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId)) != null) {
+                if (provider == ApiName.Kitsu) {
+                    var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
+
+                    if (userConfig != null) {
+                        KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig);
+                        var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
+                        var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
+                        if (existingKeyPair != null) {
+                            existingKeyPair.Value = kitsuUserConfig.Id.ToString();
+                        } else {
+                            userConfig.KeyPairs.Add(new KeyPairs { Key = "KitsuUserId", Value = kitsuUserConfig.Id.ToString() });
+                        }
+
+                        Plugin.Instance.SaveConfiguration();
+                    }
+                }
+
+                return Ok();
+            }
+
+            return BadRequest();
+        }
+
+        [HttpGet]
         [Route("authCallback")]
         public void MalCallback(string code) {
             Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
@@ -56,28 +84,42 @@ namespace jellyfin_ani_sync.Api {
         [Route("user")]
         // this only works for mal atm, needs to work for anilist as well
         public async Task<MalApiCalls.User> GetUser(ApiName apiName, string userId) {
-            if (apiName == ApiName.Mal) {
-                MalApiCalls malApiCalls;
-                try {
-                    malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
-                } catch (ArgumentNullException) {
-                    _logger.LogError("User not found");
-                    throw;
-                }
+            switch (apiName) {
+                case ApiName.Mal:
+                    MalApiCalls malApiCalls;
+                    try {
+                        malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                    } catch (ArgumentNullException) {
+                        _logger.LogError("User not found");
+                        throw;
+                    }
 
-                return await malApiCalls.GetUserInformation();
-            } else if (apiName == ApiName.AniList) {
-                AniListApiCalls aniListApiCalls;
-                try {
-                    aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
-                } catch (ArgumentNullException) {
-                    _logger.LogError("User not found");
-                    throw;
-                }
+                    return await malApiCalls.GetUserInformation();
+                case ApiName.AniList:
+                    AniListApiCalls aniListApiCalls;
+                    try {
+                        aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                    } catch (ArgumentNullException) {
+                        _logger.LogError("User not found");
+                        throw;
+                    }
 
-                return new MalApiCalls.User {
-                    Name = await aniListApiCalls.GetCurrentUser()
-                };
+                    return new MalApiCalls.User {
+                        Name = await aniListApiCalls.GetCurrentUser()
+                    };
+                case ApiName.Kitsu:
+                    KitsuApiCalls kitsuApiCalls;
+                    try {
+                        kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                    } catch (ArgumentNullException) {
+                        _logger.LogError("User not found");
+                        throw;
+                    }
+
+                    var apiCall = await kitsuApiCalls.GetUserInformation();
+                    return new MalApiCalls.User {
+                        Name = apiCall.Name
+                    };
             }
 
             throw new Exception("Provider not supported.");

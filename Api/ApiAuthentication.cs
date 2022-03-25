@@ -31,6 +31,9 @@ namespace jellyfin_ani_sync.Api {
                 case ApiName.AniList:
                     _authApiUrl = "https://anilist.co/api/v2/oauth";
                     break;
+                case ApiName.Kitsu:
+                    _authApiUrl = "https://kitsu.io/api/oauth";
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(provider), provider, null);
             }
@@ -39,16 +42,7 @@ namespace jellyfin_ani_sync.Api {
             if (overrideProviderApiAuth != null) {
                 _providerApiAuth = overrideProviderApiAuth;
             } else {
-                switch (provider) {
-                    case ApiName.Mal:
-                        _providerApiAuth = Plugin.Instance?.PluginConfiguration.ProviderApiAuth?.FirstOrDefault(item => item.Name == ApiName.Mal) ?? throw new NullReferenceException($"No {provider} provider API auth in plugin config");
-                        break;
-                    case ApiName.AniList:
-                        _providerApiAuth = Plugin.Instance?.PluginConfiguration.ProviderApiAuth?.FirstOrDefault(item => item.Name == ApiName.AniList) ?? throw new NullReferenceException($"No {provider} provider API auth in plugin config");
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(provider), provider, null);
-                }
+                _providerApiAuth = Plugin.Instance?.PluginConfiguration.ProviderApiAuth?.FirstOrDefault(item => item.Name == _provider) ?? throw new NullReferenceException($"No {provider} provider API auth in plugin config");
             }
 
             var userCallbackUrl = Plugin.Instance.PluginConfiguration.callbackUrl;
@@ -97,26 +91,41 @@ namespace jellyfin_ani_sync.Api {
 
             FormUrlEncodedContent formUrlEncodedContent;
 
-            if (refreshToken != null) {
-                formUrlEncodedContent = new FormUrlEncodedContent(new[] {
-                    new KeyValuePair<string, string>("client_id", _providerApiAuth.ClientId),
-                    new KeyValuePair<string, string>("client_secret", _providerApiAuth.ClientSecret),
-                    new KeyValuePair<string, string>("grant_type", "refresh_token"),
-                    new KeyValuePair<string, string>("refresh_token", refreshToken)
-                });
-            } else {
-                List<KeyValuePair<string, string>> content = new List<KeyValuePair<string, string>>() {
-                    new KeyValuePair<string, string>("client_id", _providerApiAuth.ClientId),
-                    new KeyValuePair<string, string>("client_secret", _providerApiAuth.ClientSecret),
-                    new KeyValuePair<string, string>("code", code),
-                    new KeyValuePair<string, string>("grant_type", "authorization_code"),
-                    new KeyValuePair<string, string>("redirect_uri", _redirectUrl)
-                };
-                if (_provider == ApiName.Mal) {
-                    content.Add(new KeyValuePair<string, string>("code_verifier", _codeChallenge));
+            if (_provider == ApiName.Kitsu) {
+                if (refreshToken != null) {
+                    formUrlEncodedContent = new FormUrlEncodedContent(new[] {
+                        new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                        new KeyValuePair<string, string>("refresh_token", refreshToken)
+                    });
+                } else {
+                    formUrlEncodedContent = new FormUrlEncodedContent(new[] {
+                        new KeyValuePair<string, string>("grant_type", "password"),
+                        new KeyValuePair<string, string>("username", _providerApiAuth.ClientId),
+                        new KeyValuePair<string, string>("password", _providerApiAuth.ClientSecret)
+                    });
                 }
+            } else {
+                if (refreshToken != null) {
+                    formUrlEncodedContent = new FormUrlEncodedContent(new[] {
+                        new KeyValuePair<string, string>("client_id", _providerApiAuth.ClientId),
+                        new KeyValuePair<string, string>("client_secret", _providerApiAuth.ClientSecret),
+                        new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                        new KeyValuePair<string, string>("refresh_token", refreshToken)
+                    });
+                } else {
+                    List<KeyValuePair<string, string>> content = new List<KeyValuePair<string, string>>() {
+                        new KeyValuePair<string, string>("client_id", _providerApiAuth.ClientId),
+                        new KeyValuePair<string, string>("client_secret", _providerApiAuth.ClientSecret),
+                        new KeyValuePair<string, string>("code", code),
+                        new KeyValuePair<string, string>("grant_type", "authorization_code"),
+                        new KeyValuePair<string, string>("redirect_uri", _redirectUrl)
+                    };
+                    if (_provider == ApiName.Mal) {
+                        content.Add(new KeyValuePair<string, string>("code_verifier", _codeChallenge));
+                    }
 
-                formUrlEncodedContent = new FormUrlEncodedContent(content.ToArray());
+                    formUrlEncodedContent = new FormUrlEncodedContent(content.ToArray());
+                }
             }
 
             var response = client.PostAsync(new Uri($"{_authApiUrl}/token"), formUrlEncodedContent).Result;
@@ -138,13 +147,13 @@ namespace jellyfin_ani_sync.Api {
                         AccessToken = tokenResponse.access_token
                     };
 
-                    if (_provider == ApiName.Mal) {
+                    if (_provider == ApiName.Mal || _provider == ApiName.Kitsu) {
                         newUserApiAuth.RefreshToken = tokenResponse.refresh_token;
                     }
 
                     if (apiAuth != null) {
                         apiAuth.AccessToken = tokenResponse.access_token;
-                        if (_provider == ApiName.Mal) {
+                        if (_provider == ApiName.Mal || _provider == ApiName.Kitsu) {
                             apiAuth.RefreshToken = tokenResponse.refresh_token;
                         }
                     } else {

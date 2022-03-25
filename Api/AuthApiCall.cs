@@ -67,7 +67,7 @@ namespace jellyfin_ani_sync.Api {
                             responseMessage = await client.PostAsync(url, formUrlEncodedContent != null ? formUrlEncodedContent : stringContent);
                             break;
                         case MalApiCalls.CallType.PATCH:
-                            responseMessage = await client.PatchAsync(url, formUrlEncodedContent);
+                            responseMessage = await client.PatchAsync(url, formUrlEncodedContent != null ? formUrlEncodedContent : stringContent);
                             break;
                         case MalApiCalls.CallType.PUT:
                             responseMessage = await client.PutAsync(url, formUrlEncodedContent);
