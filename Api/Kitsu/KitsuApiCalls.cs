@@ -35,8 +35,6 @@ public class KitsuApiCalls {
         };
 
         if (query != null) {
-            query = StringFormatter.RemoveSpaces(query);
-
             url.Parameters.Add(new KeyValuePair<string, string>("filter[text]", query));
         }
 
@@ -213,7 +211,6 @@ public class KitsuApiCalls {
             };
 
             var stringContent = new StringContent(JsonSerializer.Serialize(payload, jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
-            var xd = new StringContent(JsonSerializer.Serialize(payload, jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json").ReadAsStringAsync().Result;
             HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? MalApiCalls.CallType.PATCH : MalApiCalls.CallType.POST, url.Build(), stringContent: stringContent);
 
             if (apiCall != null) {
@@ -241,7 +238,7 @@ public class KitsuApiCalls {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 var library = JsonSerializer.Deserialize<KitsuUpdate.KitsuLibraryEntryListRoot>(await streamReader.ReadToEndAsync());
                 _logger.LogInformation("(Kitsu) Fetched user anime list");
-                if (library is { Data: { } } && library.Data[0] != null) {
+                if (library is { Data: { Count: > 0 } }) {
                     return library.Data[0];
                 }
             }
