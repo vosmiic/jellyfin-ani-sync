@@ -37,18 +37,18 @@ Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular serv
 ### Currently supported
 1. MyAnimeList
 2. AniList
+3. (Beta) Kitsu
 ### In-progress
-1. Kitsu
-2. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)
+1. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)
 
 ## In progress
 
 The current list of unsupported features (that are being worked on):
-1. OVAs. Attempting to find them via the API is mildly difficult and unreliable, so they are currently not supported.
+1. Multi cour anime.
 2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
 
 ## Known issues
 ~~1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.~~ Fixed in build 1.1
-
+2. OVA's can throw an error that crashes Jellyfin entirely if the show is not found. A fix will be out on the next release.
 ## Development
 Unit tests can be found [here](https://github.com/vosmiic/jellyfin-ani-sync-unit-tests).
