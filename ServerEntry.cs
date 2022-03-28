@@ -422,7 +422,7 @@ namespace jellyfin_ani_sync {
                 var listOfRelatedAnime = anime.RelatedAnime.Where(relation => relation.RelationType is RelationType.Side_Story or RelationType.Alternative_Version or RelationType.Alternative_Setting);
                 foreach (RelatedAnime relatedAnime in listOfRelatedAnime) {
                     var detailedRelatedAnime = await _apiCallHelpers.GetAnime(relatedAnime.Anime.Id);
-                    if (detailedRelatedAnime != null) {
+                    if (detailedRelatedAnime is { Title: { }, AlternativeTitles: { En: { } } }) {
                         if (ContainsExtended(detailedRelatedAnime.Title, episodeName) || ContainsExtended(detailedRelatedAnime.AlternativeTitles.En, episodeName)) {
                             // rough match
                             return detailedRelatedAnime;
