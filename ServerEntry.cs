@@ -114,6 +114,7 @@ namespace jellyfin_ani_sync {
                                         CompareStrings(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name)) {
                                         _logger.LogInformation($"({ApiName}) Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
                                         Anime matchingAnime = anime;
+                                        int episodeNumber = episode.IndexNumber.Value;
                                         if (episode?.Season.IndexNumber is > 1) {
                                             // if this is not the first season, then we need to lookup the related season.
                                             matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
@@ -132,9 +133,39 @@ namespace jellyfin_ani_sync {
                                                 found = true;
                                                 break;
                                             }
+                                        } else if (matchingAnime.NumEpisodes < episode?.IndexNumber.Value) {
+                                            _logger.LogInformation($"({ApiName}) Watched episode passes total episodes in season! Checking for additional seasons/cours...");
+                                            // either we have found the wrong series (highly unlikely) or it is a multi cour series/Jellyfin has grouped next season into the current.
+                                            int seasonEpisodeCounter = matchingAnime.NumEpisodes;
+                                            int totalEpisodesWatched = 0;
+                                            int seasonCounter = episode.Season.IndexNumber.Value;
+                                            int episodeCount = episode.IndexNumber.Value;
+                                            Anime season = matchingAnime;
+                                            while (seasonEpisodeCounter < episodeCount) {
+                                                var nextSeason = await GetDifferentSeasonAnime(season.Id, seasonCounter + 1);
+                                                if (nextSeason == null) {
+                                                    _logger.LogWarning($"({ApiName}) Could not find next season");
+                                                    found = true;
+                                                    break;
+                                                }
+
+                                                seasonEpisodeCounter += nextSeason.NumEpisodes;
+                                                seasonCounter++;
+                                                // complete the current season; we have surpassed it onto the next season/cour
+                                                totalEpisodesWatched += season.NumEpisodes;
+                                                await CheckUserListAnimeStatus(season.Id, season.NumEpisodes, false);
+                                                season = nextSeason;
+                                            }
+
+                                            if (season.Id != matchingAnime.Id) {
+                                                matchingAnime = season;
+                                                episodeNumber = episodeCount - totalEpisodesWatched;
+                                            } else {
+                                                break;
+                                            }
                                         }
 
-                                        await CheckUserListAnimeStatus(matchingAnime.Id, video);
+                                        await CheckUserListAnimeStatus(matchingAnime.Id, episodeNumber);
                                         found = true;
                                         break;
                                     }
@@ -191,13 +222,13 @@ namespace jellyfin_ani_sync {
             return false;
         }
 
-        private async Task CheckUserListAnimeStatus(int matchingAnimeId, Video anime) {
+        private async Task CheckUserListAnimeStatus(int matchingAnimeId, int episodeNumber, bool? overrideCheckRewatch = null) {
             Anime detectedAnime = await GetAnime(matchingAnimeId);
 
             if (detectedAnime == null) return;
             if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Watching) {
                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on watching list");
-                await UpdateAnimeStatus(detectedAnime, anime.IndexNumber);
+                await UpdateAnimeStatus(detectedAnime, episodeNumber);
                 return;
             }
 
@@ -205,19 +236,19 @@ namespace jellyfin_ani_sync {
             if (_userConfig.PlanToWatchOnly) {
                 if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Plan_to_watch) {
                     _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on plan to watch list");
-                    await UpdateAnimeStatus(detectedAnime, anime.IndexNumber);
+                    await UpdateAnimeStatus(detectedAnime, episodeNumber);
                 }
 
                 // also check if rewatch completed is checked
                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) not found in plan to watch list{(_userConfig.RewatchCompleted ? ", checking completed list.." : null)}");
-                await CheckIfRewatchCompleted(detectedAnime, anime.IndexNumber.Value);
+                await CheckIfRewatchCompleted(detectedAnime, episodeNumber, overrideCheckRewatch);
                 return;
             }
 
             _logger.LogInformation("User does not have plan to watch only ticked");
 
             // check if rewatch completed is checked
-            await CheckIfRewatchCompleted(detectedAnime, anime.IndexNumber.Value);
+            await CheckIfRewatchCompleted(detectedAnime, episodeNumber, overrideCheckRewatch);
 
             _logger.LogInformation("User does not have rewatch completed ticked");
 
@@ -233,17 +264,23 @@ namespace jellyfin_ani_sync {
                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) not on user list");
             }
 
-            await UpdateAnimeStatus(detectedAnime, anime.IndexNumber);
+            await UpdateAnimeStatus(detectedAnime, episodeNumber);
         }
 
-        private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber) {
-            if (_userConfig.RewatchCompleted) {
-                if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
-                    _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on completed list, setting as re-watching");
-                    await UpdateAnimeStatus(detectedAnime, indexNumber, true, detectedAnime.MyListStatus.RewatchCount, true);
+        private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber, bool? overrideCheckRewatch) {
+            if (overrideCheckRewatch == null ||
+                overrideCheckRewatch.Value ||
+                (detectedAnime.MyListStatus is { Status: Status.Completed } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber)) {
+                if (_userConfig.RewatchCompleted) {
+                    if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
+                        _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on completed list, setting as re-watching");
+                        await UpdateAnimeStatus(detectedAnime, indexNumber, true, detectedAnime.MyListStatus.RewatchCount, true);
+                    }
+                } else {
+                    _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
                 }
             } else {
-                _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
+                _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({detectedAnime.Title}) found on Completed list, but episode in series is in second season/cour, so skipping");
             }
         }
 
@@ -272,8 +309,9 @@ namespace jellyfin_ani_sync {
             if (episodeNumber != null) {
                 UpdateAnimeStatusResponse response;
                 if (detectedAnime.MyListStatus != null) {
-                    if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || detectedAnime.NumEpisodes == 1 || 
-                        (setRewatching != null && setRewatching.Value && detectedAnime.MyListStatus.NumEpisodesWatched == episodeNumber.Value)) { // covers the very rare occurence of re-watching the show and starting at the last episode
+                    if (detectedAnime.MyListStatus.NumEpisodesWatched < episodeNumber.Value || detectedAnime.NumEpisodes == 1 ||
+                        (setRewatching != null && setRewatching.Value && detectedAnime.MyListStatus.NumEpisodesWatched == episodeNumber.Value)) {
+                        // covers the very rare occurence of re-watching the show and starting at the last episode
                         // movie or ova has only one episode, so just mark it as finished
                         if (episodeNumber.Value == detectedAnime.NumEpisodes || detectedAnime.NumEpisodes == 1) {
                             // either watched all episodes or the anime only has a single episode (ova)
