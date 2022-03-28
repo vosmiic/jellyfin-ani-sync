@@ -22,7 +22,7 @@ namespace jellyfin_ani_sync.Helpers {
         public static async Task<HttpResponseMessage> AuthenticatedRequest(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig, string query, Dictionary<string, string> variables = null) {
             AuthApiCall authApiCall = new AuthApiCall(ApiName.AniList, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig);
             var xd = JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables });
-            var call = await authApiCall.AuthenticatedApiCall(ApiName.AniList, MalApiCalls.CallType.POST, "https://graphql.anilist.co", stringContent: new StringContent(JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables }), Encoding.UTF8, "application/json"));
+            var call = await authApiCall.AuthenticatedApiCall(ApiName.AniList, AuthApiCall.CallType.POST, "https://graphql.anilist.co", stringContent: new StringContent(JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables }), Encoding.UTF8, "application/json"));
 
             return call.IsSuccessStatusCode ? call : null;
         }

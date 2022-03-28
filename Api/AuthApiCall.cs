@@ -42,7 +42,7 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="NullReferenceException">Authentication details not found.</exception>
         /// <exception cref="Exception">Non-200 response.</exception>
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
-        public async Task<HttpResponseMessage> AuthenticatedApiCall(ApiName provider, MalApiCalls.CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null) {
+        public async Task<HttpResponseMessage> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null) {
             int attempts = 0;
             UserApiAuth auth;
             try {
@@ -60,19 +60,19 @@ namespace jellyfin_ani_sync.Api {
                 HttpResponseMessage responseMessage = new HttpResponseMessage();
                 try {
                     switch (callType) {
-                        case MalApiCalls.CallType.GET:
+                        case CallType.GET:
                             responseMessage = await client.GetAsync(url);
                             break;
-                        case MalApiCalls.CallType.POST:
+                        case CallType.POST:
                             responseMessage = await client.PostAsync(url, formUrlEncodedContent != null ? formUrlEncodedContent : stringContent);
                             break;
-                        case MalApiCalls.CallType.PATCH:
+                        case CallType.PATCH:
                             responseMessage = await client.PatchAsync(url, formUrlEncodedContent != null ? formUrlEncodedContent : stringContent);
                             break;
-                        case MalApiCalls.CallType.PUT:
+                        case CallType.PUT:
                             responseMessage = await client.PutAsync(url, formUrlEncodedContent);
                             break;
-                        case MalApiCalls.CallType.DELETE:
+                        case CallType.DELETE:
                             responseMessage = await client.DeleteAsync(url);
                             break;
                         default:
@@ -109,6 +109,14 @@ namespace jellyfin_ani_sync.Api {
 
             _logger.LogError("Unable to authenticate the API call, re-authenticate the plugin");
             return null;
+        }
+        
+        public enum CallType {
+            GET,
+            POST,
+            PATCH,
+            PUT,
+            DELETE
         }
     }
 }

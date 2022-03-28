@@ -39,7 +39,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             string builtUrl = url.Build();
             _logger.LogInformation($"(Kitsu) Starting search for anime (GET {builtUrl})...");
-            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, builtUrl);
+            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
             if (apiCall != null) {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 var animeList = JsonSerializer.Deserialize<KitsuSearch.KitsuSearchMedia>(await streamReader.ReadToEndAsync());
@@ -73,7 +73,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
             };
 
             _logger.LogInformation($"(Kitsu) Retrieving user information...");
-            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, url.Build());
+            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, url.Build());
             if (apiCall != null) {
                 var xd = await apiCall.Content.ReadAsStringAsync();
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
@@ -94,7 +94,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
             string builtUrl = url.Build();
             _logger.LogInformation($"(Kitsu) Retrieving an anime from Kitsu (GET {builtUrl})...");
             try {
-                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, builtUrl);
+                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var anime = JsonSerializer.Deserialize<KitsuGet.KitsuGetAnime>(await streamReader.ReadToEndAsync());
@@ -122,7 +122,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             string builtUrl = url.Build();
             try {
-                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, builtUrl);
+                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var mediaRelationships = JsonSerializer.Deserialize<KitsuMediaRelationship.MediaRelationship>(await streamReader.ReadToEndAsync());
@@ -210,7 +210,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                 };
 
                 var stringContent = new StringContent(JsonSerializer.Serialize(payload, jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
-                HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? MalApiCalls.CallType.PATCH : MalApiCalls.CallType.POST, url.Build(), stringContent: stringContent);
+                HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? AuthApiCall.CallType.PATCH : AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent);
 
                 if (apiCall != null) {
                     return apiCall.IsSuccessStatusCode;
@@ -231,7 +231,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             _logger.LogInformation("(Kitsu) Fetching current user anime list status...");
             try {
-                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, MalApiCalls.CallType.GET, url.Build());
+                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, url.Build());
 
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
