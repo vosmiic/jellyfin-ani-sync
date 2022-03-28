@@ -8,7 +8,7 @@ namespace jellyfin_ani_sync.Helpers {
         public static Anime ConvertAniListAnime(AniListSearch.Media aniListAnime) {
             Anime anime = new Anime {
                 Id = aniListAnime.Id,
-                NumEpisodes = aniListAnime.Episodes,
+                NumEpisodes = aniListAnime.Episodes ?? 0,
                 Title = aniListAnime.Title.English,
                 AlternativeTitles = new AlternativeTitles {
                     En = aniListAnime.Title.English,

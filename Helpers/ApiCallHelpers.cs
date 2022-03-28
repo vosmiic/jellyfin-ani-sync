@@ -30,7 +30,7 @@ namespace jellyfin_ani_sync.Helpers {
 
         public async Task<List<Anime>> SearchAnime(string query) {
             if (_malApiCalls != null) {
-                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles" });
+                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes" });
             }
 
             if (_aniListApiCalls != null) {
@@ -47,7 +47,8 @@ namespace jellyfin_ani_sync.Helpers {
                                 { media.Title.Romaji },
                                 { media.Title.UserPreferred }
                             }
-                        }
+                        },
+                        NumEpisodes = media.Episodes ?? 0
                     });
                 }
 

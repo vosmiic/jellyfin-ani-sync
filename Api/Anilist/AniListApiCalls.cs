@@ -55,7 +55,8 @@ namespace jellyfin_ani_sync.Api.Anilist {
                             english
                         native
                             userPreferred
-                    }
+                    },
+                    episodes
                 }
             }
         }
