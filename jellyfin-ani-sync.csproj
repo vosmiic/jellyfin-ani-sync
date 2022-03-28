@@ -25,5 +25,9 @@
     <None Remove="Configuration\ConfigPage.html" />
     <EmbeddedResource Include="Configuration\ConfigPage.html" />
   </ItemGroup>
+    
+      <ItemGroup>
+        <Compile Remove="builds\**" />
+      </ItemGroup>
 
 </Project>
