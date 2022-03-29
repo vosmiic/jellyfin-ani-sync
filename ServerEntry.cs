@@ -110,8 +110,7 @@ namespace jellyfin_ani_sync {
                             bool found = false;
                             if (animeList != null) {
                                 foreach (var anime in animeList) {
-                                    if (CompareStrings(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name) ||
-                                        CompareStrings(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name)) {
+                                    if (TitleCheck(anime, episode, movie)) {
                                         _logger.LogInformation($"({ApiName}) Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {anime.Title}");
                                         Anime matchingAnime = anime;
                                         int episodeNumber = episode.IndexNumber.Value;
@@ -179,6 +178,19 @@ namespace jellyfin_ani_sync {
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks if the Jellyfin library entry matches the API names.
+        /// </summary>
+        /// <param name="anime">The API anime.</param>
+        /// <param name="episode">The episode if its a series.</param>
+        /// <param name="movie">The movie if its a single episode movie.</param>
+        /// <returns></returns>
+        private bool TitleCheck(Anime anime, Episode episode, Movie movie) {
+            return CompareStrings(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name) ||
+                   CompareStrings(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name) ||
+                   (anime.AlternativeTitles.Ja != null && CompareStrings(anime.AlternativeTitles.Ja, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name));
         }
 
         /// <summary>
@@ -423,7 +435,9 @@ namespace jellyfin_ani_sync {
                 foreach (RelatedAnime relatedAnime in listOfRelatedAnime) {
                     var detailedRelatedAnime = await _apiCallHelpers.GetAnime(relatedAnime.Anime.Id);
                     if (detailedRelatedAnime is { Title: { }, AlternativeTitles: { En: { } } }) {
-                        if (ContainsExtended(detailedRelatedAnime.Title, episodeName) || ContainsExtended(detailedRelatedAnime.AlternativeTitles.En, episodeName)) {
+                        if (ContainsExtended(detailedRelatedAnime.Title, episodeName) ||
+                            ContainsExtended(detailedRelatedAnime.AlternativeTitles.En, episodeName) ||
+                            (detailedRelatedAnime.AlternativeTitles.Ja != null && ContainsExtended(detailedRelatedAnime.AlternativeTitles.Ja, episodeName))) {
                             // rough match
                             return detailedRelatedAnime;
                         }
