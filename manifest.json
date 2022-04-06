@@ -8,6 +8,21 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "d63031b95e6db2affe2e568ace1eb79d",
+        "changelog": "1. Checking Japanese title as well as English title when searching for anime via the provider API",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.5/10.8.0.-.ani-sync_1.5.0.0.zip",
+        "timestamp": "2022-04-06 16:07:00",
+        "version": "1.5.0.0"
+      },{
+        "checksum": "8bf61413f8158b34b6a16702c2058207",
+        "changelog": "1. Checking Japanese title as well as English title when searching for anime via the provider API",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.5/10.7.7.-.ani-sync_1.5.0.0.zip",
+        "timestamp": "2022-04-06 16:07:00",
+        "version": "1.5.0.0"
+      },
+      {
         "checksum": "21ff1b9a92d45bfdf2e8573c7c9101c9",
         "changelog": "1. Added 'Generate Callback URL' button on the config page. \n 2. Fixed the API endpoint not being populated on config page load. \n 3. Added Kitsu support (beta) \n 4. Added multi-cour season support \n 5. Fixed crash when attempting to find OVA",
         "targetAbi": "10.8.0.0",
