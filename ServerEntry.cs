@@ -140,10 +140,16 @@ namespace jellyfin_ani_sync {
                                             int seasonCounter = episode.Season.IndexNumber.Value;
                                             int episodeCount = episode.IndexNumber.Value;
                                             Anime season = matchingAnime;
+                                            bool isRootSeason = false;
                                             while (seasonEpisodeCounter < episodeCount) {
                                                 var nextSeason = await GetDifferentSeasonAnime(season.Id, seasonCounter + 1);
                                                 if (nextSeason == null) {
                                                     _logger.LogWarning($"({ApiName}) Could not find next season");
+                                                    if (matchingAnime.Status == AiringStatus.currently_airing && matchingAnime.NumEpisodes == 0) {
+                                                        _logger.LogWarning($"({ApiName}) Show is currently airing and API reports 0 episodes, going to use first season");
+                                                        isRootSeason = true;
+                                                    }
+
                                                     found = true;
                                                     break;
                                                 }
@@ -156,11 +162,13 @@ namespace jellyfin_ani_sync {
                                                 season = nextSeason;
                                             }
 
-                                            if (season.Id != matchingAnime.Id) {
-                                                matchingAnime = season;
-                                                episodeNumber = episodeCount - totalEpisodesWatched;
-                                            } else {
-                                                break;
+                                            if (!isRootSeason) {
+                                                if (season.Id != matchingAnime.Id) {
+                                                    matchingAnime = season;
+                                                    episodeNumber = episodeCount - totalEpisodesWatched;
+                                                } else {
+                                                    break;
+                                                }
                                             }
                                         }
 
