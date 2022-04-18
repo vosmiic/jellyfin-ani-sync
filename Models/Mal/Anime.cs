@@ -108,7 +108,11 @@ namespace jellyfin_ani_sync.Models.Mal {
         [JsonPropertyName("created_at")] public DateTime CreatedAt { get; set; }
         [JsonPropertyName("updated_at")] public DateTime UpdatedAt { get; set; }
         [JsonPropertyName("media_type")] public string MediaType { get; set; }
-        [JsonPropertyName("status")] public string Status { get; set; }
+
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        [JsonPropertyName("status")]
+        public AiringStatus Status { get; set; }
+
         [JsonPropertyName("genres")] public List<Genre> Genres { get; set; }
         [JsonPropertyName("my_list_status")] public MyListStatus MyListStatus { get; set; }
         [JsonPropertyName("num_episodes")] public int NumEpisodes { get; set; }
@@ -134,5 +138,11 @@ namespace jellyfin_ani_sync.Models.Mal {
 
     public class SearchAnimeResponse {
         [JsonPropertyName("data")] public List<AnimeList> Data { get; set; }
+    }
+
+    public enum AiringStatus {
+        finished_airing,
+        currently_airing,
+        not_yet_aired
     }
 }

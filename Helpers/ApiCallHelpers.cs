@@ -30,26 +30,44 @@ namespace jellyfin_ani_sync.Helpers {
 
         public async Task<List<Anime>> SearchAnime(string query) {
             if (_malApiCalls != null) {
-                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes" });
+                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes", "status" });
             }
 
             if (_aniListApiCalls != null) {
                 List<AniListSearch.Media> animeList = await _aniListApiCalls.SearchAnime(query);
                 List<Anime> convertedList = new List<Anime>();
-                foreach (AniListSearch.Media media in animeList) {
-                    convertedList.Add(new Anime {
-                        Id = media.Id,
-                        Title = media.Title.English,
-                        AlternativeTitles = new AlternativeTitles {
-                            En = media.Title.English,
-                            Ja = media.Title.Native,
-                            Synonyms = new List<string> {
-                                { media.Title.Romaji },
-                                { media.Title.UserPreferred }
-                            }
-                        },
-                        NumEpisodes = media.Episodes ?? 0
-                    });
+                if (animeList != null) {
+                    foreach (AniListSearch.Media media in animeList) {
+                        var anime = new Anime {
+                            Id = media.Id,
+                            Title = media.Title.English,
+                            AlternativeTitles = new AlternativeTitles {
+                                En = media.Title.English,
+                                Ja = media.Title.Native,
+                                Synonyms = new List<string> {
+                                    { media.Title.Romaji },
+                                    { media.Title.UserPreferred }
+                                }
+                            },
+                            NumEpisodes = media.Episodes ?? 0,
+                        };
+
+                        switch (media.Status) {
+                            case AniListSearch.AiringStatus.FINISHED:
+                                anime.Status = AiringStatus.finished_airing;
+                                break;
+                            case AniListSearch.AiringStatus.RELEASING:
+                                anime.Status = AiringStatus.currently_airing;
+                                break;
+                            case AniListSearch.AiringStatus.NOT_YET_RELEASED:
+                            case AniListSearch.AiringStatus.CANCELLED:
+                            case AniListSearch.AiringStatus.HIATUS:
+                                anime.Status = AiringStatus.not_yet_aired;
+                                break;
+                        }
+
+                        convertedList.Add(anime);
+                    }
                 }
 
                 return convertedList;
@@ -58,8 +76,10 @@ namespace jellyfin_ani_sync.Helpers {
             if (_kitsuApiCalls != null) {
                 List<KitsuSearch.KitsuAnime> animeList = await _kitsuApiCalls.SearchAnime(query);
                 List<Anime> convertedList = new List<Anime>();
-                foreach (KitsuSearch.KitsuAnime kitsuAnime in animeList) {
-                    convertedList.Add(ClassConversions.ConvertKitsuAnime(kitsuAnime));
+                if (animeList != null) {
+                    foreach (KitsuSearch.KitsuAnime kitsuAnime in animeList) {
+                        convertedList.Add(ClassConversions.ConvertKitsuAnime(kitsuAnime));
+                    }
                 }
 
                 return convertedList;

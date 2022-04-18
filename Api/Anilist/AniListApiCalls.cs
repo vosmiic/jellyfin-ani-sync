@@ -57,6 +57,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                             userPreferred
                     },
                     episodes
+                    status
                 }
             }
         }

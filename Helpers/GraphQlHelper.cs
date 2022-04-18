@@ -24,7 +24,7 @@ namespace jellyfin_ani_sync.Helpers {
             var xd = JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables });
             var call = await authApiCall.AuthenticatedApiCall(ApiName.AniList, AuthApiCall.CallType.POST, "https://graphql.anilist.co", stringContent: new StringContent(JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables }), Encoding.UTF8, "application/json"));
 
-            return call.IsSuccessStatusCode ? call : null;
+            return call is { IsSuccessStatusCode: true } ? call : null;
         }
 
         private class GraphQl {

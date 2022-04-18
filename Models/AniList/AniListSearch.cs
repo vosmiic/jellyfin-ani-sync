@@ -73,6 +73,10 @@ namespace jellyfin_ani_sync.Models {
             [JsonPropertyName("mediaListEntry")] public MediaListEntry? MediaListEntry { get; set; }
 
             [JsonPropertyName("relations")] public MediaConnection Relations { get; set; }
+
+            [JsonConverter(typeof(JsonStringEnumConverter))]
+            [JsonPropertyName("status")]
+            public AiringStatus Status { get; set; }
         }
 
         public class Page {
@@ -112,6 +116,14 @@ namespace jellyfin_ani_sync.Models {
             Dropped,
             Paused,
             Repeating
+        }
+
+        public enum AiringStatus {
+            FINISHED,
+            RELEASING,
+            NOT_YET_RELEASED,
+            CANCELLED,
+            HIATUS
         }
     }
 }
