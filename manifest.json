@@ -8,6 +8,21 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "94c7f5b267ee40d9044eda81c2e81d28",
+        "changelog": "1. Fixed currently airing shows not being updated \n 2. Fixed null reference error causing Jellyfin to crash when API authentication error occurs",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.6/10.8.0.-.ani-sync_1.6.0.0.zip",
+        "timestamp": "2022-04-18 13:00:00",
+        "version": "1.6.0.0"
+      },{
+        "checksum": "9742d80b99f36f76f6ab528a988d51a5",
+        "changelog": "1. Fixed currently airing shows not being updated \n 2. Fixed null reference error causing Jellyfin to crash when API authentication error occurs",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.6/10.7.7.-.ani-sync_1.6.0.0.zip",
+        "timestamp": "2022-04-18 13:00:00",
+        "version": "1.6.0.0"
+      },
+      {
         "checksum": "d63031b95e6db2affe2e568ace1eb79d",
         "changelog": "1. Checking Japanese title as well as English title when searching for anime via the provider API",
         "targetAbi": "10.8.0.0",
