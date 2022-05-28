@@ -38,16 +38,18 @@ namespace jellyfin_ani_sync.Helpers {
                 List<Anime> convertedList = new List<Anime>();
                 if (animeList != null) {
                     foreach (AniListSearch.Media media in animeList) {
+                        var synonyms = new List<string> {
+                            { media.Title.Romaji },
+                            { media.Title.UserPreferred }
+                        };
+                        synonyms.AddRange(media.Synonyms);
                         var anime = new Anime {
                             Id = media.Id,
                             Title = media.Title.English,
                             AlternativeTitles = new AlternativeTitles {
                                 En = media.Title.English,
                                 Ja = media.Title.Native,
-                                Synonyms = new List<string> {
-                                    { media.Title.Romaji },
-                                    { media.Title.UserPreferred }
-                                }
+                                Synonyms = synonyms
                             },
                             NumEpisodes = media.Episodes ?? 0,
                         };

@@ -68,6 +68,8 @@ namespace jellyfin_ani_sync.Models {
 
             [JsonPropertyName("title")] public Title Title { get; set; }
 
+            [JsonPropertyName("synonyms")] public List<string> Synonyms { get; set; }
+
             [JsonPropertyName("episodes")] public int? Episodes { get; set; }
 
             [JsonPropertyName("mediaListEntry")] public MediaListEntry? MediaListEntry { get; set; }
