@@ -196,9 +196,11 @@ namespace jellyfin_ani_sync {
         /// <param name="movie">The movie if its a single episode movie.</param>
         /// <returns></returns>
         private bool TitleCheck(Anime anime, Episode episode, Movie movie) {
-            return CompareStrings(anime.Title, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name) ||
-                   CompareStrings(anime.AlternativeTitles.En, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name) ||
-                   (anime.AlternativeTitles.Ja != null && CompareStrings(anime.AlternativeTitles.Ja, _animeType == typeof(Episode) ? episode.SeriesName : movie.Name));
+            var title = _animeType == typeof(Episode) ? episode.SeriesName : movie.Name;
+            return CompareStrings(anime.Title, title) ||
+                   CompareStrings(anime.AlternativeTitles.En, title) ||
+                   (anime.AlternativeTitles.Ja != null && CompareStrings(anime.AlternativeTitles.Ja, title)) ||
+                   (anime.AlternativeTitles.Synonyms != null && anime.AlternativeTitles.Synonyms.Any(synonym => CompareStrings(synonym, title)));
         }
 
         /// <summary>
