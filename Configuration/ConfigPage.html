@@ -120,15 +120,15 @@
             // users are unlikely to save after setting client id and secret, so we do it for them
             saveUserConfig(true);
             if (document.querySelector('#selectProvider').value === "Kitsu") {
-                fetch("/AniSync/passwordGrant?provider=Kitsu&userId=" + document.querySelector('#selectUser').value + 
+                fetch(ApiClient.getUrl("/AniSync/passwordGrant?provider=Kitsu&userId=" + document.querySelector('#selectUser').value + 
                     "&username=" + document.querySelector('#clientId').value + 
-                    "&password=" + document.querySelector('#clientSecret').value, {
+                    "&password=" + document.querySelector('#clientSecret').value), {
                     method: "GET"
                 })
             } else {
-                fetch("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + document.querySelector('#clientId').value +
+                fetch(ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + document.querySelector('#clientId').value +
                     "&clientSecret=" + document.querySelector('#clientSecret').value +
-                    "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"), {
+                    "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")), {
                     method: "GET"
                 })
                     .then((response) => response.json())
@@ -138,8 +138,8 @@
 
         function getUser() {
             document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
-            fetch("/AniSync/user?apiName=" + document.querySelector('#selectProvider').value +
-                "&userId=" + document.querySelector('#selectUser').value, {
+            fetch(ApiClient.getUrl("/AniSync/user?apiName=" + document.querySelector('#selectProvider').value +
+                "&userId=" + document.querySelector('#selectUser').value), {
                 method: "GET"
             })
                 .then(function (response) {
@@ -153,7 +153,7 @@
         }
 
         async function setParameters() {
-            await fetch("/AniSync/parameters", {
+            await fetch(ApiClient.getUrl("/AniSync/parameters"), {
                 method: "GET"
             }).then(function (response) {
                 if (response.ok) {
