@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync.Helpers;
 
 public class AnimeListHelpers {
-    public static int? GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber) {
+    public static int? GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
         int aniDbId;
         if (providers.ContainsKey("Anidb")) {
             if (int.TryParse(providers["Anidb"], out aniDbId)) return aniDbId;
@@ -17,7 +17,8 @@ public class AnimeListHelpers {
             if (!int.TryParse(providers["Tvdb"], out tvDbId)) return null;
             AnimeListXml animeListXml = GetAnimeListFileContents(logger);
             if (animeListXml == null) return null;
-            var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId).ToList();
+            var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId &&
+                                                               int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
             if (!foundAnime.Any()) return null;
             logger.LogInformation("Anime reference found in anime list XML");
             if (foundAnime.Count() == 1) return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? aniDbId : null;
