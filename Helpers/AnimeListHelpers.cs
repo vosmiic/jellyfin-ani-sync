@@ -8,6 +8,14 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync.Helpers;
 
 public class AnimeListHelpers {
+    /// <summary>
+    /// Get the AniDb ID from the set of providers provided.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <param name="providers">Dictionary of providers.</param>
+    /// <param name="episodeNumber">Episode number.</param>
+    /// <param name="seasonNumber">Season number.</param>
+    /// <returns></returns>
     public static int? GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
         int aniDbId;
         if (providers.ContainsKey("Anidb")) {
@@ -35,6 +43,11 @@ public class AnimeListHelpers {
         return null;
     }
 
+    /// <summary>
+    /// Get the contents of the anime list file.
+    /// </summary>
+    /// <param name="logger">Logger.</param>
+    /// <returns></returns>
     private static AnimeListXml GetAnimeListFileContents(ILogger logger) {
         if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
             return null;

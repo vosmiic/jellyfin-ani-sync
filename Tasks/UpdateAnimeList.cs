@@ -18,7 +18,9 @@ public class UpdateAnimeList {
         _logger = loggerFactory.CreateLogger<TaskUpdateAnimeList>();
     }
 
-
+    /// <summary>
+    /// Update the anime list file to the latest version.
+    /// </summary>
     public async Task Update() {
         if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
             _logger.LogInformation("User has not set anime list save location; skipping");
@@ -46,12 +48,22 @@ public class UpdateAnimeList {
         }
     }
 
+    /// <summary>
+    /// Check if the anime list file size has changed.
+    /// </summary>
+    /// <param name="fileSize">File size to compare with.</param>
+    /// <returns></returns>
     private async Task<bool> CheckIfFileSizeHasChanged(int fileSize) {
         FileInfo animeListFile = new FileInfo(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"));
         if (animeListFile.Exists) return animeListFile.Length != fileSize;
         return true;
     }
 
+    /// <summary>
+    /// Download the latest version of the anime list.
+    /// </summary>
+    /// <param name="httpClient">HTTP client.</param>
+    /// <param name="downloadUrl">Download URL of the anime list file.</param>
     private async Task GetLatestAnimeList(HttpClient httpClient, string downloadUrl) {
         try {
             await using (var response = await httpClient.GetStreamAsync(downloadUrl)) {
