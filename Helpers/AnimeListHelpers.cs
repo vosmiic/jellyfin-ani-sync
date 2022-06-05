@@ -52,7 +52,7 @@ public class AnimeListHelpers {
     }
 
     [XmlRoot(ElementName = "anime")]
-    public class Anime {
+    public class AnimeListAnime {
         [XmlElement(ElementName = "name")] public string Name { get; set; }
 
         [XmlAttribute(AttributeName = "anidbid")]
@@ -73,6 +73,6 @@ public class AnimeListHelpers {
 
     [XmlRoot(ElementName = "anime-list")]
     public class AnimeListXml {
-        [XmlElement(ElementName = "anime")] public List<Anime> Anime { get; set; }
+        [XmlElement(ElementName = "anime")] public List<AnimeListAnime> Anime { get; set; }
     }
 }
