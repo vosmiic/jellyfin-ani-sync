@@ -8,23 +8,14 @@ using jellyfin_ani_sync.Configuration;
 namespace jellyfin_ani_sync.Helpers;
 
 public class AnimeOfflineDatabaseHelpers {
-    public static async Task<int?> GetProviderIdFromAniDbId(HttpClient httpClient, ApiName provider, int aniDbId) {
+    public static async Task<OfflineDatabaseResponse> GetProviderIdsFromAniDbId(HttpClient httpClient, int aniDbId) {
         var response = await httpClient.GetAsync($"https://relations.yuna.moe/api/ids?source=anidb&id={aniDbId}");
         StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
         string streamText = await streamReader.ReadToEndAsync();
 
         var deserializedResponse = JsonSerializer.Deserialize<OfflineDatabaseResponse>(streamText);
         if (deserializedResponse == null) return null;
-        switch (provider) {
-            case ApiName.Mal:
-                return deserializedResponse.MyAnimeList;
-            case ApiName.AniList:
-                return deserializedResponse.Anilist;
-            case ApiName.Kitsu:
-                return deserializedResponse.Kitsu;
-        }
-
-        return null;
+        return deserializedResponse;
     }
 
     public class OfflineDatabaseResponse {
