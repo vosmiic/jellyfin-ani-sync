@@ -16,31 +16,31 @@ public class AnimeListHelpers {
     /// <param name="episodeNumber">Episode number.</param>
     /// <param name="seasonNumber">Season number.</param>
     /// <returns></returns>
-    public static int? GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
+    public static (int? aniDbId, int? episodeOffset) GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
         int aniDbId;
         if (providers.ContainsKey("Anidb")) {
-            if (int.TryParse(providers["Anidb"], out aniDbId)) return aniDbId;
+            if (int.TryParse(providers["Anidb"], out aniDbId)) return (aniDbId, null);
         } else if (providers.ContainsKey("Tvdb")) {
             int tvDbId;
-            if (!int.TryParse(providers["Tvdb"], out tvDbId)) return null;
+            if (!int.TryParse(providers["Tvdb"], out tvDbId)) return (null, null);
             AnimeListXml animeListXml = GetAnimeListFileContents(logger);
-            if (animeListXml == null) return null;
+            if (animeListXml == null) return (null, null);
             var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId &&
                                                                int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
-            if (!foundAnime.Any()) return null;
+            if (!foundAnime.Any()) return (null, null);
             logger.LogInformation("Anime reference found in anime list XML");
-            if (foundAnime.Count() == 1) return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? aniDbId : null;
+            if (foundAnime.Count() == 1) return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
             for (var i = 0; i < foundAnime.Count; i++) {
                 // xml first seasons episode offset is always null
-                if ((int.TryParse(foundAnime[i].Episodeoffset, out var episodeOffset) && episodeOffset <= episodeNumber) || i == 0) {
-                    if (foundAnime.ElementAtOrDefault(i + 1) != null && int.TryParse(foundAnime[i + 1].Episodeoffset, out episodeOffset) && episodeOffset <= episodeNumber) continue;
+                if ((int.TryParse(foundAnime[i].Episodeoffset, out int episodeOffset) && episodeOffset <= episodeNumber) || i == 0) {
+                    if (foundAnime.ElementAtOrDefault(i + 1) != null && int.TryParse(foundAnime[i + 1].Episodeoffset, out int nextEpisodeOffset) && nextEpisodeOffset <= episodeNumber) continue;
                     logger.LogInformation($"Anime {foundAnime[i].Name} found in anime XML file");
-                    return int.TryParse(foundAnime[i].Anidbid, out aniDbId) ? aniDbId : null;
+                    return int.TryParse(foundAnime[i].Anidbid, out aniDbId) ? (aniDbId, episodeOffset) : (null, null);
                 }
             }
         }
 
-        return null;
+        return (null, null);
     }
 
     /// <summary>
