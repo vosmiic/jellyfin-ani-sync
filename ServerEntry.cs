@@ -12,6 +12,7 @@ using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Mal;
 using Jellyfin.Data.Entities;
+using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -90,19 +91,43 @@ namespace jellyfin_ani_sync {
                         continue;
                     }
 
+                    AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse();
+                    (int? aniDbId, int? episodeOffset) aniDbId = (null, null);
                     if (LibraryCheck(e.Item) && video is Episode or Movie && e.PlayedToCompletion) {
+                        if (video is Episode && episode.ProviderIds != null && (episode.Series.ProviderIds.ContainsKey("Tvdb") || episode.Series.ProviderIds.ContainsKey("Anidb"))) {
+                            aniDbId = AnimeListHelpers.GetAniDbId(_logger, episode.Series.ProviderIds, episode.IndexNumber.Value, episode.Season.IndexNumber.Value);
+                            if (aniDbId.aniDbId != null) {
+                                providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromAniDbId(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value);
+                            }
+                        }
+
                         foreach (UserApiAuth userApiAuth in _userConfig.UserApiAuth) {
                             ApiName = userApiAuth.Name;
                             _logger.LogInformation($"Using provider {userApiAuth.Name}...");
                             switch (userApiAuth.Name) {
                                 case ApiName.Mal:
                                     _apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                                    if (providerIds.MyAnimeList != 0) {
+                                        await CheckUserListAnimeStatus(providerIds.MyAnimeList, aniDbId.episodeOffset != null ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value : episode.IndexNumber.Value);
+                                        continue;
+                                    }
+
                                     break;
                                 case ApiName.AniList:
                                     _apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                                    if (providerIds.Anilist != 0) {
+                                        await CheckUserListAnimeStatus(providerIds.Anilist, aniDbId.episodeOffset != null ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value : episode.IndexNumber.Value);
+                                        continue;
+                                    }
+
                                     break;
                                 case ApiName.Kitsu:
                                     _apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                                    if (providerIds.Kitsu != 0) {
+                                        await CheckUserListAnimeStatus(providerIds.Kitsu, aniDbId.episodeOffset != null ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value : episode.IndexNumber.Value);
+                                        continue;
+                                    }
+
                                     break;
                             }
 
@@ -197,8 +222,7 @@ namespace jellyfin_ani_sync {
         /// If it is, then the first <see cref="AlternativeTitles.Synonyms">synonym</see>.<br/>
         /// If there isn't any, then the <see cref="AlternativeTitles.Ja">japanese title</see>.
         /// </returns>
-        private static string GetAnimeTitle(Anime anime)
-        {
+        private static string GetAnimeTitle(Anime anime) {
             var title = string.IsNullOrWhiteSpace(anime.Title)
                 ? anime.AlternativeTitles.Synonyms.Count > 0
                     ? anime.AlternativeTitles.Synonyms[0]
