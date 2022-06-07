@@ -19,6 +19,7 @@ public class AnimeListHelpers {
     public static (int? aniDbId, int? episodeOffset) GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
         int aniDbId;
         if (providers.ContainsKey("Anidb")) {
+            logger.LogInformation($"Anime already has AniDb ID; no need to look it up");
             if (int.TryParse(providers["Anidb"], out aniDbId)) return (aniDbId, null);
         } else if (providers.ContainsKey("Tvdb")) {
             int tvDbId;
@@ -27,7 +28,10 @@ public class AnimeListHelpers {
             if (animeListXml == null) return (null, null);
             var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId &&
                                                                int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
-            if (!foundAnime.Any()) return (null, null);
+            if (!foundAnime.Any()) {
+                logger.LogInformation("Anime not found in anime list XML; querying the appropriate providers API");
+                return (null, null);
+            }
             logger.LogInformation("Anime reference found in anime list XML");
             if (foundAnime.Count() == 1) return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
             for (var i = 0; i < foundAnime.Count; i++) {
