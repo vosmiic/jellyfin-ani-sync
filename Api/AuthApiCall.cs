@@ -101,7 +101,7 @@ namespace jellyfin_ani_sync.Api {
                         auth = newAuth;
                         attempts++;
                     } else {
-                        _logger.LogError($"Unable to complete MAL API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
+                        _logger.LogError($"Unable to complete {provider} API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
                         return null;
                     }
                 }
