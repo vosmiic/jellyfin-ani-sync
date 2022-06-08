@@ -43,6 +43,10 @@ While I may not commit to the plugin too often, I am still maintaining it. Pleas
 ### In-progress
 1. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)
 
+## Anime Lists
+We use the XML documents in the [anime lists repo](https://github.com/Anime-Lists/anime-lists) to find the anime you are watching on each provider we support.
+Please help the project by contributing to the lists of anime, it helps everyone!
+
 ## In progress
 
 The current list of unsupported features (that are being worked on):

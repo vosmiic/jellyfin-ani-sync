@@ -36,5 +36,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// Name of the provider that is currently being authenticated. Used during the API provider callback.
         /// </summary>
         public ApiName currentlyAuthenticatingProvider { get; set; }
+        
+        /// <summary>
+        /// Save location of the anime list.
+        /// </summary>
+        public string animeListSaveLocation { get; set; }
     }
 }

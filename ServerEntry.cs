@@ -12,6 +12,7 @@ using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Mal;
 using Jellyfin.Data.Entities;
+using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -91,18 +92,81 @@ namespace jellyfin_ani_sync {
                     }
 
                     if (LibraryCheck(e.Item) && video is Episode or Movie && e.PlayedToCompletion) {
+                        AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse();
+                        (int? aniDbId, int? episodeOffset) aniDbId = (null, null);
+                        if (_animeType == typeof(Episode)
+                                ? episode.ProviderIds != null &&
+                                  episode.Series.ProviderIds.ContainsKey("AniList") &&
+                                  int.TryParse(episode.Series.ProviderIds["AniList"], out int retrievedAniListId)
+                                : movie.ProviderIds != null &&
+                                  movie.ProviderIds.ContainsKey("AniList") &&
+                                  int.TryParse(movie.ProviderIds["AniList"], out retrievedAniListId)) {
+                            _logger.LogInformation("AniList ID found. Retrieving provider IDs from offline database...");
+                            providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), retrievedAniListId, false);
+                            _logger.LogInformation("Retrieved provider IDs");
+                        } else if (_animeType == typeof(Episode)
+                                       ? (episode.Series.ProviderIds.ContainsKey("Tvdb") ||
+                                          episode.Series.ProviderIds.ContainsKey("Anidb"))
+                                       : movie.ProviderIds != null &&
+                                         movie.ProviderIds.ContainsKey("Anidb")) {
+                            aniDbId = _animeType == typeof(Episode)
+                                ? await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, episode.Series.ProviderIds, episode.IndexNumber.Value, episode.Season.IndexNumber.Value)
+                                : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, movie.ProviderIds, movie.IndexNumber.Value, 1);
+                            if (aniDbId.aniDbId != null) {
+                                _logger.LogInformation("Retrieving provider IDs from offline database...");
+                                providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, true);
+                                _logger.LogInformation("Retrieved provider IDs");
+                            }
+                        }
+
                         foreach (UserApiAuth userApiAuth in _userConfig.UserApiAuth) {
                             ApiName = userApiAuth.Name;
                             _logger.LogInformation($"Using provider {userApiAuth.Name}...");
                             switch (userApiAuth.Name) {
                                 case ApiName.Mal:
                                     _apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                                    if (providerIds.MyAnimeList != 0) {
+                                        await CheckUserListAnimeStatus(providerIds.MyAnimeList, _animeType == typeof(Episode)
+                                            ? (aniDbId.episodeOffset != null
+                                                ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
+                                                : episode.IndexNumber.Value)
+                                            : movie.IndexNumber.Value);
+                                        continue;
+                                    }
+
                                     break;
                                 case ApiName.AniList:
                                     _apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                                    if (providerIds.Anilist != 0) {
+                                        await CheckUserListAnimeStatus(providerIds.Anilist, _animeType == typeof(Episode)
+                                            ? (aniDbId.episodeOffset != null
+                                                ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
+                                                : episode.IndexNumber.Value)
+                                            : movie.IndexNumber.Value);
+                                        continue;
+                                    } else if (_animeType == typeof(Episode) ? episode.Series.ProviderIds.ContainsKey("AniList") : movie.ProviderIds.ContainsKey("AniList")) {
+                                        if (_animeType == typeof(Episode) ? int.TryParse(episode.Series.ProviderIds["AniList"], out int aniListId) : int.TryParse(movie.ProviderIds["AniList"], out aniListId)) {
+                                            await CheckUserListAnimeStatus(aniListId, _animeType == typeof(Episode)
+                                                ? (aniDbId.episodeOffset != null
+                                                    ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
+                                                    : episode.IndexNumber.Value)
+                                                : movie.IndexNumber.Value);
+                                            continue;
+                                        }
+                                    }
+
                                     break;
                                 case ApiName.Kitsu:
                                     _apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                                    if (providerIds.Kitsu != 0) {
+                                        await CheckUserListAnimeStatus(providerIds.Kitsu, _animeType == typeof(Episode)
+                                            ? (aniDbId.episodeOffset != null
+                                                ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
+                                                : episode.IndexNumber.Value)
+                                            : movie.IndexNumber.Value);
+                                        continue;
+                                    }
+
                                     break;
                             }
 
@@ -113,68 +177,76 @@ namespace jellyfin_ani_sync {
                                     if (TitleCheck(anime, episode, movie)) {
                                         _logger.LogInformation($"({ApiName}) Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {GetAnimeTitle(anime)}");
                                         Anime matchingAnime = anime;
-                                        int episodeNumber = episode.IndexNumber.Value;
-                                        if (episode?.Season.IndexNumber is > 1) {
-                                            // if this is not the first season, then we need to lookup the related season.
-                                            matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
-                                            if (matchingAnime == null) {
-                                                _logger.LogWarning($"({ApiName}) Could not find next season");
-                                                found = true;
-                                                break;
-                                            }
-
-                                            _logger.LogInformation($"({ApiName}) Season being watched is {GetAnimeTitle(matchingAnime)}");
-                                        } else if (episode?.Season.IndexNumber == 0) {
-                                            // the episode is an ova or special
-                                            matchingAnime = await GetOva(anime.Id, episode.Name);
-                                            if (matchingAnime == null) {
-                                                _logger.LogWarning($"({ApiName}) Could not find OVA");
-                                                found = true;
-                                                break;
-                                            }
-                                        } else if (matchingAnime.NumEpisodes < episode?.IndexNumber.Value) {
-                                            _logger.LogInformation($"({ApiName}) Watched episode passes total episodes in season! Checking for additional seasons/cours...");
-                                            // either we have found the wrong series (highly unlikely) or it is a multi cour series/Jellyfin has grouped next season into the current.
-                                            int seasonEpisodeCounter = matchingAnime.NumEpisodes;
-                                            int totalEpisodesWatched = 0;
-                                            int seasonCounter = episode.Season.IndexNumber.Value;
-                                            int episodeCount = episode.IndexNumber.Value;
-                                            Anime season = matchingAnime;
-                                            bool isRootSeason = false;
-                                            while (seasonEpisodeCounter < episodeCount) {
-                                                var nextSeason = await GetDifferentSeasonAnime(season.Id, seasonCounter + 1);
-                                                if (nextSeason == null) {
+                                        if (_animeType == typeof(Episode)) {
+                                            int episodeNumber = episode.IndexNumber.Value;
+                                            if (episode?.Season.IndexNumber is > 1) {
+                                                // if this is not the first season, then we need to lookup the related season.
+                                                matchingAnime = await GetDifferentSeasonAnime(anime.Id, episode.Season.IndexNumber.Value);
+                                                if (matchingAnime == null) {
                                                     _logger.LogWarning($"({ApiName}) Could not find next season");
-                                                    if (matchingAnime.Status == AiringStatus.currently_airing && matchingAnime.NumEpisodes == 0) {
-                                                        _logger.LogWarning($"({ApiName}) Show is currently airing and API reports 0 episodes, going to use first season");
-                                                        isRootSeason = true;
-                                                    }
-
                                                     found = true;
                                                     break;
                                                 }
 
-                                                seasonEpisodeCounter += nextSeason.NumEpisodes;
-                                                seasonCounter++;
-                                                // complete the current season; we have surpassed it onto the next season/cour
-                                                totalEpisodesWatched += season.NumEpisodes;
-                                                await CheckUserListAnimeStatus(season.Id, season.NumEpisodes, false);
-                                                season = nextSeason;
-                                            }
-
-                                            if (!isRootSeason) {
-                                                if (season.Id != matchingAnime.Id) {
-                                                    matchingAnime = season;
-                                                    episodeNumber = episodeCount - totalEpisodesWatched;
-                                                } else {
+                                                _logger.LogInformation($"({ApiName}) Season being watched is {GetAnimeTitle(matchingAnime)}");
+                                            } else if (episode?.Season.IndexNumber == 0) {
+                                                // the episode is an ova or special
+                                                matchingAnime = await GetOva(anime.Id, episode.Name);
+                                                if (matchingAnime == null) {
+                                                    _logger.LogWarning($"({ApiName}) Could not find OVA");
+                                                    found = true;
                                                     break;
                                                 }
+                                            } else if (matchingAnime.NumEpisodes < episode?.IndexNumber.Value) {
+                                                _logger.LogInformation($"({ApiName}) Watched episode passes total episodes in season! Checking for additional seasons/cours...");
+                                                // either we have found the wrong series (highly unlikely) or it is a multi cour series/Jellyfin has grouped next season into the current.
+                                                int seasonEpisodeCounter = matchingAnime.NumEpisodes;
+                                                int totalEpisodesWatched = 0;
+                                                int seasonCounter = episode.Season.IndexNumber.Value;
+                                                int episodeCount = episode.IndexNumber.Value;
+                                                Anime season = matchingAnime;
+                                                bool isRootSeason = false;
+                                                while (seasonEpisodeCounter < episodeCount) {
+                                                    var nextSeason = await GetDifferentSeasonAnime(season.Id, seasonCounter + 1);
+                                                    if (nextSeason == null) {
+                                                        _logger.LogWarning($"({ApiName}) Could not find next season");
+                                                        if (matchingAnime.Status == AiringStatus.currently_airing && matchingAnime.NumEpisodes == 0) {
+                                                            _logger.LogWarning($"({ApiName}) Show is currently airing and API reports 0 episodes, going to use first season");
+                                                            isRootSeason = true;
+                                                        }
+
+                                                        found = true;
+                                                        break;
+                                                    }
+
+                                                    seasonEpisodeCounter += nextSeason.NumEpisodes;
+                                                    seasonCounter++;
+                                                    // complete the current season; we have surpassed it onto the next season/cour
+                                                    totalEpisodesWatched += season.NumEpisodes;
+                                                    await CheckUserListAnimeStatus(season.Id, season.NumEpisodes, false);
+                                                    season = nextSeason;
+                                                }
+
+                                                if (!isRootSeason) {
+                                                    if (season.Id != matchingAnime.Id) {
+                                                        matchingAnime = season;
+                                                        episodeNumber = episodeCount - totalEpisodesWatched;
+                                                    } else {
+                                                        break;
+                                                    }
+                                                }
                                             }
+
+                                            await CheckUserListAnimeStatus(matchingAnime.Id, episodeNumber);
+                                            found = true;
+                                            break;
                                         }
 
-                                        await CheckUserListAnimeStatus(matchingAnime.Id, episodeNumber);
-                                        found = true;
-                                        break;
+                                        if (_animeType == typeof(Movie)) {
+                                            await CheckUserListAnimeStatus(matchingAnime.Id, movie.IndexNumber.Value);
+                                            found = true;
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -197,8 +269,7 @@ namespace jellyfin_ani_sync {
         /// If it is, then the first <see cref="AlternativeTitles.Synonyms">synonym</see>.<br/>
         /// If there isn't any, then the <see cref="AlternativeTitles.Ja">japanese title</see>.
         /// </returns>
-        private static string GetAnimeTitle(Anime anime)
-        {
+        private static string GetAnimeTitle(Anime anime) {
             var title = string.IsNullOrWhiteSpace(anime.Title)
                 ? anime.AlternativeTitles.Synonyms.Count > 0
                     ? anime.AlternativeTitles.Synonyms[0]
