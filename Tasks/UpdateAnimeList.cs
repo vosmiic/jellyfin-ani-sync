@@ -21,10 +21,10 @@ public class UpdateAnimeList {
     /// <summary>
     /// Update the anime list file to the latest version.
     /// </summary>
-    public async Task Update() {
+    public async Task<bool> Update() {
         if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
             _logger.LogInformation("User has not set anime list save location; skipping");
-            return;
+            return false;
         }
 
         var client = _httpClientFactory.CreateClient(NamedClient.Default);
@@ -37,7 +37,7 @@ public class UpdateAnimeList {
 
             if (formattedResponse == null) {
                 _logger.LogError("Could not update anime list; anime list could not be parsed");
-                return;
+                return false;
             }
 
             if (await CheckIfFileSizeHasChanged(formattedResponse.Size)) {
@@ -46,6 +46,8 @@ public class UpdateAnimeList {
         } else {
             _logger.LogError($"Could not update anime list; {response.StatusCode} from repo");
         }
+
+        return true;
     }
 
     /// <summary>

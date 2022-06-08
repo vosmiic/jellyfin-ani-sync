@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +18,7 @@ public class AnimeListHelpers {
     /// <param name="episodeNumber">Episode number.</param>
     /// <param name="seasonNumber">Season number.</param>
     /// <returns></returns>
-    public static (int? aniDbId, int? episodeOffset) GetAniDbId(ILogger logger, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
+    public static async Task<(int? aniDbId, int? episodeOffset)> GetAniDbId(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
         int aniDbId;
         if (providers.ContainsKey("Anidb")) {
             logger.LogInformation($"Anime already has AniDb ID; no need to look it up");
@@ -24,7 +26,7 @@ public class AnimeListHelpers {
         } else if (providers.ContainsKey("Tvdb")) {
             int tvDbId;
             if (!int.TryParse(providers["Tvdb"], out tvDbId)) return (null, null);
-            AnimeListXml animeListXml = GetAnimeListFileContents(logger);
+            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory);
             if (animeListXml == null) return (null, null);
             var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId &&
                                                                int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
@@ -52,12 +54,20 @@ public class AnimeListHelpers {
     /// </summary>
     /// <param name="logger">Logger.</param>
     /// <returns></returns>
-    private static AnimeListXml GetAnimeListFileContents(ILogger logger) {
+    private static async Task<AnimeListXml> GetAnimeListFileContents(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory) {
         if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
             return null;
         }
 
         try {
+            FileInfo animeListXml = new FileInfo(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"));
+            if (!animeListXml.Exists) {
+                logger.LogInformation("Anime list XML not found; attempting to download...");
+                UpdateAnimeList updateAnimeList = new UpdateAnimeList(httpClientFactory, loggerFactory);
+                if (await updateAnimeList.Update()) {
+                    logger.LogInformation("Anime list XML downloaded");
+                }
+            }
             using (var stream = File.OpenRead(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"))) {
                 var serializer = new XmlSerializer(typeof(AnimeListXml));
                 return (AnimeListXml)serializer.Deserialize(stream);
