@@ -64,7 +64,7 @@ public class AnimeListHelpers {
             }
         } catch (Exception e) {
             logger.LogError($"Could not deserialize anime list XML; {e.Message}. Try forcibly redownloading the XML file");
-            throw;
+            return null;
         }
     }
 
