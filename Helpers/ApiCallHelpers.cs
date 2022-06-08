@@ -97,6 +97,7 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_aniListApiCalls != null) {
                 AniListSearch.Media anime = await _aniListApiCalls.GetAnime(id);
+                if (anime == null) return null;
                 Anime convertedAnime = ClassConversions.ConvertAniListAnime(anime);
 
                 if (anime.MediaListEntry != null) {
@@ -148,6 +149,7 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_kitsuApiCalls != null) {
                 KitsuGet.KitsuGetAnime anime = await _kitsuApiCalls.GetAnime(id);
+                if (anime == null) return null;
                 Anime convertedAnime = ClassConversions.ConvertKitsuAnime(anime.KitsuAnimeData);
 
                 int? userId = await _kitsuApiCalls.GetUserId();
