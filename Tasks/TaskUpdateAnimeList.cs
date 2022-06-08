@@ -25,8 +25,8 @@ public class TaskUpdateAnimeList : IScheduledTask {
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() {
         var trigger = new TaskTriggerInfo {
-            Type = TaskTriggerInfo.TriggerDaily,
-            TimeOfDayTicks = 0
+            Type = TaskTriggerInfo.TriggerInterval,
+            IntervalTicks = TimeSpan.FromDays(1).Ticks
         };
 
         return new[] { trigger };
