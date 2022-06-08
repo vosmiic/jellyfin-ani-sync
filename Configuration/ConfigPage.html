@@ -36,6 +36,24 @@
                     <div class="fieldDescription">This generates an example callback URL based upon the information supplied (or not supplied) above.</div>
                     <input id="generalCallbackUrlInput" type="text" is="emby-input" disabled />
                 </div>
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="animeListSaveLocation">Anime List Save
+                        Location</label>
+                    <input id="animeListSaveLocation" name="animeListSaveLocation" type="text" is="emby-input"/>
+                    <div class="fieldDescription">The save location for the anime list. This saves a small (<10 MB) XML
+                        file that AniSync can use to quickly find anime in the specified location (inside its own
+                        directory is suggested). <b>Please make sure Jellyfin has read/write access to this
+                            directory.</b> This is not necessary, but will make anime detection much more reliable when
+                        using the correct metadata providers (<a
+                                href="https://github.com/vosmiic/jellyfin-ani-sync/wiki/Metadata-Downloader-Compatibility">list
+                            of metadata providers</a>).
+                    </div>
+                    <button is="emby-button" type="button" id="testAnimeListSaveLocation" class="raised block"
+                            onclick="runTestAnimeListSaveLocation()">
+                        Test Save Location
+                    </button>
+                    <span id="testAnimeListSaveLocationResponse"></span>
+                </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
                 </div>
@@ -106,7 +124,22 @@
         var PluginConfig = {
             pluginUniqueId: 'c78f11cf-93e6-4423-8c42-d2c255b70e47'
         };
-        
+
+        function runTestAnimeListSaveLocation() {
+            document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
+            
+            fetch(ApiClient.getUrl("/AniSync/testAnimeListSaveLocation?saveLocation=" + document.querySelector('#animeListSaveLocation').value), {
+                method: "GET"
+            }).then((response) => response.json())
+                .then((result) => {
+                    if (result === "") {
+                        document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Anime list save location is valid! Please remember to save"
+                    } else {
+                        document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Error: " + result;
+                    }
+                });
+        }
+
         function generateCallbackUrl() {
             const userApiUrl = document.querySelector('#apiUrl').value;
             if (userApiUrl) {
@@ -256,7 +289,9 @@
 
                 document.querySelector('#clientId').value = provider.ClientId;
                 document.querySelector('#clientSecret').value = provider.ClientSecret;
-                
+                if (config.animeListSaveLocation)
+                    document.querySelector('#animeListSaveLocation').value = config.animeListSaveLocation
+
                 if (providerName === "Kitsu") {
                     document.querySelector('#clientIdLabel').innerHTML = "Username";
                     document.querySelector('#clientSecretLabel').innerHTML = "Password";
@@ -264,7 +299,7 @@
                     document.querySelector('#clientIdLabel').innerHTML = "Client ID";
                     document.querySelector('#clientSecretLabel').innerHTML = "Client Secret";
                 }
-                
+
                 if (config.callbackUrl)
                     document.querySelector('#apiUrl').value = config.callbackUrl;
                 Dashboard.hideLoadingMsg();
@@ -332,6 +367,8 @@
                     config.UserConfig.push(userConfig);
                 }
                 setProviderApiAuthConfig(config);
+                if (document.querySelector('#animeListSaveLocation').value)
+                    config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
 
                 userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                     return element.getAttribute('id');

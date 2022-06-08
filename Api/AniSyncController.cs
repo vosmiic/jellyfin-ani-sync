@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -37,6 +38,20 @@ namespace jellyfin_ani_sync.Api {
         [Route("buildAuthorizeRequestUrl")]
         public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url) {
             return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
+        }
+
+        [HttpGet]
+        [Route("testAnimeListSaveLocation")]
+        public async Task<IActionResult> TestAnimeSaveLocation(string saveLocation) {
+            FileInfo tempFile = new FileInfo(Path.Combine(saveLocation, Path.GetRandomFileName()));
+            try {
+                tempFile.Create();
+                tempFile.Delete();
+            } catch (Exception e) {
+                return BadRequest(e.Message);
+            }
+
+            return Ok(string.Empty);
         }
 
         [HttpGet]
