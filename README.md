@@ -43,15 +43,20 @@ While I may not commit to the plugin too often, I am still maintaining it. Pleas
 ### In-progress
 1. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)
 
-## Anime Lists
+## External tools
+### Anime Lists
 We use the XML documents in the [anime lists repo](https://github.com/Anime-Lists/anime-lists) to find the anime you are watching on each provider we support.
+
 Please help the project by contributing to the lists of anime, it helps everyone!
+### Anime Offline Database/arm server
+We use the API offered by the [arm server repo]() which accesses the [anime offline database repo]() that we use to fetch our providers IDs so we can update your progress.
+
+Please also help these projects by contributing to the anime database/helping with the API server.
 
 ## In progress
 
 The current list of unsupported features (that are being worked on):
-1. Multi cour anime.
-2. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
+1. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
 
 ## Known issues
 ~~1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.~~ Fixed in build 1.1
