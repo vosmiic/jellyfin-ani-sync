@@ -8,8 +8,8 @@ using jellyfin_ani_sync.Configuration;
 namespace jellyfin_ani_sync.Helpers;
 
 public class AnimeOfflineDatabaseHelpers {
-    public static async Task<OfflineDatabaseResponse> GetProviderIdsFromAniDbId(HttpClient httpClient, int aniDbId) {
-        var response = await httpClient.GetAsync($"https://relations.yuna.moe/api/ids?source=anidb&id={aniDbId}");
+    public static async Task<OfflineDatabaseResponse> GetProviderIdsFromMetadataProvider(HttpClient httpClient, int metadataId, bool useAniDb) {
+        var response = await httpClient.GetAsync($"https://relations.yuna.moe/api/ids?source={(useAniDb ? "anidb" : "anilist")}&id={metadataId}");
         StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
         string streamText = await streamReader.ReadToEndAsync();
 
