@@ -13,7 +13,7 @@
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2/10.8.0.-.ani-sync_2.0.0.0.zip",
         "timestamp": "2022-06-09 21:00:00",
-        "version": "1.6.0.0"
+        "version": "2.0.0.0"
       },
       {
         "checksum": "2cf72f57459d36fa1b8a0abbba9490b5",
@@ -21,7 +21,7 @@
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2/10.7.7.-.ani-sync_2.0.0.0.zip",
         "timestamp": "2022-06-09 21:00:00",
-        "version": "1.6.0.0"
+        "version": "2.0.0.0"
       },
       {
         "checksum": "94c7f5b267ee40d9044eda81c2e81d28",
