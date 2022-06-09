@@ -8,6 +8,22 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "80c7b0c1f86a418658de77df1848c59d",
+        "changelog": "1. Use outside sources to massively improve anime detection - please check your config for a new option to enable these features (this also comes with a new job in the scheduler).\n 2. Further improve anime detection by comparing the title to more synonyms (thanks Pecomare for this). \n 3. Fixed null error when anime could not be found. \n 4. Fixed anime movies not being correctly processed. \n 5. Fixed issues with servers using a non-default base URL.",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2/10.8.0.-.ani-sync_2.0.0.0.zip",
+        "timestamp": "2022-06-09 21:00:00",
+        "version": "1.6.0.0"
+      },
+      {
+        "checksum": "2cf72f57459d36fa1b8a0abbba9490b5",
+        "changelog": "1. Use outside sources to massively improve anime detection - please check your config for a new option to enable these features (this also comes with a new job in the scheduler).\n 2. Further improve anime detection by comparing the title to more synonyms (thanks Pecomare for this). \n 3. Fixed null error when anime could not be found. \n 4. Fixed anime movies not being correctly processed. \n 5. Fixed issues with servers using a non-default base URL.",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2/10.7.7.-.ani-sync_2.0.0.0.zip",
+        "timestamp": "2022-06-09 21:00:00",
+        "version": "1.6.0.0"
+      },
+      {
         "checksum": "94c7f5b267ee40d9044eda81c2e81d28",
         "changelog": "1. Fixed currently airing shows not being updated \n 2. Fixed null reference error causing Jellyfin to crash when API authentication error occurs",
         "targetAbi": "10.8.0.0",
