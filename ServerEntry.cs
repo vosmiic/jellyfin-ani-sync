@@ -385,7 +385,7 @@ namespace jellyfin_ani_sync {
         private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber, bool? overrideCheckRewatch) {
             if (overrideCheckRewatch == null ||
                 overrideCheckRewatch.Value ||
-                (detectedAnime.MyListStatus is { Status: Status.Completed } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber)) {
+                detectedAnime.MyListStatus is { Status: Status.Completed }) {
                 if (_userConfig.RewatchCompleted) {
                     if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
                         _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, setting as re-watching");
