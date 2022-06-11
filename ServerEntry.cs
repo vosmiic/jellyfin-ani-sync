@@ -80,13 +80,7 @@ namespace jellyfin_ani_sync {
                         continue;
                     }
 
-                    if (_userConfig.UserApiAuth != null) {
-                        foreach (UserApiAuth userApiAuth in _userConfig.UserApiAuth) {
-                            if (userApiAuth is not { AccessToken: { }, RefreshToken: { } }) {
-                                _logger.LogWarning($"The user {user.Id} does not have an access or refresh token for {userApiAuth.Name}. Skipping");
-                            }
-                        }
-                    } else {
+                    if (_userConfig.UserApiAuth == null) {
                         _logger.LogWarning($"The user {user.Id} is not authenticated. Skipping");
                         continue;
                     }
@@ -394,8 +388,10 @@ namespace jellyfin_ani_sync {
                 } else {
                     _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
                 }
+            } else if (_userConfig.PlanToWatchOnly) {
+                _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but not on completed or plan to watch list. Skipping");
             }
-        }
+        } 
 
         /// <summary>
         /// Get a single result from a user anime search.
