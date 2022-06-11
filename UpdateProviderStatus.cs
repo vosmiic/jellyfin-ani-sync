@@ -51,7 +51,7 @@ public class UpdateProviderStatus {
     }
 
 
-    public async Task Update(BaseItem e, User user, bool playedToCompletion) {
+    public async Task Update(BaseItem e, Guid userId, bool playedToCompletion) {
         var video = e as Video;
         Episode episode = video as Episode;
         Movie movie = video as Movie;
@@ -62,14 +62,14 @@ public class UpdateProviderStatus {
             video.IndexNumber = 1;
         }
 
-        _userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == user.Id);
+        _userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == userId);
         if (_userConfig == null) {
-            _logger.LogWarning($"The user {user.Id} does not exist in the plugins config file. Skipping");
+            _logger.LogWarning($"The user {userId} does not exist in the plugins config file. Skipping");
             return;
         }
 
         if (_userConfig.UserApiAuth == null) {
-            _logger.LogWarning($"The user {user.Id} is not authenticated. Skipping");
+            _logger.LogWarning($"The user {userId} is not authenticated. Skipping");
             return;
         }
 
@@ -365,7 +365,7 @@ public class UpdateProviderStatus {
     private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber, bool? overrideCheckRewatch) {
         if (overrideCheckRewatch == null ||
             overrideCheckRewatch.Value ||
-            detectedAnime.MyListStatus is { Status: Status.Completed }) {
+            detectedAnime.MyListStatus is { Status: Status.Completed } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber) {
             if (_userConfig.RewatchCompleted) {
                 if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
                     _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, setting as re-watching");
@@ -374,6 +374,8 @@ public class UpdateProviderStatus {
             } else {
                 _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
             }
+        } else if (detectedAnime.MyListStatus.NumEpisodesWatched >= indexNumber) {
+            _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but provider reports episode already watched. Skipping");
         } else if (_userConfig.PlanToWatchOnly) {
             _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but not on completed or plan to watch list. Skipping");
         }

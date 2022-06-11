@@ -43,7 +43,7 @@ namespace jellyfin_ani_sync {
             if (Plugin.Instance.PluginConfiguration.ProviderApiAuth is { Length: > 0 }) {
                 UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory);
                 foreach (User user in e.Users) {
-                    await updateProviderStatus.Update(e.Item, user, e.PlayedToCompletion);
+                    await updateProviderStatus.Update(e.Item, user.Id, e.PlayedToCompletion);
                 }
             }
         }
