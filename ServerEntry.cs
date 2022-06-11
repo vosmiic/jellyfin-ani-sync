@@ -97,6 +97,7 @@ namespace jellyfin_ani_sync {
                         if (_animeType == typeof(Episode)
                                 ? episode.ProviderIds != null &&
                                   episode.Series.ProviderIds.ContainsKey("AniList") &&
+                                  episode.Season.IndexNumber.Value == 1 &&
                                   int.TryParse(episode.Series.ProviderIds["AniList"], out int retrievedAniListId)
                                 : movie.ProviderIds != null &&
                                   movie.ProviderIds.ContainsKey("AniList") &&
@@ -130,7 +131,8 @@ namespace jellyfin_ani_sync {
                                             ? (aniDbId.episodeOffset != null
                                                 ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                                 : episode.IndexNumber.Value)
-                                            : movie.IndexNumber.Value);
+                                            : movie.IndexNumber.Value,
+                                            false);
                                         continue;
                                     }
 
@@ -142,15 +144,17 @@ namespace jellyfin_ani_sync {
                                             ? (aniDbId.episodeOffset != null
                                                 ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                                 : episode.IndexNumber.Value)
-                                            : movie.IndexNumber.Value);
+                                            : movie.IndexNumber.Value,
+                                            false);
                                         continue;
-                                    } else if (_animeType == typeof(Episode) ? episode.Series.ProviderIds.ContainsKey("AniList") : movie.ProviderIds.ContainsKey("AniList")) {
+                                    } else if (_animeType == typeof(Episode) ? episode.Series.ProviderIds.ContainsKey("AniList") && episode.Season.IndexNumber.Value == 1 : movie.ProviderIds.ContainsKey("AniList")) {
                                         if (_animeType == typeof(Episode) ? int.TryParse(episode.Series.ProviderIds["AniList"], out int aniListId) : int.TryParse(movie.ProviderIds["AniList"], out aniListId)) {
                                             await CheckUserListAnimeStatus(aniListId, _animeType == typeof(Episode)
                                                 ? (aniDbId.episodeOffset != null
                                                     ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                                     : episode.IndexNumber.Value)
-                                                : movie.IndexNumber.Value);
+                                                : movie.IndexNumber.Value,
+                                                false);
                                             continue;
                                         }
                                     }
@@ -163,7 +167,8 @@ namespace jellyfin_ani_sync {
                                             ? (aniDbId.episodeOffset != null
                                                 ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                                 : episode.IndexNumber.Value)
-                                            : movie.IndexNumber.Value);
+                                            : movie.IndexNumber.Value,
+                                            false);
                                         continue;
                                     }
 
@@ -361,9 +366,7 @@ namespace jellyfin_ani_sync {
 
             // check if rewatch completed is checked
             await CheckIfRewatchCompleted(detectedAnime, episodeNumber, overrideCheckRewatch);
-
-            _logger.LogInformation("User does not have rewatch completed ticked");
-
+            
             // everything else
             if (detectedAnime.MyListStatus != null) {
                 // anime is on user list
@@ -391,8 +394,6 @@ namespace jellyfin_ani_sync {
                 } else {
                     _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
                 }
-            } else {
-                _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on Completed list, but episode in series is in second season/cour, so skipping");
             }
         }
 
