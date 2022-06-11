@@ -43,15 +43,20 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("testAnimeListSaveLocation")]
         public async Task<IActionResult> TestAnimeSaveLocation(string saveLocation) {
-            FileInfo tempFile = new FileInfo(Path.Combine(saveLocation, Path.GetRandomFileName()));
             try {
-                tempFile.Create();
-                tempFile.Delete();
+                await using (System.IO.File.Create(
+                                 Path.Combine(
+                                     saveLocation,
+                                     Path.GetRandomFileName()
+                                 ),
+                                 1,
+                                 FileOptions.DeleteOnClose)) {
+                }
+
+                return Ok(string.Empty);
             } catch (Exception e) {
                 return BadRequest(e.Message);
             }
-
-            return Ok(string.Empty);
         }
 
         [HttpGet]
