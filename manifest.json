@@ -8,6 +8,22 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "278b33aa150042c694f25b30e81b3d3d",
+        "changelog": "Hotfix for recent v2 release. Larger update out soon. \n 1. Fixed incorrect season detection when using AniList metadata provider \n 2. Fixed anime save location test error on Windows \n 3. Fixed multiple logging errors.",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.0.1/10.8.0.-.ani-sync_2.0.1.0.zip",
+        "timestamp": "2022-06-11 14:00:00",
+        "version": "2.0.1.0"
+      },
+      {
+        "checksum": "b38e72047d2d08d1d306dbe956d63857",
+        "changelog": "Hotfix for recent v2 release. Larger update out soon. \n 1. Fixed incorrect season detection when using AniList metadata provider \n 2. Fixed anime save location test error on Windows \n 3. Fixed multiple logging errors.",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.0.1/10.7.7.-.ani-sync_2.0.1.0.zip",
+        "timestamp": "2022-06-11 14:00:00",
+        "version": "2.0.1.0"
+      },
+      {
         "checksum": "80c7b0c1f86a418658de77df1848c59d",
         "changelog": "1. Use outside sources to massively improve anime detection - please check your config for a new option to enable these features (this also comes with a new job in the scheduler).\n 2. Further improve anime detection by comparing the title to more synonyms (thanks Pecomare for this). \n 3. Fixed null error when anime could not be found. \n 4. Fixed anime movies not being correctly processed. \n 5. Fixed issues with servers using a non-default base URL.",
         "targetAbi": "10.8.0.0",
