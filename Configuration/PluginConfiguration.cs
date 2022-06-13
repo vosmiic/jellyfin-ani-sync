@@ -41,5 +41,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// Save location of the anime list.
         /// </summary>
         public string animeListSaveLocation { get; set; }
+        
+        /// <summary>
+        /// Whether or not marking an episode/movie as watched sends an update to the provider API.
+        /// </summary>
+        public bool watchedTickboxUpdatesProvider { get; set; }
     }
 }
