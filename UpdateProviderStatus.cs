@@ -40,7 +40,12 @@ public class UpdateProviderStatus {
     private ApiName _apiName;
     private readonly ILoggerFactory _loggerFactory;
 
-    public UpdateProviderStatus(IFileSystem fileSystem, ILibraryManager libraryManager, ILoggerFactory loggerFactory, IHttpContextAccessor httpContextAccessor, IServerApplicationHost serverApplicationHost, IHttpClientFactory httpClientFactory) {
+    public UpdateProviderStatus(IFileSystem fileSystem, 
+        ILibraryManager libraryManager,
+        ILoggerFactory loggerFactory, 
+        IHttpContextAccessor httpContextAccessor, 
+        IServerApplicationHost serverApplicationHost, 
+        IHttpClientFactory httpClientFactory) {
         _fileSystem = fileSystem;
         _libraryManager = libraryManager;
         _httpContextAccessor = httpContextAccessor;
