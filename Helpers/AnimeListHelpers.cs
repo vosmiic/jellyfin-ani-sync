@@ -19,28 +19,43 @@ namespace jellyfin_ani_sync.Helpers {
         /// <returns></returns>
         public static async Task<(int? aniDbId, int? episodeOffset)> GetAniDbId(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
             int aniDbId;
+            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory);
+            if (animeListXml == null) return (null, null);
             if (providers.ContainsKey("Anidb")) {
-                logger.LogInformation($"Anime already has AniDb ID; no need to look it up");
-                if (int.TryParse(providers["Anidb"], out aniDbId)) return (aniDbId, null);
-            } else if (providers.ContainsKey("Tvdb")) {
+                logger.LogInformation("(Anidb) Anime already has AniDb ID; no need to look it up");
+                if (!int.TryParse(providers["Anidb"], out aniDbId)) return (null, null);
+                var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId &&
+                                                                   int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
+                switch (foundAnime.Count()) {
+                    case 1:
+                        logger.LogInformation($"(Anidb) Anime {foundAnime[0].Name} found in anime XML file");
+                        return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
+                    case > 1:
+                        logger.LogWarning("(Anidb) More than one result found; possibly an issue with the XML. Falling back to other metadata providers if available...");
+                        break;
+                    case 0:
+                        logger.LogWarning("(Anidb) Anime not found in anime list XML; falling back to other metadata providers if available...");
+                        break;
+                }
+            }
+
+            if (providers.ContainsKey("Tvdb")) {
                 int tvDbId;
                 if (!int.TryParse(providers["Tvdb"], out tvDbId)) return (null, null);
-                AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory);
-                if (animeListXml == null) return (null, null);
                 var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId &&
                                                                    int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
                 if (!foundAnime.Any()) {
-                    logger.LogInformation("Anime not found in anime list XML; querying the appropriate providers API");
+                    logger.LogWarning("(Tvdb) Anime not found in anime list XML; querying the appropriate providers API");
                     return (null, null);
                 }
 
-                logger.LogInformation("Anime reference found in anime list XML");
+                logger.LogInformation("(Tvdb) Anime reference found in anime list XML");
                 if (foundAnime.Count() == 1) return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
                 for (var i = 0; i < foundAnime.Count; i++) {
                     // xml first seasons episode offset is always null
                     if ((int.TryParse(foundAnime[i].Episodeoffset, out int episodeOffset) && episodeOffset <= episodeNumber) || i == 0) {
                         if (foundAnime.ElementAtOrDefault(i + 1) != null && int.TryParse(foundAnime[i + 1].Episodeoffset, out int nextEpisodeOffset) && nextEpisodeOffset <= episodeNumber) continue;
-                        logger.LogInformation($"Anime {foundAnime[i].Name} found in anime XML file");
+                        logger.LogInformation($"(Tvdb) Anime {foundAnime[i].Name} found in anime XML file (using Tvdb ID)");
                         return int.TryParse(foundAnime[i].Anidbid, out aniDbId) ? (aniDbId, episodeOffset) : (null, null);
                     }
                 }
