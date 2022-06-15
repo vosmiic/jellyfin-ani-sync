@@ -40,11 +40,11 @@ public class UpdateProviderStatus {
     private ApiName _apiName;
     private readonly ILoggerFactory _loggerFactory;
 
-    public UpdateProviderStatus(IFileSystem fileSystem, 
+    public UpdateProviderStatus(IFileSystem fileSystem,
         ILibraryManager libraryManager,
-        ILoggerFactory loggerFactory, 
-        IHttpContextAccessor httpContextAccessor, 
-        IServerApplicationHost serverApplicationHost, 
+        ILoggerFactory loggerFactory,
+        IHttpContextAccessor httpContextAccessor,
+        IServerApplicationHost serverApplicationHost,
         IHttpClientFactory httpClientFactory) {
         _fileSystem = fileSystem;
         _libraryManager = libraryManager;
@@ -113,7 +113,7 @@ public class UpdateProviderStatus {
                 switch (userApiAuth.Name) {
                     case ApiName.Mal:
                         _apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
-                        if (providerIds.MyAnimeList != 0) {
+                        if (providerIds.MyAnimeList != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
                             await CheckUserListAnimeStatus(providerIds.MyAnimeList, _animeType == typeof(Episode)
                                     ? (aniDbId.episodeOffset != null
                                         ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
@@ -126,7 +126,7 @@ public class UpdateProviderStatus {
                         break;
                     case ApiName.AniList:
                         _apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
-                        if (providerIds.Anilist != 0) {
+                        if (providerIds.Anilist != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
                             await CheckUserListAnimeStatus(providerIds.Anilist, _animeType == typeof(Episode)
                                     ? (aniDbId.episodeOffset != null
                                         ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
@@ -149,7 +149,7 @@ public class UpdateProviderStatus {
                         break;
                     case ApiName.Kitsu:
                         _apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
-                        if (providerIds.Kitsu != 0) {
+                        if (providerIds.Kitsu != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
                             await CheckUserListAnimeStatus(providerIds.Kitsu, _animeType == typeof(Episode)
                                     ? (aniDbId.episodeOffset != null
                                         ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
@@ -379,7 +379,7 @@ public class UpdateProviderStatus {
             } else {
                 _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
             }
-        } else if (detectedAnime.MyListStatus.NumEpisodesWatched >= indexNumber) {
+        } else if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.NumEpisodesWatched >= indexNumber) {
             _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but provider reports episode already watched. Skipping");
         } else if (_userConfig.PlanToWatchOnly) {
             _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but not on completed or plan to watch list. Skipping");
