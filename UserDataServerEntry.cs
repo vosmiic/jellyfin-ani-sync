@@ -2,8 +2,10 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Entities;
@@ -23,6 +25,7 @@ public class UserDataServerEntry : IServerEntryPoint {
     private readonly IServerApplicationHost _serverApplicationHost;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _memoryCache;
+    private readonly IApplicationPaths _applicationPaths;
     private readonly ILogger<UpdateProviderStatus> _logger;
 
     public UserDataServerEntry(IUserDataManager userDataManager,
@@ -32,7 +35,8 @@ public class UserDataServerEntry : IServerEntryPoint {
         IHttpContextAccessor httpContextAccessor,
         IServerApplicationHost serverApplicationHost,
         IHttpClientFactory httpClientFactory,
-        IMemoryCache memoryCache) {
+        IMemoryCache memoryCache,
+        IApplicationPaths applicationPaths) {
         _userDataManager = userDataManager;
         _fileSystem = fileSystem;
         _libraryManager = libraryManager;
@@ -42,6 +46,7 @@ public class UserDataServerEntry : IServerEntryPoint {
         _serverApplicationHost = serverApplicationHost;
         _httpClientFactory = httpClientFactory;
         _memoryCache = memoryCache;
+        _applicationPaths = applicationPaths;
     }
 
     public Task RunAsync() {
@@ -67,7 +72,7 @@ public class UserDataServerEntry : IServerEntryPoint {
         _memoryCache.Set("lastQuery", DateTime.UtcNow, new MemoryCacheEntryOptions {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
         });
-        UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory);
+        UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
         await updateProviderStatus.Update(e.Item, e.UserId, true);
     }
 

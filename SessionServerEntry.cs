@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
@@ -15,6 +16,7 @@ namespace jellyfin_ani_sync {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IApplicationPaths _applicationPaths;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ISessionManager _sessionManager;
 
@@ -24,10 +26,12 @@ namespace jellyfin_ani_sync {
 
         public SessionServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory,
             IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem,
-            IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
+            IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor,
+            IApplicationPaths applicationPaths) {
             _httpClientFactory = httpClientFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
+            _applicationPaths = applicationPaths;
             _loggerFactory = loggerFactory;
             _sessionManager = sessionManager;
             _libraryManager = libraryManager;
@@ -41,7 +45,7 @@ namespace jellyfin_ani_sync {
 
         public async void PlaybackStopped(object sender, PlaybackStopEventArgs e) {
             if (Plugin.Instance.PluginConfiguration.ProviderApiAuth is { Length: > 0 }) {
-                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory);
+                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
                 foreach (User user in e.Users) {
                     await updateProviderStatus.Update(e.Item, user.Id, e.PlayedToCompletion);
                 }

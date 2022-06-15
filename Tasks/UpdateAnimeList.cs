@@ -4,16 +4,24 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync {
     public class UpdateAnimeList {
+        public readonly string Path;
+
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<TaskUpdateAnimeList> _logger;
 
-        public UpdateAnimeList(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) {
+        public UpdateAnimeList(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IApplicationPaths applicationPaths) {
             _httpClientFactory = httpClientFactory;
+            if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
+                Path = System.IO.Path.Combine(applicationPaths.CachePath, "anisync", "anime-list-full.xml");
+            } else {
+                Path = System.IO.Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml");
+            }
             _logger = loggerFactory.CreateLogger<TaskUpdateAnimeList>();
         }
 
@@ -21,11 +29,6 @@ namespace jellyfin_ani_sync {
         /// Update the anime list file to the latest version.
         /// </summary>
         public async Task<bool> Update() {
-            if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
-                _logger.LogInformation("User has not set anime list save location; skipping");
-                return false;
-            }
-
             var client = _httpClientFactory.CreateClient(NamedClient.Default);
             var response = await client.GetAsync("https://api.github.com/repos/Anime-Lists/anime-lists/contents/anime-list-full.xml");
             if (response.IsSuccessStatusCode) {
@@ -55,7 +58,7 @@ namespace jellyfin_ani_sync {
         /// <param name="fileSize">File size to compare with.</param>
         /// <returns></returns>
         private async Task<bool> CheckIfFileSizeHasChanged(int fileSize) {
-            FileInfo animeListFile = new FileInfo(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"));
+            FileInfo animeListFile = new FileInfo(Path);
             if (animeListFile.Exists) return animeListFile.Length != fileSize;
             return true;
         }
@@ -67,8 +70,9 @@ namespace jellyfin_ani_sync {
         /// <param name="downloadUrl">Download URL of the anime list file.</param>
         private async Task GetLatestAnimeList(HttpClient httpClient, string downloadUrl) {
             try {
+                Directory.CreateDirectory(Path.EndsWith("/anime-list-full.xml") ? Path.Replace("/anime-list-full.xml", "") : Path);
                 await using (var response = await httpClient.GetStreamAsync(downloadUrl)) {
-                    await using (var fileStream = new FileStream(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"), FileMode.OpenOrCreate)) {
+                    await using (var fileStream = new FileStream(Path, FileMode.OpenOrCreate)) {
                         await response.CopyToAsync(fileStream);
                     }
                 }

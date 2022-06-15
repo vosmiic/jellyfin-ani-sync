@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using MediaBrowser.Common.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Helpers {
@@ -17,9 +18,9 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="episodeNumber">Episode number.</param>
         /// <param name="seasonNumber">Season number.</param>
         /// <returns></returns>
-        public static async Task<(int? aniDbId, int? episodeOffset)> GetAniDbId(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
+        public static async Task<(int? aniDbId, int? episodeOffset)> GetAniDbId(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, Dictionary<string, string> providers, int episodeNumber, int seasonNumber) {
             int aniDbId;
-            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory);
+            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
             if (animeListXml == null) return (null, null);
             if (providers.ContainsKey("Anidb")) {
                 logger.LogInformation("(Anidb) Anime already has AniDb ID; no need to look it up");
@@ -69,22 +70,19 @@ namespace jellyfin_ani_sync.Helpers {
         /// </summary>
         /// <param name="logger">Logger.</param>
         /// <returns></returns>
-        private static async Task<AnimeListXml> GetAnimeListFileContents(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory) {
-            if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
-                return null;
-            }
+        private static async Task<AnimeListXml> GetAnimeListFileContents(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths) {
+            UpdateAnimeList updateAnimeList = new UpdateAnimeList(httpClientFactory, loggerFactory, applicationPaths);
 
             try {
-                FileInfo animeListXml = new FileInfo(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"));
+                FileInfo animeListXml = new FileInfo(updateAnimeList.Path);
                 if (!animeListXml.Exists) {
                     logger.LogInformation("Anime list XML not found; attempting to download...");
-                    UpdateAnimeList updateAnimeList = new UpdateAnimeList(httpClientFactory, loggerFactory);
                     if (await updateAnimeList.Update()) {
                         logger.LogInformation("Anime list XML downloaded");
                     }
                 }
 
-                using (var stream = File.OpenRead(Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml"))) {
+                using (var stream = File.OpenRead(updateAnimeList.Path)) {
                     var serializer = new XmlSerializer(typeof(AnimeListXml));
                     return (AnimeListXml)serializer.Deserialize(stream);
                 }

@@ -12,6 +12,7 @@ using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Mal;
 using Jellyfin.Data.Entities;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
@@ -26,6 +27,7 @@ namespace jellyfin_ani_sync;
 
 public class UpdateProviderStatus {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IApplicationPaths _applicationPaths;
     private readonly IServerApplicationHost _serverApplicationHost;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -45,12 +47,14 @@ public class UpdateProviderStatus {
         ILoggerFactory loggerFactory,
         IHttpContextAccessor httpContextAccessor,
         IServerApplicationHost serverApplicationHost,
-        IHttpClientFactory httpClientFactory) {
+        IHttpClientFactory httpClientFactory,
+        IApplicationPaths applicationPaths) {
         _fileSystem = fileSystem;
         _libraryManager = libraryManager;
         _httpContextAccessor = httpContextAccessor;
         _serverApplicationHost = serverApplicationHost;
         _httpClientFactory = httpClientFactory;
+        _applicationPaths = applicationPaths;
         _logger = loggerFactory.CreateLogger<UpdateProviderStatus>();
         _loggerFactory = loggerFactory;
     }
@@ -98,8 +102,8 @@ public class UpdateProviderStatus {
                            : movie.ProviderIds != null &&
                              movie.ProviderIds.ContainsKey("Anidb")) {
                 aniDbId = _animeType == typeof(Episode)
-                    ? await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, episode.Series.ProviderIds, episode.IndexNumber.Value, episode.Season.IndexNumber.Value)
-                    : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, movie.ProviderIds, movie.IndexNumber.Value, 1);
+                    ? await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, episode.Series.ProviderIds, episode.IndexNumber.Value, episode.Season.IndexNumber.Value)
+                    : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, movie.ProviderIds, movie.IndexNumber.Value, 1);
                 if (aniDbId.aniDbId != null) {
                     _logger.LogInformation("Retrieving provider IDs from offline database...");
                     providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, true);
