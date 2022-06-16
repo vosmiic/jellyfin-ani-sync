@@ -44,13 +44,10 @@
                     <label class="inputLabel inputLabelUnfocused" for="animeListSaveLocation">Anime List Save
                         Location</label>
                     <input id="animeListSaveLocation" name="animeListSaveLocation" type="text" is="emby-input"/>
-                    <div class="fieldDescription">The save location for the anime list. This saves a small (<10 MB) XML
-                        file that AniSync can use to quickly find anime in the specified location (inside its own
-                        directory is suggested). <b>Please make sure Jellyfin has read/write access to this
-                            directory.</b> This is not necessary, but will make anime detection much more reliable when
-                        using the correct metadata providers (<a
-                                href="https://github.com/vosmiic/jellyfin-ani-sync/wiki/Metadata-Downloader-Compatibility">list
-                            of metadata providers</a>).
+                    <div class="fieldDescription">Manually override the save location for the anime list (default
+                        location is the server cache). This saves a small (<10 MB) XML file that AniSync can use to
+                        quickly find anime in the specified location (inside its own directory is suggested). This
+                        can be left empty.
                     </div>
                     <button is="emby-button" type="button" id="testAnimeListSaveLocation" class="raised block"
                             onclick="runTestAnimeListSaveLocation()">
@@ -65,7 +62,9 @@
                         <span>Ticking watched updates providers?</span>
                     </label>
                     <div class="fieldDescription">Whether or not marking an anime as watched sends an update to
-                        the provider API.<br/><b>Warning: this functionality has not been fully tested, if you notice your server crashing after ticking media as being completed please disable this option.</b></div>
+                        the provider API.<br/><b>Warning: this functionality has not been fully tested, if you notice
+                            your server crashing after ticking media as being completed please disable this option.</b>
+                    </div>
                 </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
