@@ -8,6 +8,22 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "30107aa68e1e38914edf611c0b52419e",
+        "changelog": "A few QOL improvements. \n 1. Log fixes \n 2. Update progress of providers when user ticks the anime as watched via the UI \n 3. Fixed OVA detection with new anime detection update. \n 4. Added default anime list save location",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.1/10.8.0.-.ani-sync_2.1.0.0.zip",
+        "timestamp": "2022-06-16 21:30:00",
+        "version": "2.1.0.0"
+      },
+      {
+        "checksum": "45067cae878b674af6d16ef5202368b2",
+        "changelog": "A few QOL improvements. \n 1. Log fixes \n 2. Update progress of providers when user ticks the anime as watched via the UI \n 3. Fixed OVA detection with new anime detection update. \n 4. Added default anime list save location",
+        "targetAbi": "10.7.7.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.1/10.7.7.-.ani-sync_2.1.0.0.zip",
+        "timestamp": "2022-06-16 21:30:00",
+        "version": "2.1.0.0"
+      },
+      {
         "checksum": "278b33aa150042c694f25b30e81b3d3d",
         "changelog": "Hotfix for recent v2 release. Larger update out soon. \n 1. Fixed incorrect season detection when using AniList metadata provider \n 2. Fixed anime save location test error on Windows \n 3. Fixed multiple logging errors.",
         "targetAbi": "10.8.0.0",
