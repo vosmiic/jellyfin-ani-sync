@@ -383,8 +383,7 @@
                     config.UserConfig.push(userConfig);
                 }
                 setProviderApiAuthConfig(config);
-                if (document.querySelector('#animeListSaveLocation').value)
-                    config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
+                config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
                 config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
 
                 userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {

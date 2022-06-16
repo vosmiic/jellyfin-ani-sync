@@ -17,7 +17,7 @@ namespace jellyfin_ani_sync {
 
         public UpdateAnimeList(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IApplicationPaths applicationPaths) {
             _httpClientFactory = httpClientFactory;
-            if (Plugin.Instance.PluginConfiguration.animeListSaveLocation == null) {
+            if (string.IsNullOrEmpty(Plugin.Instance.PluginConfiguration.animeListSaveLocation)) {
                 Path = System.IO.Path.Combine(applicationPaths.CachePath, "anisync", "anime-list-full.xml");
             } else {
                 Path = System.IO.Path.Combine(Plugin.Instance.PluginConfiguration.animeListSaveLocation, "anime-list-full.xml");
