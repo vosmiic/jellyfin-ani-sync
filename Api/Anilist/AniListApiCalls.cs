@@ -72,14 +72,14 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 { "page", page.ToString() }
             };
 
-            AniListSearch.AniListSearchMedia result = await SearchRequest(query, variables);
+            AniListSearch.AniListSearchMedia result = await DeserializeRequest<AniListSearch.AniListSearchMedia>(query, variables);
 
             if (result != null) {
                 if (result.Data.Page.PageInfo.HasNextPage) {
                     // impose a hard limit of 10 pages
                     while (page < 10) {
                         page++;
-                        AniListSearch.AniListSearchMedia nextPageResult = await SearchRequest(query, variables);
+                        AniListSearch.AniListSearchMedia nextPageResult = await DeserializeRequest<AniListSearch.AniListSearchMedia>(query, variables);
 
                         result.Data.Page.Media = result.Data.Page.Media.Concat(nextPageResult.Data.Page.Media).ToList();
                         if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
@@ -92,16 +92,6 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 }
 
                 return result.Data.Page.Media;
-            }
-
-            return null;
-        }
-
-        private async Task<AniListSearch.AniListSearchMedia> SearchRequest(string query, Dictionary<string, string> variables) {
-            var response = await GraphQlHelper.Request(_httpClient, query, variables);
-            if (response != null) {
-                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
-                return JsonSerializer.Deserialize<AniListSearch.AniListSearchMedia>(await streamReader.ReadToEndAsync());
             }
 
             return null;
@@ -173,9 +163,10 @@ namespace jellyfin_ani_sync.Api.Anilist {
             return null;
         }
 
-        public async Task<string> GetCurrentUser() {
+        public async Task<AniListViewer.Viewer> GetCurrentUser() {
             string query = @"query {
           Viewer {
+            id
             name
           }
         }";
@@ -186,7 +177,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 var result = JsonSerializer.Deserialize<AniListViewer.AniListGetViewer>(await streamReader.ReadToEndAsync());
 
                 if (result != null) {
-                    return result.Data.Viewer.Name;
+                    return result.Data.Viewer;
                 }
             }
 
@@ -232,6 +223,68 @@ namespace jellyfin_ani_sync.Api.Anilist {
 
             var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
             return response != null;
+        }
+
+        public async Task<List<AniListMediaList.MediaList>> GetAnimeList(int userId, AniListSearch.MediaListStatus status) {
+            string query = @"query ($status: MediaListStatus, $userId: Int, $perPage: Int, $page: Int) {
+            Page (perPage: $perPage, page: $page) {
+                pageInfo {
+                    total
+                    perPage
+                    currentPage
+                    lastPage
+                    hasNextPage
+                }
+                mediaList (status: $status, userId: $userId) {
+                    media {
+                        siteUrl
+                    }
+                }
+            }
+        }";
+
+            int page = 1;
+            Dictionary<string, string> variables = new Dictionary<string, string> {
+                { "status", status.ToString().ToUpper() },
+                { "userId", userId.ToString() },
+                { "perPage", PageSize.ToString() },
+                { "page", page.ToString() }
+            };
+
+            AniListMediaList.AniListUserMediaList result = await DeserializeRequest<AniListMediaList.AniListUserMediaList>(query, variables);
+
+            if (result != null) {
+                if (result.Data.Page.PageInfo.HasNextPage) {
+                    // impose a hard limit of 10 pages
+                    while (page < 100) {
+                        page++;
+                        AniListMediaList.AniListUserMediaList nextPageResult = await DeserializeRequest<AniListMediaList.AniListUserMediaList>(query, variables);
+
+                        result.Data.Page.MediaList = result.Data.Page.MediaList.Concat(nextPageResult.Data.Page.MediaList).ToList();
+                        if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
+                            break;
+                        }
+
+                        // sleeping thread so we dont hammer the API
+                        Thread.Sleep(1000);
+                    }
+                }
+
+                return result.Data.Page.MediaList;
+            }
+
+            return null;
+        }
+
+
+        private async Task<T> DeserializeRequest<T>(string query, Dictionary<string, string> variables) {
+            var response = await GraphQlHelper.Request(_httpClient, query, variables);
+            if (response != null) {
+                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                return JsonSerializer.Deserialize<T>(await streamReader.ReadToEndAsync());
+            }
+
+            return default;
         }
     }
 }
