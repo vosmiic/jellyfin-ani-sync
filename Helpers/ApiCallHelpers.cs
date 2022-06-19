@@ -285,5 +285,56 @@ namespace jellyfin_ani_sync.Helpers {
 
             return null;
         }
+
+        public async Task<MalApiCalls.User> GetUser() {
+            if (_aniListApiCalls != null) {
+                AniListViewer.Viewer user = await _aniListApiCalls.GetCurrentUser();
+                return ClassConversions.ConvertUser(user.Id, user.Name);
+            }
+
+            return null;
+        }
+
+        public async Task<List<Anime>> GetAnimeList(int userId, Status status) {
+            if (_aniListApiCalls != null) {
+                AniListSearch.MediaListStatus anilistStatus;
+                switch (status) {
+                    case Status.Watching:
+                        anilistStatus = AniListSearch.MediaListStatus.Current;
+                        break;
+                    case Status.Completed:
+                        anilistStatus = AniListSearch.MediaListStatus.Completed;
+                        break;
+                    case Status.On_hold:
+                        anilistStatus = AniListSearch.MediaListStatus.Paused;
+                        break;
+                    case Status.Dropped:
+                        anilistStatus = AniListSearch.MediaListStatus.Dropped;
+                        break;
+                    case Status.Plan_to_watch:
+                        anilistStatus = AniListSearch.MediaListStatus.Planning;
+                        break;
+                    default:
+                        anilistStatus = AniListSearch.MediaListStatus.Current;
+                        break;
+                }
+
+                var animeList = await _aniListApiCalls.GetAnimeList(userId, anilistStatus);
+                List<Anime> convertedList = new List<Anime>();
+                if (animeList != null) {
+                    foreach (var media in animeList) {
+                        int lastIndex = media.Media.SiteUrl.LastIndexOf("/", StringComparison.CurrentCulture);
+                        if (lastIndex != -1) {
+                            convertedList.Add(new Anime {
+                                Id = int.TryParse(media.Media.SiteUrl.Substring(lastIndex + 1, media.Media.SiteUrl.Length - lastIndex - 1), out int id) ? id : 0
+                            });
+                        }
+                    }
+                }
+                return convertedList;
+            }
+
+            return null;
+        }
     }
 }

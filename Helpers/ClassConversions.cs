@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
@@ -51,6 +52,13 @@ namespace jellyfin_ani_sync.Helpers {
             anime.AlternativeTitles.Synonyms.AddRange(kitsuAnime.Attributes.AbbreviatedTitles);
 
             return anime;
+        }
+
+        public static MalApiCalls.User ConvertUser(int id, string name) {
+            return new MalApiCalls.User {
+                Id = id,
+                Name = name
+            };
         }
     }
 }
