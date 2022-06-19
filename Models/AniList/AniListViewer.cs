@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 namespace jellyfin_ani_sync.Models {
     public class AniListViewer {
         public class Viewer {
+            [JsonPropertyName("id")] public int Id { get; set; }
             [JsonPropertyName("name")] public string Name { get; set; }
         }
 
