@@ -325,8 +325,16 @@ namespace jellyfin_ani_sync.Helpers {
                     foreach (var media in animeList) {
                         int lastIndex = media.Media.SiteUrl.LastIndexOf("/", StringComparison.CurrentCulture);
                         if (lastIndex != -1) {
+                            DateTime finishDate = new DateTime();
+                            if (media.CompletedAt is { Year: { }, Month: { }, Day: { } }) {
+                                finishDate = new DateTime(media.CompletedAt.Year.Value, media.CompletedAt.Month.Value, media.CompletedAt.Day.Value);
+                            }
+
                             convertedList.Add(new Anime {
-                                Id = int.TryParse(media.Media.SiteUrl.Substring(lastIndex + 1, media.Media.SiteUrl.Length - lastIndex - 1), out int id) ? id : 0
+                                Id = int.TryParse(media.Media.SiteUrl.Substring(lastIndex + 1, media.Media.SiteUrl.Length - lastIndex - 1), out int id) ? id : 0,
+                                MyListStatus = new MyListStatus {
+                                    FinishDate = finishDate.ToShortDateString()
+                                }
                             });
                         }
                     }
