@@ -9,13 +9,13 @@ public class AniListMediaList {
     }
 
     public class MediaList {
-
         [JsonPropertyName("media")] public AniListSearch.Media Media { get; set; }
+        [JsonPropertyName("completedAt")] public AniListSearch.FuzzyDate CompletedAt { get; set; }
     }
 
     public class Page {
         [JsonPropertyName("mediaList")] public List<MediaList> MediaList { get; set; }
-        
+
         [JsonPropertyName("pageInfo")] public AniListSearch.PageInfo PageInfo { get; set; }
     }
 

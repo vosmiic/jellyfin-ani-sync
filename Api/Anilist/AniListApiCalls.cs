@@ -239,6 +239,11 @@ namespace jellyfin_ani_sync.Api.Anilist {
                     media {
                         siteUrl
                     }
+                    completedAt {
+                        day
+                        month
+                        year
+                    }
                 }
             }
         }";
