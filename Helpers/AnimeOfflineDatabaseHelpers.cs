@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
@@ -18,10 +19,10 @@ namespace jellyfin_ani_sync.Helpers {
         }
 
         public class OfflineDatabaseResponse {
-            [JsonPropertyName("anilist")] public int Anilist { get; set; }
-            [JsonPropertyName("anidb")] public int AniDb { get; set; }
-            [JsonPropertyName("myanimelist")] public int MyAnimeList { get; set; }
-            [JsonPropertyName("kitsu")] public int Kitsu { get; set; }
+            [JsonPropertyName("anilist")] public int? Anilist { get; set; }
+            [JsonPropertyName("anidb")] public int? AniDb { get; set; }
+            [JsonPropertyName("myanimelist")] public int? MyAnimeList { get; set; }
+            [JsonPropertyName("kitsu")] public int? Kitsu { get; set; }
         }
         
         public enum Source {
@@ -29,6 +30,19 @@ namespace jellyfin_ani_sync.Helpers {
             Anilist,
             Myanimelist,
             Kitsu
+        }
+
+        public static Source MapFromApiName(ApiName apiName) {
+            switch (apiName) {
+                case ApiName.Mal:
+                    return Source.Myanimelist;
+                case ApiName.AniList:
+                    return Source.Anilist;
+                case ApiName.Kitsu:
+                    return Source.Kitsu;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(apiName), apiName, null);
+            }
         }
     }
 }
