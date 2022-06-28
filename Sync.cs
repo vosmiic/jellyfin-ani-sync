@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
@@ -33,6 +34,7 @@ public class Sync {
     private readonly IApplicationPaths _applicationPaths;
     private readonly IUserDataManager _userDataManager;
     private readonly ApiName _apiName;
+    private int _apiTimeOutLength = 2000;
 
     public Sync(IHttpClientFactory httpClientFactory,
         ILoggerFactory loggerFactory,
@@ -57,15 +59,30 @@ public class Sync {
 
     public async Task SyncFromProvider(string userId) {
         var completedList = await GetAnimeList(Status.Completed, userId);
+        if (completedList == null) {
+            _logger.LogWarning("(Sync) No anime found by provider; please make sure user is authenticated with this provider and the authenticated users watch list is populated");
+            return;
+        }
+
         var metadataIds = await GetMetadataIdsFromAnime(completedList);
         await GetCurrentLibrary(userId, metadataIds);
     }
 
     private async Task<List<Anime>> GetAnimeList(Status status, string userId) {
-        ApiCallHelpers apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
-        var user = await apiCallHelpers.GetUser();
+        ApiCallHelpers apiCallHelpers;
+        switch (_apiName) {
+            case ApiName.Mal:
+                apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
 
-        return await apiCallHelpers.GetAnimeList(user.Id, status);
+                return await apiCallHelpers.GetAnimeList(status);
+            case ApiName.AniList:
+                apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                var user = await apiCallHelpers.GetUser();
+
+                return await apiCallHelpers.GetAnimeList(status, user.Id);
+        }
+
+        return null;
     }
 
     private async Task GetCurrentLibrary(string userId, List<SyncAnimeMetadata> convertedWatchList) {
@@ -135,35 +152,38 @@ public class Sync {
 
     private async Task<List<SyncAnimeMetadata>> GetMetadataIdsFromAnime(List<Anime> animeList) {
         List<SyncAnimeMetadata> animeIdProgress = new List<SyncAnimeMetadata>();
-        if (_apiName == ApiName.AniList) {
-            for (var i = 0; i < animeList.Count; i++) {
-                _logger.LogInformation($"(Sync) Fetching IDs for anime with an ID of {animeList[i].Id}...");
-                var ids = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), animeList[i].Id, AnimeOfflineDatabaseHelpers.Source.Anilist);
-                int? season = await AnimeListHelpers.GetAniDbSeasonNumber(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb);
-                if (season == null) {
-                    _logger.LogError("(Sync) Could not retrieve season number; skipping item...");
-                    continue;
-                }
-
-                var syncAnimeMetadata = new SyncAnimeMetadata {
-                    ids = ids,
-                    episodesWatched = animeList[i].MyListStatus != null && animeList[i].MyListStatus.NumEpisodesWatched != 0 ? animeList[i].MyListStatus.NumEpisodesWatched : -1,
-                    season = season.Value
-                };
-                if (animeList[i].MyListStatus is { FinishDate: { } }) {
-                    syncAnimeMetadata.completedAt = DateTime.Parse(animeList[i].MyListStatus.FinishDate);
-                }
-
-                animeIdProgress.Add(syncAnimeMetadata);
-                _logger.LogInformation("(Sync) Fetched");
-                if (i != animeList.Count - 1) {
-                    _logger.LogInformation("(Sync) Waiting 2 seconds before proceeding...");
-                    Thread.Sleep(2000);
-                }
+        for (var i = 0; i < animeList.Count; i++) {
+            _logger.LogInformation($"(Sync) Fetching IDs for anime with an ID of {animeList[i].Id}...");
+            var ids = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), animeList[i].Id, AnimeOfflineDatabaseHelpers.MapFromApiName(_apiName));
+            if (ids.AniDb == null) {
+                _logger.LogError("(Sync) Could not retrieve AniDb ID; skipping item...");
+                continue;
             }
 
-            return animeIdProgress;
+            int? season = await AnimeListHelpers.GetAniDbSeasonNumber(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb.Value);
+            if (season == null) {
+                _logger.LogError("(Sync) Could not retrieve season number; skipping item...");
+                continue;
+            }
+
+            var syncAnimeMetadata = new SyncAnimeMetadata {
+                ids = ids,
+                episodesWatched = animeList[i].MyListStatus != null && animeList[i].MyListStatus.NumEpisodesWatched != 0 ? animeList[i].MyListStatus.NumEpisodesWatched : -1,
+                season = season.Value
+            };
+            if (animeList[i].MyListStatus is { FinishDate: { } }) {
+                syncAnimeMetadata.completedAt = DateTime.Parse(animeList[i].MyListStatus.FinishDate);
+            }
+
+            animeIdProgress.Add(syncAnimeMetadata);
+            _logger.LogInformation("(Sync) Fetched");
+            if (i != animeList.Count - 1) {
+                _logger.LogInformation("(Sync) Waiting 2 seconds before proceeding...");
+                Thread.Sleep(_apiTimeOutLength);
+            }
         }
+
+        return animeIdProgress;
 
         return null;
     }
@@ -171,8 +191,8 @@ public class Sync {
 
     private async Task<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse> GetAniDbSeasonIdsFromJellyfin(ApiName provider, int providerId, int seasonNumber, AnimeOfflineDatabaseHelpers.Source? conversion = null) {
         var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, AnimeOfflineDatabaseHelpers.Source.Anilist);
-        if (id != null) {
-            var aniDbSeason = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb, seasonNumber);
+        if (id is { AniDb: { } }) {
+            var aniDbSeason = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb.Value, seasonNumber);
             var convertedId = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbSeason.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
             if (convertedId != null) {
                 return convertedId;
@@ -184,8 +204,8 @@ public class Sync {
 
     private async Task<IEnumerable<AnimeListHelpers.AnimeListAnime>> GetSeasonIdsFromJellyfin(int providerId) {
         var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, AnimeOfflineDatabaseHelpers.Source.Anilist);
-        if (id != null) {
-            return await AnimeListHelpers.ListAllSeasonOfAniDbSeries(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb);
+        if (id is { AniDb: { } }) {
+            return await AnimeListHelpers.ListAllSeasonOfAniDbSeries(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb.Value);
         }
 
         return null;
