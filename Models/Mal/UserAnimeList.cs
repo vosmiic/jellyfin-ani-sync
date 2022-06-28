@@ -30,7 +30,7 @@ namespace jellyfin_ani_sync.Models.Mal {
 
     public class UserAnimeListData {
         [JsonPropertyName("node")] public Anime Anime { get; set; }
-        [JsonPropertyName("list_status")] public ListStatus ListStatus { get; set; }
+        [JsonPropertyName("list_status")] public MyListStatus ListStatus { get; set; }
     }
 
     public class UserAnimeList {
