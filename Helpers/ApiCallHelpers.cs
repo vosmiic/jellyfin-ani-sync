@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
@@ -295,8 +296,12 @@ namespace jellyfin_ani_sync.Helpers {
             return null;
         }
 
-        public async Task<List<Anime>> GetAnimeList(int userId, Status status) {
-            if (_aniListApiCalls != null) {
+        public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
+            if (_malApiCalls != null) {
+                var malAnimeList = await _malApiCalls.GetUserAnimeList(Status.Completed);
+                return malAnimeList?.Select(animeList => animeList.Anime).ToList();
+            }
+            if (_aniListApiCalls != null && userId != null) {
                 AniListSearch.MediaListStatus anilistStatus;
                 switch (status) {
                     case Status.Watching:
@@ -319,7 +324,7 @@ namespace jellyfin_ani_sync.Helpers {
                         break;
                 }
 
-                var animeList = await _aniListApiCalls.GetAnimeList(userId, anilistStatus);
+                var animeList = await _aniListApiCalls.GetAnimeList(userId.Value, anilistStatus);
                 List<Anime> convertedList = new List<Anime>();
                 if (animeList != null) {
                     foreach (var media in animeList) {
