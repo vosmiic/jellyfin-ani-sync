@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
+using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models.Mal;
@@ -70,6 +71,7 @@ public class Sync {
 
     private async Task<List<Anime>> GetAnimeList(Status status, string userId) {
         ApiCallHelpers apiCallHelpers;
+        MalApiCalls.User user;
         switch (_apiName) {
             case ApiName.Mal:
                 apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
@@ -77,9 +79,17 @@ public class Sync {
                 return await apiCallHelpers.GetAnimeList(status);
             case ApiName.AniList:
                 apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
-                var user = await apiCallHelpers.GetUser();
+                user = await apiCallHelpers.GetUser();
 
                 return await apiCallHelpers.GetAnimeList(status, user.Id);
+            case ApiName.Kitsu:
+                apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                user = await apiCallHelpers.GetUser();
+
+                if (user != null && user.Id != 0) {
+                    return await apiCallHelpers.GetAnimeList(status, user.Id);
+                }
+                break;
         }
 
         return null;
@@ -155,7 +165,7 @@ public class Sync {
         for (var i = 0; i < animeList.Count; i++) {
             _logger.LogInformation($"(Sync) Fetching IDs for anime with an ID of {animeList[i].Id}...");
             var ids = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), animeList[i].Id, AnimeOfflineDatabaseHelpers.MapFromApiName(_apiName));
-            if (ids.AniDb == null) {
+            if (ids?.AniDb == null) {
                 _logger.LogError("(Sync) Could not retrieve AniDb ID; skipping item...");
                 continue;
             }
