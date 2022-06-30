@@ -293,6 +293,14 @@ namespace jellyfin_ani_sync.Helpers {
                 return ClassConversions.ConvertUser(user.Id, user.Name);
             }
 
+            if (_kitsuApiCalls != null) {
+                var user = await _kitsuApiCalls.GetUserId();
+                if (user != null)
+                    return new MalApiCalls.User {
+                        Id = user.Value
+                    };
+            }
+
             return null;
         }
 
@@ -301,6 +309,7 @@ namespace jellyfin_ani_sync.Helpers {
                 var malAnimeList = await _malApiCalls.GetUserAnimeList(Status.Completed);
                 return malAnimeList?.Select(animeList => animeList.Anime).ToList();
             }
+
             if (_aniListApiCalls != null && userId != null) {
                 AniListSearch.MediaListStatus anilistStatus;
                 switch (status) {
@@ -344,7 +353,35 @@ namespace jellyfin_ani_sync.Helpers {
                         }
                     }
                 }
+
                 return convertedList;
+            }
+
+            if (_kitsuApiCalls != null && userId != null) {
+                KitsuUpdate.KitsuLibraryEntryListRoot animeList = await _kitsuApiCalls.GetUserAnimeList(userId.Value, status: KitsuUpdate.Status.completed);
+                if (animeList != null) {
+                    List<Anime> convertedList = new List<Anime>();
+                    foreach (KitsuUpdate.KitsuLibraryEntry kitsuLibraryEntry in animeList.Data) {
+                        Anime toAddAnime = new Anime();
+                        if (kitsuLibraryEntry.Relationships != null &&
+                            kitsuLibraryEntry.Relationships.AnimeData != null &&
+                            kitsuLibraryEntry.Relationships.AnimeData.Anime != null) {
+                            toAddAnime.Id = kitsuLibraryEntry.Relationships.AnimeData.Anime.Id;
+                        }
+
+                        toAddAnime.MyListStatus = new MyListStatus();
+                        if (kitsuLibraryEntry.Attributes != null) {
+                            toAddAnime.MyListStatus.FinishDate = kitsuLibraryEntry.Attributes.FinishedAt.ToString();
+                            if (kitsuLibraryEntry.Attributes.Progress != null) {
+                                toAddAnime.MyListStatus.NumEpisodesWatched = kitsuLibraryEntry.Attributes.Progress.Value;
+                            }
+                        }
+                        
+                        convertedList.Add(toAddAnime);
+                    }
+
+                    return convertedList;
+                }
             }
 
             return null;
