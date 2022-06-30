@@ -221,12 +221,22 @@ namespace jellyfin_ani_sync.Api.Kitsu {
         }
 
         public async Task<KitsuUpdate.KitsuLibraryEntry> GetUserAnimeStatus(int userId, int animeId) {
+            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await LibraryEntriesCall(new List<KeyValuePair<string, string>> {
+                new ("filter[animeId]", animeId.ToString()),
+                new ("filter[userId]", userId.ToString())
+            });
+
+            if (animeList.Data is { Count: > 0 }) {
+                return animeList.Data[0];
+            }
+
+            return null;
+        }
+
+        private async Task<KitsuUpdate.KitsuLibraryEntryListRoot> LibraryEntriesCall(List<KeyValuePair<string, string>> parameters) {
             UrlBuilder url = new UrlBuilder {
                 Base = $"{ApiUrl}/library-entries",
-                Parameters = new List<KeyValuePair<string, string>> {
-                    new KeyValuePair<string, string>("filter[animeId]", animeId.ToString()),
-                    new KeyValuePair<string, string>("filter[userId]", userId.ToString())
-                }
+                Parameters = parameters
             };
 
             _logger.LogInformation("(Kitsu) Fetching current user anime list status...");
@@ -237,15 +247,24 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                     var library = JsonSerializer.Deserialize<KitsuUpdate.KitsuLibraryEntryListRoot>(await streamReader.ReadToEndAsync());
                     _logger.LogInformation("(Kitsu) Fetched user anime list");
-                    if (library is { Data: { Count: > 0 } }) {
-                        return library.Data[0];
-                    }
+                    return library;
                 }
             } catch (Exception e) {
                 _logger.LogError(e.Message);
             }
 
             return null;
+        }
+
+        public async Task<KitsuUpdate.KitsuLibraryEntryListRoot> GetUserAnimeList(int userId, KitsuUpdate.Status status) {
+            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await LibraryEntriesCall(new List<KeyValuePair<string, string>> {
+                new("filter[userId]", userId.ToString()),
+                new("filter[kind]", "anime"),
+                new("filter[status]", status.ToString()),
+                new("include", "anime"),
+            });
+            
+            return animeList;
         }
     }
 }
