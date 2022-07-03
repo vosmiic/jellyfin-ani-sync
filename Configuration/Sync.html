@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Template</title>
+</head>
+<body>
+<div id="TemplateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox" data-controller="__plugin/SyncJs">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="TemplateConfigForm">
+                <p>Here you can synchronize the selected users provider library with their Jellyfin library, and vice versa.</p>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
+                    </div>
+                    <div class="fieldDescription">The user you would like to organize the library for.</div>
+                </div>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
+                        <div class="fieldDescription">Providers that the user has not authenticated with will not be listed.</div>
+                    </div>
+                </div>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="status" name="status" label="Status">
+                            <option value="0">Completed</option>
+                            <option value="1">Watching</option>
+                            <option value="2">Completed and Watching</option>
+                        </select>
+                        <div class="fieldDescription">Status of the show on the users watch list you want to sync.</div>
+                    </div>
+                </div>
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                        <span>Run</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
