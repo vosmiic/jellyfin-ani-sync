@@ -14,8 +14,8 @@
     </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.*-*" />
-    <PackageReference Include="Jellyfin.Model" Version="10.*-*" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.8.1" />
+    <PackageReference Include="Jellyfin.Model" Version="10.8.1" />
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
             <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
             <PackageReference Include="System.Collections" Version="4.3.0" />
@@ -24,6 +24,14 @@
       <ItemGroup>
     <None Remove="Configuration\ConfigPage.html" />
     <EmbeddedResource Include="Configuration\ConfigPage.html" />
+    <None Remove="Configuration\Sync.html" />
+    <EmbeddedResource Include="Configuration\Sync.html" />
+    <None Remove="Configuration\General.js" />
+    <EmbeddedResource Include="Configuration\General.js" />
+    <None Remove="Configuration\ConfigPageJs.js" />
+    <EmbeddedResource Include="Configuration\ConfigPageJs.js" />
+    <None Remove="Configuration\SyncJs.js" />
+    <EmbeddedResource Include="Configuration\SyncJs.js" />
   </ItemGroup>
     
       <ItemGroup>
