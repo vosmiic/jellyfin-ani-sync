@@ -288,6 +288,10 @@ namespace jellyfin_ani_sync.Helpers {
         }
 
         public async Task<MalApiCalls.User> GetUser() {
+            if (_malApiCalls != null) {
+                return await _malApiCalls.GetUserInformation();
+            }
+            
             if (_aniListApiCalls != null) {
                 AniListViewer.Viewer user = await _aniListApiCalls.GetCurrentUser();
                 return ClassConversions.ConvertUser(user.Id, user.Name);
