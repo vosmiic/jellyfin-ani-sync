@@ -11,7 +11,10 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Models;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -24,13 +27,28 @@ namespace jellyfin_ani_sync.Api {
         private readonly ILoggerFactory _loggerFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILibraryManager _libraryManager;
+        private readonly IUserManager _userManager;
+        private readonly IApplicationPaths _applicationPaths;
+        private readonly IUserDataManager _userDataManager;
         private readonly ILogger<AniSyncController> _logger;
 
-        public AniSyncController(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor) {
+        public AniSyncController(IHttpClientFactory httpClientFactory, 
+            ILoggerFactory loggerFactory, 
+            IServerApplicationHost serverApplicationHost, 
+            IHttpContextAccessor httpContextAccessor, 
+            ILibraryManager libraryManager, 
+            IUserManager userManager, 
+            IApplicationPaths applicationPaths,
+            IUserDataManager userDataManager) {
             _httpClientFactory = httpClientFactory;
             _loggerFactory = loggerFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
+            _libraryManager = libraryManager;
+            _userManager = userManager;
+            _applicationPaths = applicationPaths;
+            _userDataManager = userDataManager;
             _logger = loggerFactory.CreateLogger<AniSyncController>();
         }
 
@@ -124,8 +142,9 @@ namespace jellyfin_ani_sync.Api {
                         throw;
                     }
 
+                    AniListViewer.Viewer? user = await aniListApiCalls.GetCurrentUser();
                     return new MalApiCalls.User {
-                        Name = await aniListApiCalls.GetCurrentUser()
+                        Name = user?.Name
                     };
                 case ApiName.Kitsu:
                     KitsuApiCalls kitsuApiCalls;
@@ -178,6 +197,13 @@ namespace jellyfin_ani_sync.Api {
         [Route("apiUrlTest")]
         public string ApiUrlTest() {
             return "This is the correct URL.";
+        }
+
+        [HttpPost]
+        [Route("syncFromProviders")]
+        public async Task SyncFromProviders(ApiName provider, string userId, int status) {
+            Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, provider);
+            await sync.SyncFromProvider(userId);
         }
     }
 }
