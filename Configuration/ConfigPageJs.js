@@ -15,7 +15,6 @@ async function initialLoad(commons) {
     LibraryMenu.setTabs('Ani-Sync', 0, commons.getTabs);
     Dashboard.showLoadingMsg();
 
-    console.log(1);
     
     ApiClient.getUsers().then(function (users) {
         populateUserList(page, users);
@@ -30,7 +29,6 @@ async function initialLoad(commons) {
     
     page.querySelector('#selectUser')
         .addEventListener('change', function () {
-            console.log(1);
             loadUserConfiguration(page.querySelector('#selectUser').value);
             page.querySelector('#authorizeLink').innerHTML = '';
         });
@@ -128,7 +126,6 @@ async function setParameters(page) {
             return response.json()
                 .then(function (json) {
                     setLocalApiUrl(page, json.localApiUrl);
-                    console.log(json.providerList);
                     setProviderSelection(page, json.providerList);
                 });
         } else {
@@ -157,7 +154,6 @@ function setUserAddress(page) {
 function populateUserList(page, users) {
     var html = '';
     for (var x = 0; x < users.length; x++) {
-        console.log(users[x]);
         html += '<option value="' + users[x].Id + '">' + users[x].Name + '</option>';
     }
     page.querySelector('#selectUser').innerHTML = html;

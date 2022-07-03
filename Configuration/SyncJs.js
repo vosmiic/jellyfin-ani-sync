@@ -12,8 +12,6 @@ export default function (view, params) {
 
 async function initialLoad(commons) {
     LibraryMenu.setTabs('Ani-Sync', 1, commons.getTabs);
-
-    console.log(1);
     
     ApiClient.getUsers().then(async function (users) {
         populateUserList(users);

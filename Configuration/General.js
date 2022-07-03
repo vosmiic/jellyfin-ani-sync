@@ -12,6 +12,4 @@ export function getTabs() {
     return tabs
 }
 
-console.log(1);
-
 const getConfigurationPageUrl = (name) => ApiClient.getUrl('web/configurationpage', { name })
