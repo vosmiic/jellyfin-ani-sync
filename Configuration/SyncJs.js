@@ -11,41 +11,42 @@ export default function (view, params) {
 }
 
 async function initialLoad(commons) {
+    const page = this;
     LibraryMenu.setTabs('Ani-Sync', 1, commons.getTabs);
     
     ApiClient.getUsers().then(async function (users) {
-        populateUserList(users);
+        populateUserList(page, users);
     });
-    await setParameters();
+    await setParameters(page);
 }
 
-function populateUserList(users) {
+function populateUserList(page, users) {
     var html = '';
     for (var x = 0; x < users.length; x++) {
         html += '<option value="' + users[x].Id + '">' + users[x].Name + '</option>';
     }
-    document.querySelector('#selectUser').innerHTML = html;
+    page.querySelector('#selectUser').innerHTML = html;
 }
 
-async function setParameters() {
+async function setParameters(page) {
     await fetch(ApiClient.getUrl("/AniSync/parameters"), {
         method: "GET"
     }).then(function (response) {
         if (response.ok) {
             return response.json()
                 .then(function (json) {
-                    setProviderSelection(json.providerList);
+                    setProviderSelection(page, json.providerList);
                 });
         }
     });
 }
 
-function setProviderSelection(providerList) {
+function setProviderSelection(page, providerList) {
     var html = '';
     for (var x = 0; x < providerList.length; x++) {
         html += '<option value="' + providerList[x].Key + '">' + providerList[x].Name + '</option>';
     }
-    document.querySelector('#selectProvider').innerHTML = html;
+    page.querySelector('#selectProvider').innerHTML = html;
 }
 
 document.querySelector('#TemplateConfigForm')
