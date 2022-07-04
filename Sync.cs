@@ -61,6 +61,10 @@ public class Sync {
         _logger = loggerFactory.CreateLogger<Sync>();
     }
 
+    /// <summary>
+    /// Sync Jellyfin with the selected providers watch list.
+    /// </summary>
+    /// <param name="userId">ID of the user that you want to update the library of.</param>
     public async Task SyncFromProvider(string userId) {
         var completedList = await GetAnimeList(userId);
         if (completedList == null) {
@@ -72,6 +76,11 @@ public class Sync {
         await GetCurrentLibrary(userId, metadataIds);
     }
 
+    /// <summary>
+    /// Get the providers anime list.
+    /// </summary>
+    /// <param name="userId">ID of the user to get the anime list of.</param>
+    /// <returns>Users' provider anime list.</returns>
     private async Task<List<Anime>> GetAnimeList(string userId) {
         ApiCallHelpers apiCallHelpers = new ApiCallHelpers();
         MalApiCalls.User user = new MalApiCalls.User();
@@ -119,6 +128,11 @@ public class Sync {
         return null;
     }
 
+    /// <summary>
+    /// Get the current users library.
+    /// </summary>
+    /// <param name="userId">ID of the user to get the library of.</param>
+    /// <param name="convertedWatchList">List of metadata IDs of shows.</param>
     private async Task GetCurrentLibrary(string userId, List<SyncAnimeMetadata> convertedWatchList) {
         var query = new InternalItemsQuery(_userManager.GetUserById(Guid.Parse(userId))) {
             IncludeItemTypes = new[] {
@@ -165,6 +179,13 @@ public class Sync {
         }
     }
 
+    /// <summary>
+    /// Get a list of seasons corresponding with their provider ID.
+    /// </summary>
+    /// <param name="convertedWatchList">List of metadata to match to seasons.</param>
+    /// <param name="aniListProviderId">AniList provider ID.</param>
+    /// <param name="series">Series to retrieve season of.</param>
+    /// <returns>List of seasons with their completed date and progress.</returns>
     private async Task<List<(Season, DateTime?, int)>> GetSeasons(List<SyncAnimeMetadata> convertedWatchList, int aniListProviderId, Series series) {
         List<(Season, DateTime?, int)> seasons = new List<(Season, DateTime?, int)>();
 
@@ -179,6 +200,13 @@ public class Sync {
         return seasons;
     }
 
+    /// <summary>
+    /// Save the select users items.
+    /// </summary>
+    /// <param name="user">User you want to save the items for.</param>
+    /// <param name="itemToBeUpdated">Items to be saved.</param>
+    /// <param name="completedDate">Played date.</param>
+    /// <returns>User item data.</returns>
     private UserItemData SetUserData(User user, BaseItem itemToBeUpdated, DateTime? completedDate) {
         var userItemData = _userDataManager.GetUserData(user, itemToBeUpdated);
         userItemData.Played = true;
@@ -189,6 +217,11 @@ public class Sync {
         return userItemData;
     }
 
+    /// <summary>
+    /// Get a list of metadata IDs from our external APIs.
+    /// </summary>
+    /// <param name="animeList">List of anime you want to get the metadata IDs of.</param>
+    /// <returns>List of metadata IDs.</returns>
     private async Task<List<SyncAnimeMetadata>> GetMetadataIdsFromAnime(List<Anime> animeList) {
         List<SyncAnimeMetadata> animeIdProgress = new List<SyncAnimeMetadata>();
         for (var i = 0; i < animeList.Count; i++) {
@@ -202,6 +235,7 @@ public class Sync {
             AnimeListHelpers.AnimeListAnime season = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb.Value);
             if (season == null || !int.TryParse(season.Defaulttvdbseason, out var seasonNumber)) {
                 _logger.LogError("(Sync) Could not retrieve season number; skipping item...");
+                Sleep();
                 continue;
             }
 
@@ -224,28 +258,26 @@ public class Sync {
             animeIdProgress.Add(syncAnimeMetadata);
             _logger.LogInformation("(Sync) Fetched");
             if (i != animeList.Count - 1) {
-                _logger.LogInformation("(Sync) Waiting 2 seconds before proceeding...");
-                Thread.Sleep(_apiTimeOutLength);
+                Sleep();
             }
         }
 
         return animeIdProgress;
     }
 
-
-    private async Task<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse> GetAniDbSeasonIdsFromJellyfin(ApiName provider, int providerId, int seasonNumber, AnimeOfflineDatabaseHelpers.Source? conversion = null) {
-        var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, AnimeOfflineDatabaseHelpers.Source.Anilist);
-        if (id is { AniDb: { } }) {
-            var aniDbSeason = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb.Value, seasonNumber);
-            var convertedId = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbSeason.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
-            if (convertedId != null) {
-                return convertedId;
-            }
-        }
-
-        return null;
+    /// <summary>
+    /// Sleep the thread so we don't hammer the API.
+    /// </summary>
+    private void Sleep() {
+        _logger.LogInformation("(Sync) Waiting 2 seconds before proceeding...");
+        Thread.Sleep(_apiTimeOutLength);
     }
 
+    /// <summary>
+    /// Get season IDs from Jellyfin library.
+    /// </summary>
+    /// <param name="providerId">ID of the provider.</param>
+    /// <returns>List of season IDs.</returns>
     private async Task<IEnumerable<AnimeListHelpers.AnimeListAnime>> GetSeasonIdsFromJellyfin(int providerId) {
         var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, AnimeOfflineDatabaseHelpers.Source.Anilist);
         if (id is { AniDb: { } }) {
