@@ -35,6 +35,7 @@ public class Sync {
     private readonly IApplicationPaths _applicationPaths;
     private readonly IUserDataManager _userDataManager;
     private readonly ApiName _apiName;
+    private readonly int _status;
     private int _apiTimeOutLength = 2000;
 
     public Sync(IHttpClientFactory httpClientFactory,
@@ -45,7 +46,8 @@ public class Sync {
         ILibraryManager libraryManager,
         IApplicationPaths applicationPaths,
         IUserDataManager userDataManager,
-        ApiName apiName) {
+        ApiName apiName,
+        int status) {
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
         _serverApplicationHost = serverApplicationHost;
@@ -55,11 +57,12 @@ public class Sync {
         _applicationPaths = applicationPaths;
         _userDataManager = userDataManager;
         _apiName = apiName;
+        _status = status;
         _logger = loggerFactory.CreateLogger<Sync>();
     }
 
     public async Task SyncFromProvider(string userId) {
-        var completedList = await GetAnimeList(Status.Completed, userId);
+        var completedList = await GetAnimeList(userId);
         if (completedList == null) {
             _logger.LogWarning("(Sync) No anime found by provider; please make sure user is authenticated with this provider and the authenticated users watch list is populated");
             return;
@@ -69,27 +72,48 @@ public class Sync {
         await GetCurrentLibrary(userId, metadataIds);
     }
 
-    private async Task<List<Anime>> GetAnimeList(Status status, string userId) {
-        ApiCallHelpers apiCallHelpers;
-        MalApiCalls.User user;
+    private async Task<List<Anime>> GetAnimeList(string userId) {
+        ApiCallHelpers apiCallHelpers = new ApiCallHelpers();
+        MalApiCalls.User user = new MalApiCalls.User();
         switch (_apiName) {
             case ApiName.Mal:
                 apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
 
-                return await apiCallHelpers.GetAnimeList(status);
+                break;
             case ApiName.AniList:
                 apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
                 user = await apiCallHelpers.GetUser();
+                if (user == null || user.Id == 0) {
+                    _logger.LogError("(Sync) Could not retrieve user information. Cannot proceed");
+                    return null;
+                }
 
-                return await apiCallHelpers.GetAnimeList(status, user.Id);
+                break;
             case ApiName.Kitsu:
                 apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
                 user = await apiCallHelpers.GetUser();
 
-                if (user != null && user.Id != 0) {
-                    return await apiCallHelpers.GetAnimeList(status, user.Id);
+                if (user == null || user.Id == 0) {
+                    _logger.LogError("(Sync) Could not retrieve user information. Cannot proceed");
+                    return null;
                 }
+
                 break;
+        }
+
+        switch (_status) {
+            case 0:
+                return await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
+            case 1:
+                return await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
+            case 2:
+                List<Anime> completed = await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
+                List<Anime> watching = await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
+                if (completed != null && watching != null) {
+                    return completed.Concat(watching).ToList();
+                }
+
+                return completed ?? watching;
         }
 
         return null;
@@ -108,16 +132,21 @@ public class Sync {
         foreach (BaseItem baseItem in results) {
             if (baseItem is Series series) {
                 if (int.TryParse(series.ProviderIds["AniList"], out int aniListProviderId)) {
-                    List<(Season, DateTime?)> seasonsToMarkAsPlayed = await GetSeasons(convertedWatchList, aniListProviderId, series);
+                    List<(Season, DateTime?, int)> seasonsToMarkAsPlayed = await GetSeasons(convertedWatchList, aniListProviderId, series);
 
-                    foreach ((Season season, DateTime? completedAt) seasonsTuple in seasonsToMarkAsPlayed) {
+                    foreach ((Season season, DateTime? completedAt, int episodesWatched) seasonsTuple in seasonsToMarkAsPlayed) {
                         if (seasonsTuple.season != null) {
                             var user = _userManager.GetUserById(Guid.Parse(userId));
                             List<UserItemData> userItemDataCollection = new List<UserItemData>();
 
-                            foreach (var seasonChild in seasonsTuple.season.Children) {
+                            var seasonEpisodes = seasonsTuple.season.Children.Where(episode => episode is Episode && episode.IndexNumber != null);
+                            if (seasonsTuple.episodesWatched != -1) {
+                                seasonEpisodes = seasonEpisodes.Where(episode => episode.IndexNumber != null && episode.IndexNumber <= seasonsTuple.episodesWatched);
+                            }
+
+                            foreach (var seasonChild in seasonEpisodes) {
                                 if (seasonChild is Episode episode) {
-                                    Console.WriteLine($"Setting {episode.Series.Name} season {episode.Season.IndexNumber} episode {episode.IndexNumber} for user {userId} as played...");
+                                    _logger.LogInformation($"(Sync) Setting {episode.Series.Name} season {episode.Season.IndexNumber} episode {episode.IndexNumber} for user {userId} as played...");
 
                                     userItemDataCollection.Add(SetUserData(user, episode, seasonsTuple.completedAt));
                                 }
@@ -128,7 +157,7 @@ public class Sync {
 
 
                             _userDataManager.SaveAllUserData(user.Id, userItemDataCollection.ToArray(), CancellationToken.None);
-                            Console.WriteLine("Saved");
+                            _logger.LogInformation("(Sync) Saved");
                         }
                     }
                 }
@@ -136,14 +165,14 @@ public class Sync {
         }
     }
 
-    private async Task<List<(Season, DateTime?)>> GetSeasons(List<SyncAnimeMetadata> convertedWatchList, int aniListProviderId, Series series) {
-        List<(Season, DateTime?)> seasons = new List<(Season, DateTime?)>();
+    private async Task<List<(Season, DateTime?, int)>> GetSeasons(List<SyncAnimeMetadata> convertedWatchList, int aniListProviderId, Series series) {
+        List<(Season, DateTime?, int)> seasons = new List<(Season, DateTime?, int)>();
 
         IEnumerable<AnimeListHelpers.AnimeListAnime> seasonIdsFromJellyfin = await GetSeasonIdsFromJellyfin(aniListProviderId);
         foreach (AnimeListHelpers.AnimeListAnime animeListAnime in seasonIdsFromJellyfin) {
             var found = convertedWatchList.FirstOrDefault(item => int.TryParse(animeListAnime.Anidbid, out int convertedAniDbId) && item.ids.AniDb == convertedAniDbId);
             if (found != null) {
-                seasons.Add((series.Children.Select(season => season as Season).FirstOrDefault(season => season.IndexNumber == found.season), found.completedAt));
+                seasons.Add((series.Children.Select(season => season as Season).FirstOrDefault(season => season.IndexNumber == found.season), found.completedAt, found.episodesWatched));
             }
         }
 
