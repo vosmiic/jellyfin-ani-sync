@@ -18,6 +18,7 @@ async function initialLoad(commons) {
         populateUserList(page, users);
     });
     await setParameters(page);
+    page.querySelector('#run').onclick = run;
 }
 
 function populateUserList(page, users) {
@@ -49,11 +50,9 @@ function setProviderSelection(page, providerList) {
     page.querySelector('#selectProvider').innerHTML = html;
 }
 
-document.querySelector('#TemplateConfigForm')
-    .addEventListener('submit', async function (e) {
-        e.preventDefault();
-        await fetch(ApiClient.getUrl("/AniSync/syncFromProviders?provider=" + document.getElementById('selectProvider').value + "&userId=" + document.getElementById('selectUser').value + "&status=" + document.getElementById('status').value), {
-            method: "POST"
-        });
-        return false;
+    
+async function run() {
+    await fetch(ApiClient.getUrl("/AniSync/syncFromProviders?provider=" + document.getElementById('selectProvider').value + "&userId=" + document.getElementById('selectUser').value + "&status=" + document.getElementById('status').value), {
+        method: "POST"
     });
+}
