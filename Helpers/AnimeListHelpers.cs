@@ -73,37 +73,34 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="httpClientFactory"></param>
         /// <param name="applicationPaths"></param>
         /// <param name="aniDbId"></param>
-        /// <returns>Season number.</returns>
-        public static async Task<int?> GetAniDbSeasonNumber(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId) {
+        /// <returns>Season.</returns>
+        public static async Task<AnimeListAnime> GetAniDbSeason(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId) {
             AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
             if (animeListXml == null) return null;
 
-            AnimeListAnime foundXmlAnime = animeListXml.Anime.FirstOrDefault(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId);
-            if (foundXmlAnime == null) return null;
-            
-            return int.TryParse(foundXmlAnime.Defaulttvdbseason, out int season) ? season : null;
+            return animeListXml.Anime.FirstOrDefault(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId);
         }
 
-        
+
         public static async Task<int?> GetAniDbSeason(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId, int seasonNumber) {
             AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
             if (animeListXml == null) return null;
 
             AnimeListAnime foundXmlAnime = animeListXml.Anime.FirstOrDefault(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId);
             if (foundXmlAnime == null) return null;
-            
+
             var animeSeasonList = animeListXml.Anime.Where(anime => anime.Tvdbid == foundXmlAnime.Tvdbid);
             var foundSeason = animeSeasonList.FirstOrDefault(anime => int.TryParse(anime.Defaulttvdbseason, out int xmlSeasonNumber) && xmlSeasonNumber == seasonNumber);
             return foundSeason != null && int.TryParse(foundSeason.Anidbid, out int parsedAniDbId) ? parsedAniDbId : null;
         }
-        
+
         public static async Task<IEnumerable<AnimeListAnime>> ListAllSeasonOfAniDbSeries(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId) {
             AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
             if (animeListXml == null) return null;
 
             AnimeListAnime foundXmlAnime = animeListXml.Anime.FirstOrDefault(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId);
             if (foundXmlAnime == null) return null;
-            
+
             return animeListXml.Anime.Where(anime => anime.Tvdbid == foundXmlAnime.Tvdbid);
         }
 

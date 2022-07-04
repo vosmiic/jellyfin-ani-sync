@@ -199,16 +199,23 @@ public class Sync {
                 continue;
             }
 
-            int? season = await AnimeListHelpers.GetAniDbSeasonNumber(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb.Value);
-            if (season == null) {
+            AnimeListHelpers.AnimeListAnime season = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb.Value);
+            if (season == null || !int.TryParse(season.Defaulttvdbseason, out var seasonNumber)) {
                 _logger.LogError("(Sync) Could not retrieve season number; skipping item...");
                 continue;
             }
 
+            int episodesWatched;
+            if ((animeList[i].MyListStatus != null && animeList[i].MyListStatus.NumEpisodesWatched != 0)) {
+                episodesWatched = int.TryParse(season.Episodeoffset, out int offset) ? animeList[i].MyListStatus.NumEpisodesWatched + offset : animeList[i].MyListStatus.NumEpisodesWatched;
+            } else {
+                episodesWatched = -1;
+            }
+
             var syncAnimeMetadata = new SyncAnimeMetadata {
                 ids = ids,
-                episodesWatched = animeList[i].MyListStatus != null && animeList[i].MyListStatus.NumEpisodesWatched != 0 ? animeList[i].MyListStatus.NumEpisodesWatched : -1,
-                season = season.Value
+                episodesWatched = episodesWatched,
+                season = seasonNumber
             };
             if (animeList[i].MyListStatus is { FinishDate: { } }) {
                 syncAnimeMetadata.completedAt = DateTime.Parse(animeList[i].MyListStatus.FinishDate);
@@ -223,8 +230,6 @@ public class Sync {
         }
 
         return animeIdProgress;
-
-        return null;
     }
 
 
