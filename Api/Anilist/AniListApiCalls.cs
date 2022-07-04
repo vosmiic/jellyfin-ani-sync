@@ -244,6 +244,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                         month
                         year
                     }
+                    progress
                 }
             }
         }";

@@ -11,6 +11,7 @@ public class AniListMediaList {
     public class MediaList {
         [JsonPropertyName("media")] public AniListSearch.Media Media { get; set; }
         [JsonPropertyName("completedAt")] public AniListSearch.FuzzyDate CompletedAt { get; set; }
+        [JsonPropertyName("progress")] public int? Progress { get; set; }
     }
 
     public class Page {
