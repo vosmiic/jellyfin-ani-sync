@@ -47,9 +47,10 @@ namespace jellyfin_ani_sync.Api {
             UserApiAuth auth;
             try {
                 auth = UserConfig.UserApiAuth.FirstOrDefault(item => item.Name == provider);
+                if (auth == null || auth.AccessToken == null) throw new NullReferenceException();
             } catch (NullReferenceException) {
                 _logger.LogError("Could not find authentication details, please authenticate the plugin first");
-                throw;
+                return null;
             }
 
             while (attempts < 2) {

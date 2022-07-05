@@ -79,6 +79,9 @@ namespace jellyfin_ani_sync.Models {
             [JsonConverter(typeof(JsonStringEnumConverter))]
             [JsonPropertyName("status")]
             public AiringStatus Status { get; set; }
+            
+            [JsonPropertyName("siteUrl")]
+            public string SiteUrl { get; set; }
         }
 
         public class Page {

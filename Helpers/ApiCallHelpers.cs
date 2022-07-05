@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
@@ -280,6 +281,111 @@ namespace jellyfin_ani_sync.Helpers {
 
                 if (await _kitsuApiCalls.UpdateAnimeStatus(animeId, numberOfWatchedEpisodes, kitsuStatus, isRewatching, numberOfTimesRewatched, startDate, endDate)) {
                     return new UpdateAnimeStatusResponse();
+                }
+            }
+
+            return null;
+        }
+
+        public async Task<MalApiCalls.User> GetUser() {
+            if (_malApiCalls != null) {
+                return await _malApiCalls.GetUserInformation();
+            }
+            
+            if (_aniListApiCalls != null) {
+                AniListViewer.Viewer user = await _aniListApiCalls.GetCurrentUser();
+                return ClassConversions.ConvertUser(user.Id, user.Name);
+            }
+
+            if (_kitsuApiCalls != null) {
+                var user = await _kitsuApiCalls.GetUserId();
+                if (user != null)
+                    return new MalApiCalls.User {
+                        Id = user.Value
+                    };
+            }
+
+            return null;
+        }
+
+        public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
+            if (_malApiCalls != null) {
+                var malAnimeList = await _malApiCalls.GetUserAnimeList(Status.Completed);
+                return malAnimeList?.Select(animeList => animeList.Anime).ToList();
+            }
+
+            if (_aniListApiCalls != null && userId != null) {
+                AniListSearch.MediaListStatus anilistStatus;
+                switch (status) {
+                    case Status.Watching:
+                        anilistStatus = AniListSearch.MediaListStatus.Current;
+                        break;
+                    case Status.Completed:
+                        anilistStatus = AniListSearch.MediaListStatus.Completed;
+                        break;
+                    case Status.On_hold:
+                        anilistStatus = AniListSearch.MediaListStatus.Paused;
+                        break;
+                    case Status.Dropped:
+                        anilistStatus = AniListSearch.MediaListStatus.Dropped;
+                        break;
+                    case Status.Plan_to_watch:
+                        anilistStatus = AniListSearch.MediaListStatus.Planning;
+                        break;
+                    default:
+                        anilistStatus = AniListSearch.MediaListStatus.Current;
+                        break;
+                }
+
+                var animeList = await _aniListApiCalls.GetAnimeList(userId.Value, anilistStatus);
+                List<Anime> convertedList = new List<Anime>();
+                if (animeList != null) {
+                    foreach (var media in animeList) {
+                        int lastIndex = media.Media.SiteUrl.LastIndexOf("/", StringComparison.CurrentCulture);
+                        if (lastIndex != -1) {
+                            DateTime finishDate = new DateTime();
+                            if (media.CompletedAt is { Year: { }, Month: { }, Day: { } }) {
+                                finishDate = new DateTime(media.CompletedAt.Year.Value, media.CompletedAt.Month.Value, media.CompletedAt.Day.Value);
+                            }
+
+                            convertedList.Add(new Anime {
+                                Id = int.TryParse(media.Media.SiteUrl.Substring(lastIndex + 1, media.Media.SiteUrl.Length - lastIndex - 1), out int id) ? id : 0,
+                                MyListStatus = new MyListStatus {
+                                    FinishDate = finishDate.ToShortDateString(),
+                                    NumEpisodesWatched = media.Progress ?? -1
+                                }
+                            });
+                        }
+                    }
+                }
+
+                return convertedList;
+            }
+
+            if (_kitsuApiCalls != null && userId != null) {
+                KitsuUpdate.KitsuLibraryEntryListRoot animeList = await _kitsuApiCalls.GetUserAnimeList(userId.Value, status: KitsuUpdate.Status.completed);
+                if (animeList != null) {
+                    List<Anime> convertedList = new List<Anime>();
+                    foreach (KitsuUpdate.KitsuLibraryEntry kitsuLibraryEntry in animeList.Data) {
+                        Anime toAddAnime = new Anime();
+                        if (kitsuLibraryEntry.Relationships != null &&
+                            kitsuLibraryEntry.Relationships.AnimeData != null &&
+                            kitsuLibraryEntry.Relationships.AnimeData.Anime != null) {
+                            toAddAnime.Id = kitsuLibraryEntry.Relationships.AnimeData.Anime.Id;
+                        }
+
+                        toAddAnime.MyListStatus = new MyListStatus();
+                        if (kitsuLibraryEntry.Attributes != null) {
+                            toAddAnime.MyListStatus.FinishDate = kitsuLibraryEntry.Attributes.FinishedAt.ToString();
+                            if (kitsuLibraryEntry.Attributes.Progress != null) {
+                                toAddAnime.MyListStatus.NumEpisodesWatched = kitsuLibraryEntry.Attributes.Progress.Value;
+                            }
+                        }
+                        
+                        convertedList.Add(toAddAnime);
+                    }
+
+                    return convertedList;
                 }
             }
 

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Template</title>
+</head>
+<body>
+<div id="TemplateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox" data-controller="__plugin/SyncJs">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="TemplateConfigForm">
+                <p><b>Warning: this feature is in alpha, and bugs are probably present. In its current state it may disrupt your Jellyfin library.</b></p>
+                <p>At the moment this functionality requires the AniList and/or AniDb metadata providers installed.</p>
+                <p>Here you can synchronize the selected users provider library with their Jellyfin library.</p>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
+                        <div class="fieldDescription">The user you would like to organize the library for.</div>
+                    </div>
+                </div>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
+                        <div class="fieldDescription">Provider to sync the anime list from.</div>
+                    </div>
+                </div>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="status" name="status" label="Status">
+                            <option value="0">Completed (only fully completed shows and movies will be updated)</option>
+                            <option value="1">Watching (only currently being watched shows and movies will be updated)</option>
+                            <option value="2">Completed and Watching (both watching and completed will be updated)</option>
+                        </select>
+                        <div class="fieldDescription">Status of the show on the users watch list you want to sync.</div>
+                    </div>
+                </div>
+                <div>
+                    <button is="emby-button" type="button" id="run" class="raised button-submit block emby-button">
+                        <span>Run</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

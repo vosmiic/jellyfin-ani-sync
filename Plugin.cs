@@ -26,7 +26,24 @@ namespace jellyfin_ani_sync {
                 new PluginPageInfo
                 {
                     Name = Name,
-                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.ConfigPage.html", GetType().Namespace)
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.ConfigPage.html"
+                },
+                new PluginPageInfo {
+                    Name = "ConfigPageJs",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.ConfigPageJs.js"
+                },
+                new PluginPageInfo {
+                    Name = "Sync",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.Sync.html"
+                },
+                new PluginPageInfo {
+                    Name = "SyncJs",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.SyncJs.js"
+                },
+                new PluginPageInfo
+                {
+                    Name = "GeneralJs",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.General.js"
                 }
             };
         }

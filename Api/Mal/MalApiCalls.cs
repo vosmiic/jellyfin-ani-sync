@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
@@ -174,7 +175,11 @@ namespace jellyfin_ani_sync.Api {
                             userAnimeList.Data = userAnimeList.Data.Concat(userAnimeListPage.Data).ToList();
                         }
 
-                        builtUrl = userAnimeListPage.Paging.Next;
+                        if (userAnimeListPage.Paging.Next != null) {
+                            builtUrl = userAnimeListPage.Paging.Next;
+                            _logger.LogInformation($"Additional pages found; waiting 2 seconds before calling again...");
+                            Thread.Sleep(2000);
+                        }
                     }
                 } else {
                     return null;

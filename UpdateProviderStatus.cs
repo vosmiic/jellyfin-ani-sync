@@ -93,7 +93,7 @@ namespace jellyfin_ani_sync {
                           movie.ProviderIds.ContainsKey("AniList") &&
                           int.TryParse(movie.ProviderIds["AniList"], out retrievedAniListId)) {
                     _logger.LogInformation("AniList ID found. Retrieving provider IDs from offline database...");
-                    providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), retrievedAniListId, false);
+                    providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), retrievedAniListId, AnimeOfflineDatabaseHelpers.Source.Anilist);
                     _logger.LogInformation("Retrieved provider IDs");
                 } else if (_animeType == typeof(Episode)
                                ? (episode.Series.ProviderIds.ContainsKey("Tvdb") ||
@@ -105,7 +105,7 @@ namespace jellyfin_ani_sync {
                         : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, movie.ProviderIds, movie.IndexNumber.Value, 1);
                     if (aniDbId.aniDbId != null) {
                         _logger.LogInformation("Retrieving provider IDs from offline database...");
-                        providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, true);
+                        providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
                         _logger.LogInformation("Retrieved provider IDs");
                     }
                 }
@@ -116,8 +116,8 @@ namespace jellyfin_ani_sync {
                     switch (userApiAuth.Name) {
                         case ApiName.Mal:
                             _apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
-                            if (providerIds.MyAnimeList != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
-                                await CheckUserListAnimeStatus(providerIds.MyAnimeList, _animeType == typeof(Episode)
+                            if (providerIds.MyAnimeList != null && providerIds.MyAnimeList != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
+                                await CheckUserListAnimeStatus(providerIds.MyAnimeList.Value, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
                                             ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                             : episode.IndexNumber.Value)
@@ -129,8 +129,8 @@ namespace jellyfin_ani_sync {
                             break;
                         case ApiName.AniList:
                             _apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
-                            if (providerIds.Anilist != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
-                                await CheckUserListAnimeStatus(providerIds.Anilist, _animeType == typeof(Episode)
+                            if (providerIds.Anilist != null && providerIds.Anilist != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
+                                await CheckUserListAnimeStatus(providerIds.Anilist.Value, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
                                             ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                             : episode.IndexNumber.Value)
@@ -152,8 +152,8 @@ namespace jellyfin_ani_sync {
                             break;
                         case ApiName.Kitsu:
                             _apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
-                            if (providerIds.Kitsu != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
-                                await CheckUserListAnimeStatus(providerIds.Kitsu, _animeType == typeof(Episode)
+                            if (providerIds.Kitsu != null && providerIds.Kitsu != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
+                                await CheckUserListAnimeStatus(providerIds.Kitsu.Value, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
                                             ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
                                             : episode.IndexNumber.Value)
