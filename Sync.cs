@@ -145,8 +145,16 @@ public class Sync {
         var results = _libraryManager.GetItemList(query);
         foreach (BaseItem baseItem in results) {
             if (baseItem is Series series) {
-                if (int.TryParse(series.ProviderIds["AniList"], out int aniListProviderId)) {
-                    List<(Season, DateTime?, int)> seasonsToMarkAsPlayed = await GetSeasons(convertedWatchList, aniListProviderId, series);
+                int providerId = 0;
+                AnimeOfflineDatabaseHelpers.Source? source = null;
+                if (int.TryParse(series.ProviderIds["AniList"], out providerId)) {
+                    source = AnimeOfflineDatabaseHelpers.Source.Anilist;
+                } else if (int.TryParse(series.ProviderIds["AniDB"], out providerId)) {
+                    source = AnimeOfflineDatabaseHelpers.Source.Anidb;
+                }
+                
+                if (providerId != 0 && source != null) {
+                    List<(Season, DateTime?, int)> seasonsToMarkAsPlayed = await GetSeasons(convertedWatchList, providerId, series, source.Value);
 
                     foreach ((Season season, DateTime? completedAt, int episodesWatched) seasonsTuple in seasonsToMarkAsPlayed) {
                         if (seasonsTuple.season != null) {
@@ -183,13 +191,14 @@ public class Sync {
     /// Get a list of seasons corresponding with their provider ID.
     /// </summary>
     /// <param name="convertedWatchList">List of metadata to match to seasons.</param>
-    /// <param name="aniListProviderId">AniList provider ID.</param>
+    /// <param name="providerId">AniList provider ID.</param>
     /// <param name="series">Series to retrieve season of.</param>
+    /// <param name="source">Metadata source.</param>
     /// <returns>List of seasons with their completed date and progress.</returns>
-    private async Task<List<(Season, DateTime?, int)>> GetSeasons(List<SyncAnimeMetadata> convertedWatchList, int aniListProviderId, Series series) {
+    private async Task<List<(Season, DateTime?, int)>> GetSeasons(List<SyncAnimeMetadata> convertedWatchList, int providerId, Series series, AnimeOfflineDatabaseHelpers.Source source) {
         List<(Season, DateTime?, int)> seasons = new List<(Season, DateTime?, int)>();
 
-        IEnumerable<AnimeListHelpers.AnimeListAnime> seasonIdsFromJellyfin = await GetSeasonIdsFromJellyfin(aniListProviderId);
+        IEnumerable<AnimeListHelpers.AnimeListAnime> seasonIdsFromJellyfin = await GetSeasonIdsFromJellyfin(providerId, source);
         foreach (AnimeListHelpers.AnimeListAnime animeListAnime in seasonIdsFromJellyfin) {
             var found = convertedWatchList.FirstOrDefault(item => int.TryParse(animeListAnime.Anidbid, out int convertedAniDbId) && item.ids.AniDb == convertedAniDbId);
             if (found != null) {
@@ -278,8 +287,8 @@ public class Sync {
     /// </summary>
     /// <param name="providerId">ID of the provider.</param>
     /// <returns>List of season IDs.</returns>
-    private async Task<IEnumerable<AnimeListHelpers.AnimeListAnime>> GetSeasonIdsFromJellyfin(int providerId) {
-        var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, AnimeOfflineDatabaseHelpers.Source.Anilist);
+    private async Task<IEnumerable<AnimeListHelpers.AnimeListAnime>> GetSeasonIdsFromJellyfin(int providerId, AnimeOfflineDatabaseHelpers.Source source) {
+        var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, source);
         if (id is { AniDb: { } }) {
             return await AnimeListHelpers.ListAllSeasonOfAniDbSeries(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb.Value);
         }
