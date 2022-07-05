@@ -44,13 +44,13 @@ async function initialLoad(commons) {
             e.preventDefault();
             return false;
         });
+
+    page.querySelector('#testAnimeListSaveLocation').onclick = runTestAnimeListSaveLocation;
+    page.querySelector('#generateCallbackUrlButton').onclick = generateCallbackUrl;
+    page.querySelector('#authorizeDevice').onclick = onAuthorizeButtonClick;
+    page.querySelector('#testAuthentication').onclick = getUser;
 }
 
-function selectUserChange() {
-    
-}
-
-document.getElementById('testAnimeListSaveLocation').onclick = runTestAnimeListSaveLocation;
 
 function runTestAnimeListSaveLocation() {
     document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
@@ -67,7 +67,6 @@ function runTestAnimeListSaveLocation() {
         });
 }
 
-document.getElementById('generateCallbackUrlButton').onclick = generateCallbackUrl;
 
 function generateCallbackUrl() {
     const userApiUrl = document.querySelector('#apiUrl').value;
@@ -78,7 +77,6 @@ function generateCallbackUrl() {
     }
 }
 
-document.getElementById('authorizeDevice').onclick = onAuthorizeButtonClick;
 
 function onAuthorizeButtonClick() {
     // users are unlikely to save after setting client id and secret, so we do it for them
@@ -100,7 +98,6 @@ function onAuthorizeButtonClick() {
     }
 }
 
-document.getElementById('testAuthentication').onclick = getUser;
 
 function getUser() {
     document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
