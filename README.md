@@ -49,7 +49,7 @@ We use the XML documents in the [anime lists repo](https://github.com/Anime-List
 
 Please help the project by contributing to the lists of anime, it helps everyone!
 ### Anime Offline Database/arm server
-We use the API offered by the [arm server repo]() which accesses the [anime offline database repo]() that we use to fetch our providers IDs so we can update your progress.
+We use the API offered by the [arm server repo](https://github.com/BeeeQueue/arm-server) which accesses the [anime offline database repo](https://github.com/manami-project/anime-offline-database) that we use to fetch our providers IDs so we can update your progress.
 
 Please also help these projects by contributing to the anime database/helping with the API server.
 
