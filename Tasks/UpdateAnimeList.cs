@@ -70,7 +70,7 @@ namespace jellyfin_ani_sync {
         /// <param name="downloadUrl">Download URL of the anime list file.</param>
         private async Task GetLatestAnimeList(HttpClient httpClient, string downloadUrl) {
             try {
-                Directory.CreateDirectory(Path.EndsWith("/anime-list-full.xml") ? Path.Replace("/anime-list-full.xml", "") : Path);
+                Directory.CreateDirectory(Path.EndsWith("anime-list-full.xml") ? Path.Replace("anime-list-full.xml", "") : Path);
                 await using (var response = await httpClient.GetStreamAsync(downloadUrl)) {
                     await using (var fileStream = new FileStream(Path, FileMode.OpenOrCreate)) {
                         await response.CopyToAsync(fileStream);
