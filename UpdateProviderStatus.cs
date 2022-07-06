@@ -101,8 +101,8 @@ namespace jellyfin_ani_sync {
                                : movie.ProviderIds != null &&
                                  movie.ProviderIds.ContainsKey("Anidb")) {
                     aniDbId = _animeType == typeof(Episode)
-                        ? await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, episode.Season.ProviderIds, episode.IndexNumber.Value, episode.Season.IndexNumber.Value)
-                        : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, movie.ProviderIds, movie.IndexNumber.Value, 1);
+                        ? await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, episode, episode.IndexNumber.Value, episode.Season.IndexNumber.Value)
+                        : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, movie, movie.IndexNumber.Value, 1);
                     if (aniDbId.aniDbId != null) {
                         _logger.LogInformation("Retrieving provider IDs from offline database...");
                         providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
