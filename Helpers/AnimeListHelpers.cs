@@ -25,8 +25,7 @@ namespace jellyfin_ani_sync.Helpers {
             if (providers.ContainsKey("Anidb")) {
                 logger.LogInformation("(Anidb) Anime already has AniDb ID; no need to look it up");
                 if (!int.TryParse(providers["Anidb"], out aniDbId)) return (null, null);
-                var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId &&
-                                                                   int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber).ToList();
+                var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId).ToList();
                 switch (foundAnime.Count()) {
                     case 1:
                         logger.LogInformation($"(Anidb) Anime {foundAnime[0].Name} found in anime XML file");
