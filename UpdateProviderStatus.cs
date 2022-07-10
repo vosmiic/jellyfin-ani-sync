@@ -373,7 +373,8 @@ namespace jellyfin_ani_sync {
         private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber, bool? overrideCheckRewatch) {
             if (overrideCheckRewatch == null ||
                 overrideCheckRewatch.Value ||
-                detectedAnime.MyListStatus is { Status: Status.Completed } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber) {
+                detectedAnime.MyListStatus is { Status: Status.Completed } ||
+                detectedAnime.MyListStatus is { Status: Status.Rewatching } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber) {
                 if (_userConfig.RewatchCompleted) {
                     if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
                         _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, setting as re-watching");
@@ -475,8 +476,15 @@ namespace jellyfin_ani_sync {
                     }
                 } else {
                     // status is not set, must be a new anime
-                    _logger.LogInformation($"({_apiName}) Adding new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) to user list as watching with a progress of {episodeNumber.Value}");
-                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                    if (episodeNumber.Value == detectedAnime.NumEpisodes) {
+                        // anime completed all at once or user has watched last episode
+                        _logger.LogInformation($"({_apiName}) Adding new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) to user list as completed with a progress of {episodeNumber.Value}");
+                        response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed);
+                    } else {
+                        // not on last episodes so must still be watching
+                        _logger.LogInformation($"({_apiName}) Adding new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) to user list as watching with a progress of {episodeNumber.Value}");
+                        response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Watching);
+                    }
                 }
 
                 if (response == null) {
