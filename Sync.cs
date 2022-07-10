@@ -260,8 +260,8 @@ public class Sync {
                 episodesWatched = episodesWatched,
                 season = seasonNumber
             };
-            if (animeList[i].MyListStatus is { FinishDate: { } }) {
-                syncAnimeMetadata.completedAt = DateTime.Parse(animeList[i].MyListStatus.FinishDate);
+            if (DateTime.TryParse(animeList[i].MyListStatus?.FinishDate, out DateTime finishDate)) {
+                syncAnimeMetadata.completedAt = finishDate;
             }
 
             animeIdProgress.Add(syncAnimeMetadata);
