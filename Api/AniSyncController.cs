@@ -201,9 +201,9 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpPost]
         [Route("syncFromProviders")]
-        public async Task SyncFromProviders(ApiName provider, string userId, int status) {
+        public Task SyncFromProviders(ApiName provider, string userId, int status) {
             Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, provider, status);
-            await sync.SyncFromProvider(userId);
+            return sync.SyncFromProvider(userId);
         }
     }
 }
