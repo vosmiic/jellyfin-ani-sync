@@ -179,7 +179,11 @@ namespace jellyfin_ani_sync.Api {
                             builtUrl = userAnimeListPage.Paging.Next;
                             _logger.LogInformation($"Additional pages found; waiting 2 seconds before calling again...");
                             Thread.Sleep(2000);
+                        } else {
+                            builtUrl = null;
                         }
+                    } else {
+                        builtUrl = null;
                     }
                 } else {
                     return null;
