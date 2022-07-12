@@ -93,13 +93,13 @@ public class SyncHelper {
             if (seasonsList.Count() > 1) {
                 return seasonsList.Select(animeListAnime => new AnimeListAnimeOfflineDatabaseCombo { AnimeListAnime = animeListAnime }).ToList();
             } else {
-                var xd = new List<AnimeListAnimeOfflineDatabaseCombo> {
+                var seasonMetadataCombo = new List<AnimeListAnimeOfflineDatabaseCombo> {
                     new() {
                         AnimeListAnime = seasonsList.First(),
                         OfflineDatabaseResponse = id
                     }
                 };
-                return xd;
+                return seasonMetadataCombo;
             }
         }
 
