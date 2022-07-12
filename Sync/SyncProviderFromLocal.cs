@@ -51,15 +51,18 @@ public class SyncProviderFromLocal {
                     _loggerFactory,
                     _httpClientFactory,
                     _applicationPaths);
+                _logger.LogInformation("(Sync) Retrieved season metadata");
 
                 List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo> seriesSeasonsWithMetadata = new List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo>();
                 for (var i = 0; i < seriesSeasons.Count; i++) {
+                    _logger.LogInformation($"(Sync) Attempting to retrieve {seriesSeasons[i].AnimeListAnime.Name} provider metadata...");
                     var seasonWithMetadata = await GetSeriesSeasonsMetadata(seriesSeasons[i]);
                     if (seasonWithMetadata != null) {
                         seriesSeasonsWithMetadata.Add(seasonWithMetadata);
                     }
 
                     if (seriesSeasons[i++] != null) {
+                        _logger.LogInformation(("(Sync) Waiting 2 seconds before continuing..."));
                         Thread.Sleep(2000);
                     }
                 }
@@ -75,13 +78,19 @@ public class SyncProviderFromLocal {
     
     private async Task<SyncHelper.AnimeListAnimeOfflineDatabaseCombo> GetSeriesSeasonsMetadata(SyncHelper.AnimeListAnimeOfflineDatabaseCombo season) {
         if (season.OfflineDatabaseResponse != null) {
+            _logger.LogInformation("(Sync) Season already has provider metadata");
             return season;
-        } else if (season.AnimeListAnime != null && !string.IsNullOrEmpty(season.AnimeListAnime.Anidbid) && int.TryParse(season.AnimeListAnime.Anidbid, out int aniDbId)) {
+        }
+        
+        if (season.AnimeListAnime != null && !string.IsNullOrEmpty(season.AnimeListAnime.Anidbid) && int.TryParse(season.AnimeListAnime.Anidbid, out int aniDbId)) {
             var seasonMetadata = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId, AnimeOfflineDatabaseHelpers.Source.Anidb);
             if (seasonMetadata != null) {
                 season.OfflineDatabaseResponse = seasonMetadata;
+                _logger.LogInformation("(Sync) Retrieved season provider metadata");
                 return season;
             }
+        } else {
+            _logger.LogError("(Sync) Could not parse AniDB ID from season metadata, skipping...");
         }
 
         return null;
