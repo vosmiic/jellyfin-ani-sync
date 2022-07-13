@@ -74,22 +74,30 @@ public class SyncHelper {
 
         return seasons;
     }
-    
-    
+
+
     /// <summary>
     /// Get season IDs from Jellyfin library.
     /// </summary>
     /// <param name="providerId">ID of the provider.</param>
+    /// <param name="seasonFilter">Optional list of season numbers to filter by.</param>
     /// <returns>List of season IDs.</returns>
     public static async Task<List<AnimeListAnimeOfflineDatabaseCombo>> GetSeasonIdsFromJellyfin(int providerId, AnimeOfflineDatabaseHelpers.Source source,
         ILogger logger,
         ILoggerFactory loggerFactory,
         IHttpClientFactory httpClientFactory,
-        IApplicationPaths applicationPaths) {
+        IApplicationPaths applicationPaths,
+        List<int> seasonFilter = null) {
         var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(httpClientFactory.CreateClient(NamedClient.Default), providerId, source);
         if (id is { AniDb: { } }) {
             var seasons = await AnimeListHelpers.ListAllSeasonOfAniDbSeries(logger, loggerFactory, httpClientFactory, applicationPaths, id.AniDb.Value);
-            var seasonsList = seasons.ToList();
+            List<AnimeListHelpers.AnimeListAnime> seasonsList;
+            if (seasonFilter != null) {
+                seasonsList = seasons.Where(season => int.TryParse(season.Defaulttvdbseason, out int parsedSeasonNumber) && seasonFilter.Contains(parsedSeasonNumber)).ToList();
+            } else {
+                seasonsList = seasons.ToList();
+            }
+            
             if (seasonsList.Count() > 1) {
                 return seasonsList.Select(animeListAnime => new AnimeListAnimeOfflineDatabaseCombo { AnimeListAnime = animeListAnime }).ToList();
             } else {
