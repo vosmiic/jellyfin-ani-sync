@@ -45,29 +45,30 @@ public class SyncProviderFromLocal {
                 (AnimeOfflineDatabaseHelpers.Source? source, int? providerId) = SyncHelper.GetSeriesProviderId(series);
 
                 if (source == null || providerId == null || providerId == 0) continue;
-                var seriesSeasons = await SyncHelper.GetSeasonIdsFromJellyfin(providerId.Value,
+                var seriesSeasonsWithMetadata = await SyncHelper.GetSeasonIdsFromJellyfin(providerId.Value,
                     source.Value,
                     _logger,
                     _loggerFactory,
                     _httpClientFactory,
-                    _applicationPaths);
+                    _applicationPaths,
+                    series.Children.Select(season => season.IndexNumber.Value).ToList());
                 _logger.LogInformation("(Sync) Retrieved season metadata");
 
-                List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo> seriesSeasonsWithMetadata = new List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo>();
-                for (var i = 0; i < seriesSeasons.Count; i++) {
-                    _logger.LogInformation($"(Sync) Attempting to retrieve {seriesSeasons[i].AnimeListAnime.Name} provider metadata...");
-                    var seasonWithMetadata = await GetSeriesSeasonsMetadata(seriesSeasons[i]);
+                List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo> seriesSeasonsWithProviderMetadata = new List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo>();
+                for (var i = 0; i < seriesSeasonsWithMetadata.Count; i++) {
+                    _logger.LogInformation($"(Sync) Attempting to retrieve {seriesSeasonsWithMetadata[i].AnimeListAnime.Name} provider metadata...");
+                    var seasonWithMetadata = await GetSeriesSeasonsMetadata(seriesSeasonsWithMetadata[i]);
                     if (seasonWithMetadata != null) {
-                        seriesSeasonsWithMetadata.Add(seasonWithMetadata);
+                        seriesSeasonsWithProviderMetadata.Add(seasonWithMetadata);
                     }
 
-                    if (seriesSeasons[i++] != null) {
+                    if (seriesSeasonsWithMetadata[i++] != null) {
                         _logger.LogInformation(("(Sync) Waiting 2 seconds before continuing..."));
                         Thread.Sleep(2000);
                     }
                 }
 
-                listOfSeasonsWithMetadata = listOfSeasonsWithMetadata.Concat(seriesSeasonsWithMetadata).ToList();
+                listOfSeasonsWithMetadata = listOfSeasonsWithMetadata.Concat(seriesSeasonsWithProviderMetadata).ToList();
             }
         }
         
@@ -94,5 +95,10 @@ public class SyncProviderFromLocal {
         }
 
         return null;
+    }
+    
+    private class SeasonDetails : SyncHelper.AnimeListAnimeOfflineDatabaseCombo {
+        public int Progress { get; set; }
+        public DateTime Completed { get; set; }
     }
 }
