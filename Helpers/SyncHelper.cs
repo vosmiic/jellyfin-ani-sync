@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
@@ -11,10 +12,9 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 
-namespace jellyfin_ani_sync.Helpers; 
+namespace jellyfin_ani_sync.Helpers;
 
 public class SyncHelper {
-
     public static List<BaseItem> GetUsersJellyfinLibrary(Guid userId, IUserManager userManager, ILibraryManager libraryManager) {
         var query = new InternalItemsQuery(userManager.GetUserById(userId)) {
             IncludeItemTypes = new[] {
@@ -25,6 +25,21 @@ public class SyncHelper {
         };
 
         return libraryManager.GetItemList(query);
+    }
+
+    public static Dictionary<int, (int, DateTime)> FilterSeriesByUserProgress(Guid userId, Series series, IUserDataManager userDataManager) {
+        Dictionary<int, (int, DateTime)> returnDictionary = new Dictionary<int, (int, DateTime)>();
+        var seasons = series.Children.OfType<Season>().Select(baseItem => baseItem).ToList();
+        foreach (Season season in seasons) {
+            List<Episode> episodes = season.Children.OfType<Episode>().Select(baseItem => baseItem).ToList();
+            int highestEpisodeWatched = episodes.Max(item => userDataManager.GetUserData(userId, item).Played ? item.IndexNumber.Value : 0);
+            DateTime? dateTimeWatched = episodes.Max(episode => userDataManager.GetUserData(userId, episode).LastPlayedDate);
+            if (highestEpisodeWatched != 0 && dateTimeWatched != null) {
+                returnDictionary.Add(season.IndexNumber.Value, (highestEpisodeWatched, dateTimeWatched.Value));
+            }
+        }
+
+        return returnDictionary;
     }
 
     /// <summary>
@@ -39,7 +54,7 @@ public class SyncHelper {
 
         return (null, null);
     }
-    
+
     /// <summary>
     /// Get a list of seasons corresponding with their provider ID.
     /// </summary>
@@ -64,7 +79,7 @@ public class SyncHelper {
             loggerFactory,
             httpClientFactory,
             applicationPaths);
-        
+
         foreach (AnimeListAnimeOfflineDatabaseCombo animeListAnime in seasonIdsFromJellyfin) {
             var found = convertedWatchList.FirstOrDefault(item => int.TryParse(animeListAnime.AnimeListAnime.Anidbid, out int convertedAniDbId) && item.ids.AniDb == convertedAniDbId);
             if (found != null) {
@@ -97,7 +112,7 @@ public class SyncHelper {
             } else {
                 seasonsList = seasons.ToList();
             }
-            
+
             if (seasonsList.Count() > 1) {
                 return seasonsList.Select(animeListAnime => new AnimeListAnimeOfflineDatabaseCombo { AnimeListAnime = animeListAnime }).ToList();
             } else {
@@ -117,5 +132,11 @@ public class SyncHelper {
     public class AnimeListAnimeOfflineDatabaseCombo {
         public AnimeListHelpers.AnimeListAnime AnimeListAnime { get; set; }
         public AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse OfflineDatabaseResponse { get; set; }
+    }
+
+    public enum Status {
+        Completed,
+        Watching,
+        Both
     }
 }
