@@ -35,7 +35,7 @@ public class Sync {
     private readonly IApplicationPaths _applicationPaths;
     private readonly IUserDataManager _userDataManager;
     private readonly ApiName _apiName;
-    private readonly int _status;
+    private readonly SyncHelper.Status _status;
     private int _apiTimeOutLength = 2000;
 
     public Sync(IHttpClientFactory httpClientFactory,
@@ -47,7 +47,7 @@ public class Sync {
         IApplicationPaths applicationPaths,
         IUserDataManager userDataManager,
         ApiName apiName,
-        int status) {
+        SyncHelper.Status status) {
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
         _serverApplicationHost = serverApplicationHost;
@@ -111,11 +111,11 @@ public class Sync {
         }
 
         switch (_status) {
-            case 0:
+            case SyncHelper.Status.Completed:
                 return await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
-            case 1:
+            case SyncHelper.Status.Watching:
                 return await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
-            case 2:
+            case SyncHelper.Status.Both:
                 List<Anime> completed = await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
                 List<Anime> watching = await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
                 if (completed != null && watching != null) {
