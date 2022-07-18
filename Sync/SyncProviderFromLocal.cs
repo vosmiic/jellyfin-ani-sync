@@ -6,9 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Helpers;
 using MediaBrowser.Common.Configuration;
-using MediaBrowser.Common.Net;
+using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.IO;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync;
@@ -20,8 +22,11 @@ public class SyncProviderFromLocal {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IApplicationPaths _applicationPaths;
     private readonly IUserDataManager _userDataManager;
+    private readonly IFileSystem _fileSystem;
     private readonly Guid _userId;
     private readonly ILogger<SyncProviderFromLocal> _logger;
+    private IServerApplicationHost _serverApplicationHost;
+    private IHttpContextAccessor _httpContextAccessor;
 
     public SyncProviderFromLocal(IUserManager userManager,
         ILibraryManager libraryManager,
@@ -29,6 +34,7 @@ public class SyncProviderFromLocal {
         IHttpClientFactory httpClientFactory,
         IApplicationPaths applicationPaths,
         IUserDataManager userDataManager,
+        IFileSystem fileSystem,
         string userId) {
         _userManager = userManager;
         _libraryManager = libraryManager;
@@ -36,89 +42,53 @@ public class SyncProviderFromLocal {
         _httpClientFactory = httpClientFactory;
         _applicationPaths = applicationPaths;
         _userDataManager = userDataManager;
+        _fileSystem = fileSystem;
         _userId = Guid.Parse(userId);
         _logger = loggerFactory.CreateLogger<SyncProviderFromLocal>();
     }
 
-    public async Task<List<SeasonDetails>> SyncFromLocal(string userId, SyncHelper.Status status) {
+    public async Task SyncFromLocal() {
         var jellyfinLibrary = SyncHelper.GetUsersJellyfinLibrary(_userId, _userManager, _libraryManager);
         List<Series> userSeriesList = jellyfinLibrary.OfType<Series>().Select(baseItem => baseItem).ToList();
-        List<SeasonDetails> seasonDetailsList = await GetSeasonDetails(userSeriesList);
-
-
-        return seasonDetailsList;
+        await GetSeasonDetails(userSeriesList);
     }
 
-    private async Task<SyncHelper.AnimeListAnimeOfflineDatabaseCombo> GetSeriesSeasonsMetadata(SyncHelper.AnimeListAnimeOfflineDatabaseCombo season) {
-        if (season.OfflineDatabaseResponse != null) {
-            _logger.LogInformation("(Sync) Season already has provider metadata");
-            return season;
-        }
-
-        if (season.AnimeListAnime != null && !string.IsNullOrEmpty(season.AnimeListAnime.Anidbid) && int.TryParse(season.AnimeListAnime.Anidbid, out int aniDbId)) {
-            var seasonMetadata = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId, AnimeOfflineDatabaseHelpers.Source.Anidb);
-            if (seasonMetadata != null) {
-                season.OfflineDatabaseResponse = seasonMetadata;
-                _logger.LogInformation("(Sync) Retrieved season provider metadata");
-                return season;
-            }
-        } else {
-            _logger.LogError("(Sync) Could not parse AniDB ID from season metadata, skipping...");
-        }
-
-        return null;
-    }
-
-    private async Task<List<SeasonDetails>> GetSeasonDetails(List<Series> userSeriesList) {
-        List<SeasonDetails> listOfSeasonsWithMetadata = new List<SeasonDetails>();
+    private async Task GetSeasonDetails(List<Series> userSeriesList) {
+        _logger.LogInformation($"(Sync) Starting sync to provider from local process");
+        UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
 
         foreach (Series series in userSeriesList) {
-            Dictionary<int, (int episodesWatched, DateTime watchedDate)> userProgressSeasonList = SyncHelper.FilterSeriesByUserProgress(_userId, series, _userDataManager);
-            if (userProgressSeasonList.Count == 0 || userProgressSeasonList.All(item => item.Value.episodesWatched == 0)) {
-                _logger.LogInformation($"(Sync) User has not watched any episodes of {series.Name}. Skipping...");
-                continue;
-            }
-
-            (AnimeOfflineDatabaseHelpers.Source? source, int? providerId) = SyncHelper.GetSeriesProviderId(series);
-
-            if (source == null || providerId == null || providerId == 0) continue;
-            List<SyncHelper.AnimeListAnimeOfflineDatabaseCombo> seriesSeasonsWithMetadata = await SyncHelper.GetSeasonIdsFromJellyfin(providerId.Value,
-                source.Value,
-                _logger,
-                _loggerFactory,
-                _httpClientFactory,
-                _applicationPaths,
-                userProgressSeasonList.Select(item => item.Key).ToList());
-            _logger.LogInformation("(Sync) Retrieved season metadata");
-
-            List<SeasonDetails> seriesSeasonsWithProviderMetadata = new List<SeasonDetails>();
-            for (var i = 0; i < seriesSeasonsWithMetadata.Count; i++) {
-                _logger.LogInformation($"(Sync) Attempting to retrieve {seriesSeasonsWithMetadata[i].AnimeListAnime.Name} provider metadata...");
-                SyncHelper.AnimeListAnimeOfflineDatabaseCombo seasonWithMetadata = await GetSeriesSeasonsMetadata(seriesSeasonsWithMetadata[i]);
-                var matchedUserSeasonDetails = userProgressSeasonList.FirstOrDefault(season => season.Key == int.Parse(seriesSeasonsWithMetadata[i].AnimeListAnime.Defaulttvdbseason));
-                if (seasonWithMetadata != null) {
-                    seriesSeasonsWithProviderMetadata.Add(new SeasonDetails {
-                        AnimeListAnime = seasonWithMetadata.AnimeListAnime,
-                        OfflineDatabaseResponse = seasonWithMetadata.OfflineDatabaseResponse,
-                        Progress = matchedUserSeasonDetails.Value.episodesWatched,
-                        Completed = matchedUserSeasonDetails.Value.watchedDate
-                    });
-                }
-
-                if (seriesSeasonsWithMetadata[i++] != null) {
-                    _logger.LogInformation(("(Sync) Waiting 2 seconds before continuing..."));
+            var toMarkAsCompleted = GetMaxEpisodeAndCompletedTime(series);
+            _logger.LogInformation($"(Sync) Retrieved {series.Name}'s seasons latest watched episode and when it was watched...");
+            if (toMarkAsCompleted != null) {
+                foreach (KeyValuePair<Episode, DateTime> episodeDateTime in toMarkAsCompleted) {
+                    await updateProviderStatus.Update(episodeDateTime.Key, _userId, true);
+                    _logger.LogInformation("(Sync) Waiting 2 seconds before continuing...");
                     Thread.Sleep(2000);
                 }
             }
-
-            listOfSeasonsWithMetadata = listOfSeasonsWithMetadata.Concat(seriesSeasonsWithProviderMetadata).ToList();
         }
-
-        return listOfSeasonsWithMetadata;
     }
 
-    public class SeasonDetails : SyncHelper.AnimeListAnimeOfflineDatabaseCombo {
-        public int Progress { get; set; }
-        public DateTime Completed { get; set; }
+    private Dictionary<Episode, DateTime> GetMaxEpisodeAndCompletedTime(Series series) {
+        Dictionary<Episode, DateTime> returnDictionary = new Dictionary<Episode, DateTime>();
+        
+        var seasons = series.Children.OfType<Season>().Select(baseItem => baseItem).ToList();
+        foreach (Season season in seasons) {
+            List<Episode> episodes = season.Children.OfType<Episode>().Select(baseItem => baseItem).ToList();
+            var episodesWatched = episodes.Where(item => _userDataManager.GetUserData(_userId, item).Played).ToList();
+            Episode highestEpisodeWatched;
+            if (episodesWatched.Any()) {
+                highestEpisodeWatched = episodesWatched.OrderByDescending(item => item.IndexNumber).First();
+            } else {
+                continue;
+            }
+            DateTime? dateTimeWatched = _userDataManager.GetUserData(_userId, highestEpisodeWatched).LastPlayedDate;
+            if (dateTimeWatched != null) {
+                returnDictionary.Add(highestEpisodeWatched, dateTimeWatched.Value);
+            }
+        }
+        
+        return returnDictionary;
     }
 }
