@@ -35,7 +35,7 @@ public class Sync {
     private readonly IApplicationPaths _applicationPaths;
     private readonly IUserDataManager _userDataManager;
     private readonly ApiName _apiName;
-    private readonly int _status;
+    private readonly SyncHelper.Status _status;
     private int _apiTimeOutLength = 2000;
 
     public Sync(IHttpClientFactory httpClientFactory,
@@ -47,7 +47,7 @@ public class Sync {
         IApplicationPaths applicationPaths,
         IUserDataManager userDataManager,
         ApiName apiName,
-        int status) {
+        SyncHelper.Status status) {
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
         _serverApplicationHost = serverApplicationHost;
@@ -111,11 +111,11 @@ public class Sync {
         }
 
         switch (_status) {
-            case 0:
+            case SyncHelper.Status.Completed:
                 return await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
-            case 1:
+            case SyncHelper.Status.Watching:
                 return await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
-            case 2:
+            case SyncHelper.Status.Both:
                 List<Anime> completed = await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
                 List<Anime> watching = await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
                 if (completed != null && watching != null) {
@@ -134,27 +134,20 @@ public class Sync {
     /// <param name="userId">ID of the user to get the library of.</param>
     /// <param name="convertedWatchList">List of metadata IDs of shows.</param>
     private async Task GetCurrentLibrary(string userId, List<SyncAnimeMetadata> convertedWatchList) {
-        var query = new InternalItemsQuery(_userManager.GetUserById(Guid.Parse(userId))) {
-            IncludeItemTypes = new[] {
-                BaseItemKind.Movie,
-                BaseItemKind.Series
-            },
-            IsVirtualItem = false
-        };
-
-        var results = _libraryManager.GetItemList(query);
-        foreach (BaseItem baseItem in results) {
+        var userLibrary = SyncHelper.GetUsersJellyfinLibrary(Guid.Parse(userId), _userManager, _libraryManager);
+        foreach (BaseItem baseItem in userLibrary) {
             if (baseItem is Series series) {
-                int providerId = 0;
-                AnimeOfflineDatabaseHelpers.Source? source = null;
-                if (int.TryParse(series.ProviderIds["AniList"], out providerId)) {
-                    source = AnimeOfflineDatabaseHelpers.Source.Anilist;
-                } else if (int.TryParse(series.ProviderIds["AniDB"], out providerId)) {
-                    source = AnimeOfflineDatabaseHelpers.Source.Anidb;
-                }
-                
-                if (providerId != 0 && source != null) {
-                    List<(Season, DateTime?, int)> seasonsToMarkAsPlayed = await GetSeasons(convertedWatchList, providerId, series, source.Value);
+                (AnimeOfflineDatabaseHelpers.Source? source, int? providerId) = SyncHelper.GetSeriesProviderId(series);
+
+                if (providerId != null && providerId != 0 && source != null) {
+                    List<(Season, DateTime?, int)> seasonsToMarkAsPlayed = await SyncHelper.GetJellyfinSeasons(convertedWatchList,
+                        providerId.Value,
+                        series,
+                        source.Value,
+                        _logger,
+                        _loggerFactory,
+                        _httpClientFactory,
+                        _applicationPaths);
 
                     foreach ((Season season, DateTime? completedAt, int episodesWatched) seasonsTuple in seasonsToMarkAsPlayed) {
                         if (seasonsTuple.season != null) {
@@ -185,28 +178,6 @@ public class Sync {
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Get a list of seasons corresponding with their provider ID.
-    /// </summary>
-    /// <param name="convertedWatchList">List of metadata to match to seasons.</param>
-    /// <param name="providerId">AniList provider ID.</param>
-    /// <param name="series">Series to retrieve season of.</param>
-    /// <param name="source">Metadata source.</param>
-    /// <returns>List of seasons with their completed date and progress.</returns>
-    private async Task<List<(Season, DateTime?, int)>> GetSeasons(List<SyncAnimeMetadata> convertedWatchList, int providerId, Series series, AnimeOfflineDatabaseHelpers.Source source) {
-        List<(Season, DateTime?, int)> seasons = new List<(Season, DateTime?, int)>();
-
-        IEnumerable<AnimeListHelpers.AnimeListAnime> seasonIdsFromJellyfin = await GetSeasonIdsFromJellyfin(providerId, source);
-        foreach (AnimeListHelpers.AnimeListAnime animeListAnime in seasonIdsFromJellyfin) {
-            var found = convertedWatchList.FirstOrDefault(item => int.TryParse(animeListAnime.Anidbid, out int convertedAniDbId) && item.ids.AniDb == convertedAniDbId);
-            if (found != null) {
-                seasons.Add((series.Children.Select(season => season as Season).FirstOrDefault(season => season.IndexNumber == found.season), found.completedAt, found.episodesWatched));
-            }
-        }
-
-        return seasons;
     }
 
     /// <summary>
@@ -282,21 +253,8 @@ public class Sync {
         Thread.Sleep(_apiTimeOutLength);
     }
 
-    /// <summary>
-    /// Get season IDs from Jellyfin library.
-    /// </summary>
-    /// <param name="providerId">ID of the provider.</param>
-    /// <returns>List of season IDs.</returns>
-    private async Task<IEnumerable<AnimeListHelpers.AnimeListAnime>> GetSeasonIdsFromJellyfin(int providerId, AnimeOfflineDatabaseHelpers.Source source) {
-        var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), providerId, source);
-        if (id is { AniDb: { } }) {
-            return await AnimeListHelpers.ListAllSeasonOfAniDbSeries(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, id.AniDb.Value);
-        }
 
-        return null;
-    }
-
-    private class SyncAnimeMetadata {
+    public class SyncAnimeMetadata {
         public AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids { get; set; }
         public int episodesWatched { get; set; }
         public int season { get; set; }

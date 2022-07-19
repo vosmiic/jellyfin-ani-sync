@@ -11,10 +11,12 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -31,16 +33,18 @@ namespace jellyfin_ani_sync.Api {
         private readonly IUserManager _userManager;
         private readonly IApplicationPaths _applicationPaths;
         private readonly IUserDataManager _userDataManager;
+        private readonly IFileSystem _fileSystem;
         private readonly ILogger<AniSyncController> _logger;
 
-        public AniSyncController(IHttpClientFactory httpClientFactory, 
-            ILoggerFactory loggerFactory, 
-            IServerApplicationHost serverApplicationHost, 
-            IHttpContextAccessor httpContextAccessor, 
-            ILibraryManager libraryManager, 
-            IUserManager userManager, 
+        public AniSyncController(IHttpClientFactory httpClientFactory,
+            ILoggerFactory loggerFactory,
+            IServerApplicationHost serverApplicationHost,
+            IHttpContextAccessor httpContextAccessor,
+            ILibraryManager libraryManager,
+            IUserManager userManager,
             IApplicationPaths applicationPaths,
-            IUserDataManager userDataManager) {
+            IUserDataManager userDataManager,
+            IFileSystem fileSystem) {
             _httpClientFactory = httpClientFactory;
             _loggerFactory = loggerFactory;
             _serverApplicationHost = serverApplicationHost;
@@ -49,6 +53,7 @@ namespace jellyfin_ani_sync.Api {
             _userManager = userManager;
             _applicationPaths = applicationPaths;
             _userDataManager = userDataManager;
+            _fileSystem = fileSystem;
             _logger = loggerFactory.CreateLogger<AniSyncController>();
         }
 
@@ -200,10 +205,23 @@ namespace jellyfin_ani_sync.Api {
         }
 
         [HttpPost]
-        [Route("syncFromProviders")]
-        public Task SyncFromProviders(ApiName provider, string userId, int status) {
-            Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, provider, status);
-            return sync.SyncFromProvider(userId);
+        [Route("sync")]
+        public Task Sync(ApiName provider, string userId, SyncHelper.Status status, SyncAction syncAction) {
+            switch (syncAction) {
+                case SyncAction.UpdateProvider:
+                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _userDataManager, _fileSystem, userId);
+                    return syncProviderFromLocal.SyncFromLocal();
+                case SyncAction.UpdateJellyfin:
+                    Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, provider, status);
+                    return sync.SyncFromProvider(userId);
+            }
+            
+            return Task.CompletedTask;
+        }
+
+        public enum SyncAction {
+            UpdateProvider,
+            UpdateJellyfin
         }
     }
 }
