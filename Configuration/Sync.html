@@ -10,19 +10,29 @@
     <div data-role="content">
         <div class="content-primary">
             <form id="TemplateConfigForm">
-                <p><b>Warning: this feature is in alpha, and bugs are probably present. In its current state it may disrupt your Jellyfin library.</b></p>
+                <p><b>Warning: this feature is in alpha, and bugs are probably present. In its current state it may disrupt your Jellyfin or provider library.</b></p>
                 <p>At the moment this functionality requires the AniList and/or AniDb metadata providers installed.</p>
-                <p>Here you can synchronize the selected users provider library with their Jellyfin library.</p>
+                <p>Here you can synchronize the selected users Jellyfin library and their provider list(s).</p>
+                <p>Updating the provider library with the users Jellyfin library will update all providers that the user is authenticated with.</p>
+                <p>This functionality is also loyal to the users configuration options (only update plan to watch, set as rewatching)</p>
+                <div class="inputContainer">
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selectAction" name="selectAction" label="Select Action">
+                            <option value="UpdateJellyfin">Update Jellyfin with provider progress</option>
+                            <option value="UpdateProvider">Update provider with Jellyfin progress</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="inputContainer">
                     <div class="selectContainer">
                         <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
-                        <div class="fieldDescription">The user you would like to organize the library for.</div>
+                        <div class="fieldDescription">The user you would like to organize the library for. Only used when updating Jellyfin.</div>
                     </div>
                 </div>
                 <div class="inputContainer">
                     <div class="selectContainer">
                         <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
-                        <div class="fieldDescription">Provider to sync the anime list from.</div>
+                        <div class="fieldDescription">Provider to sync the anime list from. Only used when updating Jellyfin.</div>
                     </div>
                 </div>
                 <div class="inputContainer">

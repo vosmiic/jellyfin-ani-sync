@@ -8,6 +8,8 @@ export default function (view, params) {
     view.addEventListener('viewshow', async function (e) {
         import(commonsUrl).then(initialLoad.bind(this));
     });
+    
+    view.querySelector('#selectAction').addEventListener('change', actionSelectionChange)
 }
 
 async function initialLoad(commons) {
@@ -50,9 +52,22 @@ function setProviderSelection(page, providerList) {
     page.querySelector('#selectProvider').innerHTML = html;
 }
 
+function actionSelectionChange(value) {
+    switch (value.target.value) {
+        case "UpdateProvider":
+            document.getElementById('selectProvider').disabled = true;
+            document.getElementById('status').disabled = true;
+            break;
+        case "UpdateJellyfin":
+            document.getElementById('selectProvider').disabled = false;
+            document.getElementById('status').disabled = false;
+            break;
+    }
+}
+
     
 async function run() {
-    await fetch(ApiClient.getUrl("/AniSync/syncFromProviders?provider=" + document.getElementById('selectProvider').value + "&userId=" + document.getElementById('selectUser').value + "&status=" + document.getElementById('status').value), {
+    await fetch(ApiClient.getUrl("/AniSync/sync?provider=" + document.getElementById('selectProvider').value + "&userId=" + document.getElementById('selectUser').value + "&status=" + document.getElementById('status').value + "&syncAction=" + document.getElementById('selectAction').value), {
         method: "POST"
     });
 }
