@@ -82,6 +82,13 @@ namespace jellyfin_ani_sync {
             }
 
             if (LibraryCheck(e) && video is Episode or Movie && playedToCompletion) {
+                if ((video is Episode && (episode.IndexNumber == null ||
+                                          episode.Season.IndexNumber == null)) ||
+                    (video is Movie && movie.IndexNumber == null)) {
+                    _logger.LogError("Video does not contain required index numbers to sync; skipping");
+                    return;
+                }
+                
                 AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse();
                 (int? aniDbId, int? episodeOffset) aniDbId = (null, null);
                 if (_animeType == typeof(Episode)

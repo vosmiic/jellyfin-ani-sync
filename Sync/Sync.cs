@@ -163,7 +163,11 @@ public class Sync {
                                 if (seasonChild is Episode episode) {
                                     _logger.LogInformation($"(Sync) Setting {episode.Series.Name} season {episode.Season.IndexNumber} episode {episode.IndexNumber} for user {userId} as played...");
 
-                                    userItemDataCollection.Add(SetUserData(user, episode, seasonsTuple.completedAt));
+                                    if (seasonsTuple.completedAt != null) {
+                                        userItemDataCollection.Add(SetUserData(user, episode, seasonsTuple.completedAt));
+                                    } else {
+                                        userItemDataCollection.Add(SetUserData(user, episode, DateTime.UtcNow));
+                                    }
                                 }
                             }
 
@@ -175,6 +179,8 @@ public class Sync {
                             _logger.LogInformation("(Sync) Saved");
                         }
                     }
+                } else {
+                    _logger.LogError("(Sync) Could not retrieve necessary provider information. Skipping");
                 }
             }
         }

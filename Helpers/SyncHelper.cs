@@ -46,12 +46,12 @@ public class SyncHelper {
     /// Get the preferred series provider ID. 
     /// </summary>
     public static (AnimeOfflineDatabaseHelpers.Source? source, int? providerId) GetSeriesProviderId(Series series) {
-        if (int.TryParse(series.ProviderIds["AniList"], out int providerId)) {
+        if (series.ProviderIds.ContainsKey("AniList") && int.TryParse(series.ProviderIds["AniList"], out int providerId)) {
             return (AnimeOfflineDatabaseHelpers.Source.Anilist, providerId);
-        } else if (int.TryParse(series.ProviderIds["AniDB"], out providerId)) {
+        } else if (series.ProviderIds.ContainsKey("AniDB") && int.TryParse(series.ProviderIds["AniDB"], out providerId)) {
             return (AnimeOfflineDatabaseHelpers.Source.Anidb, providerId);
         }
-
+        
         return (null, null);
     }
 
@@ -80,10 +80,23 @@ public class SyncHelper {
             httpClientFactory,
             applicationPaths);
 
-        foreach (AnimeListAnimeOfflineDatabaseCombo animeListAnime in seasonIdsFromJellyfin) {
-            var found = convertedWatchList.FirstOrDefault(item => int.TryParse(animeListAnime.AnimeListAnime.Anidbid, out int convertedAniDbId) && item.ids.AniDb == convertedAniDbId);
-            if (found != null) {
-                seasons.Add((series.Children.Select(season => season as Season).FirstOrDefault(season => season.IndexNumber == found.season), found.completedAt, found.episodesWatched));
+        if (seasonIdsFromJellyfin != null) {
+            foreach (AnimeListAnimeOfflineDatabaseCombo animeListAnime in seasonIdsFromJellyfin) {
+                if (animeListAnime.AnimeListAnime != null && animeListAnime.AnimeListAnime.Anidbid != null) {
+                    var found = convertedWatchList.FirstOrDefault(item => item?.ids?.AniDb != null && int.TryParse(animeListAnime?.AnimeListAnime?.Anidbid, out int convertedAniDbId) && item.ids.AniDb == convertedAniDbId);
+                    if (found != null) {
+                        var season = series.Children.Select(season => season as Season).FirstOrDefault(season => season?.IndexNumber == found.season);
+                        if (season != null) {
+                            seasons.Add((season, found.completedAt ?? DateTime.UtcNow, found.episodesWatched));
+                            logger.LogInformation("(Sync) Retrieved");
+                        } else {
+                            logger.LogWarning("(Sync) Could not retrieve season from Jellyfin library");
+                        }
+                    }
+                } else {
+                    logger.LogWarning("(Sync) Could not retrieve AniDb ID from this season");
+                }
+
             }
         }
 
@@ -109,8 +122,11 @@ public class SyncHelper {
             List<AnimeListHelpers.AnimeListAnime> seasonsList;
             if (seasonFilter != null) {
                 seasonsList = seasons.Where(season => int.TryParse(season.Defaulttvdbseason, out int parsedSeasonNumber) && seasonFilter.Contains(parsedSeasonNumber)).ToList();
-            } else {
+            } else if (seasons != null) {
                 seasonsList = seasons.ToList();
+            } else {
+                logger.LogWarning("(Sync) Season could not be retrieved from Jellyfin; skipping...");
+                return null;
             }
 
             if (seasonsList.Count() > 1) {

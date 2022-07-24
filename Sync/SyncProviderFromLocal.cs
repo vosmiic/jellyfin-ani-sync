@@ -61,17 +61,26 @@ public class SyncProviderFromLocal {
             var toMarkAsCompleted = GetMaxEpisodeAndCompletedTime(series);
             _logger.LogInformation($"(Sync) Retrieved {series.Name}'s seasons latest watched episode and when it was watched...");
             if (toMarkAsCompleted != null) {
-                foreach (KeyValuePair<Episode, DateTime> episodeDateTime in toMarkAsCompleted) {
-                    await updateProviderStatus.Update(episodeDateTime.Key, _userId, true);
-                    _logger.LogInformation("(Sync) Waiting 2 seconds before continuing...");
-                    Thread.Sleep(2000);
+                foreach (Episode episodeDateTime in toMarkAsCompleted) {
+                    if (episodeDateTime != null) {
+                        try {
+                            await updateProviderStatus.Update(episodeDateTime, _userId, true);
+                        } catch (Exception e) {
+                            _logger.LogError($"(Sync) Could not sync item; error: {e.Message}");
+                            continue;
+                        }
+                        _logger.LogInformation("(Sync) Waiting 2 seconds before continuing...");
+                        Thread.Sleep(2000);
+                    } else {
+                        _logger.LogError("(Sync) Could not get users Jellyfin data for this season");
+                    }
                 }
             }
         }
     }
 
-    private Dictionary<Episode, DateTime> GetMaxEpisodeAndCompletedTime(Series series) {
-        Dictionary<Episode, DateTime> returnDictionary = new Dictionary<Episode, DateTime>();
+    private List<Episode> GetMaxEpisodeAndCompletedTime(Series series) {
+        List<Episode> returnDictionary = new List<Episode>();
         
         var seasons = series.Children.OfType<Season>().Select(baseItem => baseItem).ToList();
         foreach (Season season in seasons) {
@@ -83,10 +92,7 @@ public class SyncProviderFromLocal {
             } else {
                 continue;
             }
-            DateTime? dateTimeWatched = _userDataManager.GetUserData(_userId, highestEpisodeWatched).LastPlayedDate;
-            if (dateTimeWatched != null) {
-                returnDictionary.Add(highestEpisodeWatched, dateTimeWatched.Value);
-            }
+            returnDictionary.Add(highestEpisodeWatched/*, _userDataManager.GetUserData(_userId, highestEpisodeWatched).LastPlayedDate ?? DateTime.UtcNow*/);
         }
         
         return returnDictionary;
