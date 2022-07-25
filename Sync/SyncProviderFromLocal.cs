@@ -58,8 +58,8 @@ public class SyncProviderFromLocal {
         UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
 
         foreach (Series series in userSeriesList) {
-            var toMarkAsCompleted = GetMaxEpisodeAndCompletedTime(series);
             _logger.LogInformation($"(Sync) Retrieved {series.Name}'s seasons latest watched episode and when it was watched...");
+            var toMarkAsCompleted = GetMaxEpisodeAndCompletedTime(series);
             if (toMarkAsCompleted != null) {
                 foreach (Episode episodeDateTime in toMarkAsCompleted) {
                     if (episodeDateTime != null) {
@@ -82,19 +82,27 @@ public class SyncProviderFromLocal {
     private List<Episode> GetMaxEpisodeAndCompletedTime(Series series) {
         List<Episode> returnDictionary = new List<Episode>();
         
+        _logger.LogInformation($"(Sync) Getting {series.Name} seasons latest watched episode");
         var seasons = series.Children.OfType<Season>().Select(baseItem => baseItem).ToList();
+        _logger.LogInformation($"(Sync) Series {series.Name} contains {seasons.Count} seasons");
         foreach (Season season in seasons) {
+            _logger.LogInformation($"(Sync) Getting user data for {season.Name} of {series.Name}...");
             List<Episode> episodes = season.Children.OfType<Episode>().Select(baseItem => baseItem).ToList();
+            _logger.LogInformation($"(Sync) Season contains {episodes.Count} episodes");
             var episodesWatched = episodes.Where(item => _userDataManager.GetUserData(_userId, item).Played).ToList();
+            _logger.LogInformation($"(Sync) User has watched {episodesWatched.Count} out of {episodes.Count} episodes of this season");
             Episode highestEpisodeWatched;
             if (episodesWatched.Any()) {
                 highestEpisodeWatched = episodesWatched.OrderByDescending(item => item.IndexNumber).First();
+                _logger.LogInformation($"(Sync) The latest watched episode for this user of this season is {highestEpisodeWatched.IndexNumber}");
             } else {
+                _logger.LogInformation($"(Sync) User has not watched any episodes of this season, skipping...");
                 continue;
             }
             returnDictionary.Add(highestEpisodeWatched/*, _userDataManager.GetUserData(_userId, highestEpisodeWatched).LastPlayedDate ?? DateTime.UtcNow*/);
         }
         
+        _logger.LogInformation($"(Sync) Found {returnDictionary.Count} seasons that contain user data");
         return returnDictionary;
     }
 }
