@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Helpers;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
@@ -87,7 +88,22 @@ public class SyncProviderFromLocal {
         _logger.LogInformation($"(Sync) Series {series.Name} contains {seasons.Count} seasons");
         foreach (Season season in seasons) {
             _logger.LogInformation($"(Sync) Getting user data for {season.Name} of {series.Name}...");
-            List<Episode> episodes = season.Children.OfType<Episode>().Select(baseItem => baseItem).ToList();
+            if (season.IndexNumber == null) {
+                _logger.LogError($"(Sync) Season index number is null. Skipping...");
+                continue;
+            }
+            
+            var query = new InternalItemsQuery(_userManager.GetUserById(_userId)) {
+                MediaTypes = new []{"Video"},
+                ParentId = season.ParentId,
+                ParentIndexNumber = season.IndexNumber,
+                Recursive = true
+            };
+            
+            var itemList = _libraryManager.GetItemList(query);
+
+            List<Episode> episodes = itemList.OfType<Episode>().Select(baseItem => baseItem).ToList();
+
             _logger.LogInformation($"(Sync) Season contains {episodes.Count} episodes");
             var episodesWatched = episodes.Where(item => _userDataManager.GetUserData(_userId, item).Played).ToList();
             _logger.LogInformation($"(Sync) User has watched {episodesWatched.Count} out of {episodes.Count} episodes of this season");
