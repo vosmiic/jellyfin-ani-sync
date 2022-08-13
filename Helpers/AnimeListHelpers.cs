@@ -29,7 +29,7 @@ namespace jellyfin_ani_sync.Helpers {
             if (video is Episode)
             {
                 //Search for Anidb id at season level
-                providers = (video as Episode).Season.ProviderIds;
+                providers = (video as Episode).Season.ProviderIds.ContainsKey("Anidb") ? (video as Episode).Season.ProviderIds : (video as Episode).Series.ProviderIds;
             }
             else if (video is Movie)
             {
