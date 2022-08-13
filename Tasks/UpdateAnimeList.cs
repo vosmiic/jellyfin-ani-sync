@@ -73,6 +73,7 @@ namespace jellyfin_ani_sync {
                 Directory.CreateDirectory(Path.EndsWith("/anime-list-full.xml") ? Path.Replace("/anime-list-full.xml", "") : Path);
                 await using (var response = await httpClient.GetStreamAsync(downloadUrl)) {
                     await using (var fileStream = new FileStream(Path, FileMode.OpenOrCreate)) {
+                        fileStream.SetLength(0);
                         await response.CopyToAsync(fileStream);
                     }
                 }
