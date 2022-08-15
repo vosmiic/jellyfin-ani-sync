@@ -97,7 +97,8 @@ namespace jellyfin_ani_sync {
                     _logger.LogInformation("Retrieved provider IDs");
                 } else if (_animeType == typeof(Episode)
                                ? (episode.Series.ProviderIds.ContainsKey("Tvdb") ||
-                                  episode.Season.ProviderIds.ContainsKey("Anidb"))
+                                  episode.Season.ProviderIds.ContainsKey("Anidb") ||
+                                  episode.Series.ProviderIds.ContainsKey("Anidb"))
                                : movie.ProviderIds != null &&
                                  movie.ProviderIds.ContainsKey("Anidb")) {
                     aniDbId = _animeType == typeof(Episode)
