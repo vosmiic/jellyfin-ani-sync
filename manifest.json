@@ -13,6 +13,22 @@
         "targetAbi": "10.8.5.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.3/10.8.5.-.ani-sync_2.3.0.0.zip",
         "timestamp": "2022-08-10 00:00:00",
+        "version": "2.3.0.0"
+      },
+      {
+        "checksum": "c5508cd945f42f466afd438f9bdb1648",
+        "changelog": "1. Fixed issues with index numbers related to manual sync \n 2. Fixed issues with users libraries not being properly queried when using manual sync",
+        "targetAbi": "10.8.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.2.1/10.8.0.-.ani-sync_2.2.1.0.zip",
+        "timestamp": "2022-08-03 00:00:00",
+        "version": "2.2.1.0"
+      },
+      {
+        "checksum": "9c5c424a012d7dacf6a27bfea31c69e4",
+        "changelog": "1. Added manual sync functionality \n 2. Fixed anime list pathing issues on Windows builds \n 3. Fixed a few bugs",
+        "targetAbi": "10.8.1.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.2/10.8.0.-.ani-sync_2.2.0.0.zip",
+        "timestamp": "2022-07-21 00:00:00",
         "version": "2.2.0.0"
       },
       {
