@@ -101,7 +101,18 @@ namespace jellyfin_ani_sync {
                           int.TryParse(movie.ProviderIds["AniList"], out retrievedAniListId)) {
                     _logger.LogInformation("AniList ID found. Retrieving provider IDs from offline database...");
                     providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), retrievedAniListId, AnimeOfflineDatabaseHelpers.Source.Anilist);
-                    _logger.LogInformation("Retrieved provider IDs");
+                    if (providerIds is null)
+                    {
+                        providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse
+                        {
+                            Anilist = retrievedAniListId
+                        };
+                        _logger.LogWarning("Did not get provider IDs, defaulting to episode provided AniList ID");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Retrieved provider IDs");
+                    }
                 } else if (_animeType == typeof(Episode)
                                ? (episode.Series.ProviderIds.ContainsKey("Tvdb") ||
                                   episode.Season.ProviderIds.ContainsKey("Anidb") ||
@@ -114,7 +125,18 @@ namespace jellyfin_ani_sync {
                     if (aniDbId.aniDbId != null) {
                         _logger.LogInformation("Retrieving provider IDs from offline database...");
                         providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
-                        _logger.LogInformation("Retrieved provider IDs");
+                        if (providerIds is null)
+                        {
+                            providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse
+                            {
+                                AniDb = aniDbId.aniDbId
+                            };
+                            _logger.LogWarning("Did not get provider IDs, defaulting to episode provided AniDb ID");
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Retrieved provider IDs");
+                        }
                     }
                 }
 
