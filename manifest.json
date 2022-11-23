@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "c10182c769165105ffeca0f3881e515e",
+        "changelog": "1. Fixed crash on providers IDs not found (thanks Pecomare)",
+        "targetAbi": "10.8.5.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.4/10.8.5.-.ani-sync_2.4.0.0.zip",
+        "timestamp": "2022-11-23 00:00:00",
+        "version": "2.4.0.0"
+      },
+      {
         "checksum": "309238aa8c12ffc781b92374fdb3e845",
         "changelog": "1. Search for Anibd id within Season 2. Updated libraries to latest version",
         "targetAbi": "10.8.5.0",
