@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "adeea332b408d517c04341409683238a",
+        "changelog": "1. Fixed cases where anime-list returned 'a' for the defaulttvdbseason number",
+        "targetAbi": "10.8.8.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.5/10.8.8.-.ani-sync_2.5.0.0.zip",
+        "timestamp": "2022-12-13 00:00:00",
+        "version": "2.5.0.0"
+      },
+      {
         "checksum": "c10182c769165105ffeca0f3881e515e",
         "changelog": "1. Fixed crash on providers IDs not found (thanks Pecomare)",
         "targetAbi": "10.8.5.0",
