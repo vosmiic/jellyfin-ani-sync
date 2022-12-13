@@ -121,7 +121,11 @@ public class SyncHelper {
             var seasons = await AnimeListHelpers.ListAllSeasonOfAniDbSeries(logger, loggerFactory, httpClientFactory, applicationPaths, id.AniDb.Value);
             List<AnimeListHelpers.AnimeListAnime> seasonsList;
             if (seasonFilter != null) {
-                seasonsList = seasons.Where(season => int.TryParse(season.Defaulttvdbseason, out int parsedSeasonNumber) && seasonFilter.Contains(parsedSeasonNumber)).ToList();
+                IEnumerable<AnimeListHelpers.AnimeListAnime> listAnimeSeasons = seasons.ToList();
+                seasonsList = listAnimeSeasons.Where(season => int.TryParse(season.Defaulttvdbseason, out int parsedSeasonNumber) && seasonFilter.Contains(parsedSeasonNumber)).ToList();
+                if (seasonsList.Count == 0) {
+                    seasonsList = listAnimeSeasons.Where(season => season.Defaulttvdbseason == "a").ToList();
+                }
             } else if (seasons != null) {
                 seasonsList = seasons.ToList();
             } else {
