@@ -88,7 +88,7 @@ namespace jellyfin_ani_sync {
                     _logger.LogError("Video does not contain required index numbers to sync; skipping");
                     return;
                 }
-                
+
                 AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse();
                 (int? aniDbId, int? episodeOffset) aniDbId = (null, null);
                 if (_animeType == typeof(Episode)
@@ -101,16 +101,12 @@ namespace jellyfin_ani_sync {
                           int.TryParse(movie.ProviderIds["AniList"], out retrievedAniListId)) {
                     _logger.LogInformation("AniList ID found. Retrieving provider IDs from offline database...");
                     providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), retrievedAniListId, AnimeOfflineDatabaseHelpers.Source.Anilist);
-                    if (providerIds is null)
-                    {
-                        providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse
-                        {
+                    if (providerIds is null) {
+                        providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse {
                             Anilist = retrievedAniListId
                         };
                         _logger.LogWarning("Did not get provider IDs, defaulting to episode provided AniList ID");
-                    }
-                    else
-                    {
+                    } else {
                         _logger.LogInformation("Retrieved provider IDs");
                     }
                 } else if (_animeType == typeof(Episode)
@@ -125,16 +121,12 @@ namespace jellyfin_ani_sync {
                     if (aniDbId.aniDbId != null) {
                         _logger.LogInformation("Retrieving provider IDs from offline database...");
                         providerIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
-                        if (providerIds is null)
-                        {
-                            providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse
-                            {
+                        if (providerIds is null) {
+                            providerIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse {
                                 AniDb = aniDbId.aniDbId
                             };
                             _logger.LogWarning("Did not get provider IDs, defaulting to episode provided AniDb ID");
-                        }
-                        else
-                        {
+                        } else {
                             _logger.LogInformation("Retrieved provider IDs");
                         }
                     }
@@ -337,24 +329,29 @@ namespace jellyfin_ani_sync {
         }
 
         private bool LibraryCheck(BaseItem item) {
-            if (_userConfig.LibraryToCheck is { Length: > 0 }) {
-                var folders = _libraryManager.GetVirtualFolders().Where(item => _userConfig.LibraryToCheck.Contains(item.ItemId));
+            try {
+                if (_userConfig.LibraryToCheck is { Length: > 0 }) {
+                    var folders = _libraryManager.GetVirtualFolders().Where(item => _userConfig.LibraryToCheck.Contains(item.ItemId));
 
-                foreach (var folder in folders) {
-                    foreach (var location in folder.Locations) {
-                        if (_fileSystem.ContainsSubPath(location, item.Path)) {
-                            // item is in a path of a folder the user wants to be monitored
-                            return true;
+                    foreach (var folder in folders) {
+                        foreach (var location in folder.Locations) {
+                            if (item.Path != null && _fileSystem.ContainsSubPath(location, item.Path)) {
+                                // item is in a path of a folder the user wants to be monitored
+                                return true;
+                            }
                         }
                     }
+                } else {
+                    // user has no library filters
+                    return true;
                 }
-            } else {
-                // user has no library filters
-                return true;
-            }
 
-            _logger.LogInformation("Item is in a folder the user does not want to be monitored; ignoring");
-            return false;
+                _logger.LogInformation("Item is in a folder the user does not want to be monitored; ignoring");
+                return false;
+            } catch (Exception e) {
+                _logger.LogInformation($"Library check ran into an issue: {e.Message}");
+                return false;
+            }
         }
 
         private async Task CheckUserListAnimeStatus(int matchingAnimeId, int episodeNumber, bool? overrideCheckRewatch = null) {
