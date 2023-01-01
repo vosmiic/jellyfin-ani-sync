@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "4169dea137f2e1d235addb79a534d5bb",
+        "changelog": "1. Fixed issue where the plugin would cause Jellyfin to crash when watching live media",
+        "targetAbi": "10.8.8.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.6/10.8.8.-.ani-sync_2.6.0.0.zip",
+        "timestamp": "2023-01-01 00:00:00",
+        "version": "2.6.0.0"
+      },
+      {
         "checksum": "adeea332b408d517c04341409683238a",
         "changelog": "1. Fixed cases where anime-list returned 'a' for the defaulttvdbseason number",
         "targetAbi": "10.8.8.0",
