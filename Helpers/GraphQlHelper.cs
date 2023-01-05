@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -25,6 +26,16 @@ namespace jellyfin_ani_sync.Helpers {
             var call = await authApiCall.AuthenticatedApiCall(ApiName.AniList, AuthApiCall.CallType.POST, "https://graphql.anilist.co", stringContent: new StringContent(JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables }), Encoding.UTF8, "application/json"));
 
             return call is { IsSuccessStatusCode: true } ? call : null;
+        }
+        
+        public static async Task<T> DeserializeRequest<T>(HttpClient httpClient, string query, Dictionary<string, string> variables) {
+            var response = await GraphQlHelper.Request(httpClient, query, variables);
+            if (response != null) {
+                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                return JsonSerializer.Deserialize<T>(await streamReader.ReadToEndAsync());
+            }
+
+            return default;
         }
 
         private class GraphQl {
