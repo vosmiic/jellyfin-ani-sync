@@ -25,6 +25,14 @@ public class AnnictMediaList {
         [JsonPropertyName("nodes")]
         public List<AnnictSearch.AnnictAnime> Nodes { get; set; }
         [JsonPropertyName("pageInfo")]
-        public AnnictSearch.PageInfo PageInfo { get; set; }
+        public PageInfo PageInfo { get; set; }
+    }
+    
+    public class PageInfo
+    {
+        [JsonPropertyName("hasNextPage")]
+        public bool HasNextPage { get; set; }
+        [JsonPropertyName("startCursor")]
+        public string StartCursor { get; set; }
     }
 }
