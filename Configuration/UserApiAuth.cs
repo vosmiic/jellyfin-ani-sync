@@ -7,7 +7,9 @@ namespace jellyfin_ani_sync.Configuration {
         [Display(Name = "AniList")]
         AniList,
         [Display(Name = "Kitsu")]
-        Kitsu
+        Kitsu,
+        [Display(Name = "Annict")]
+        Annict
     }
 
     public class UserApiAuth {
