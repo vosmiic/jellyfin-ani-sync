@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
@@ -65,21 +66,21 @@ namespace jellyfin_ani_sync.Api.Anilist {
         ";
 
             int page = 1;
-            Dictionary<string, string> variables = new Dictionary<string, string> {
+            Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "search", searchString },
                 { "type", "ANIME" },
                 { "perPage", PageSize.ToString() },
                 { "page", page.ToString() }
             };
 
-            AniListSearch.AniListSearchMedia result = await DeserializeRequest<AniListSearch.AniListSearchMedia>(query, variables);
+            AniListSearch.AniListSearchMedia result = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, query, variables);
 
             if (result != null) {
                 if (result.Data.Page.PageInfo.HasNextPage) {
                     // impose a hard limit of 10 pages
                     while (page < 10) {
                         page++;
-                        AniListSearch.AniListSearchMedia nextPageResult = await DeserializeRequest<AniListSearch.AniListSearchMedia>(query, variables);
+                        AniListSearch.AniListSearchMedia nextPageResult = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, query, variables);
 
                         result.Data.Page.Media = result.Data.Page.Media.Concat(nextPageResult.Data.Page.Media).ToList();
                         if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
@@ -146,11 +147,11 @@ namespace jellyfin_ani_sync.Api.Anilist {
         }";
 
 
-            Dictionary<string, string> variables = new Dictionary<string, string> {
+            Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "id", id.ToString() }
             };
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.AniList, variables);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 var result = JsonSerializer.Deserialize<AniListGet.AniListGetMedia>(await streamReader.ReadToEndAsync());
@@ -171,7 +172,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
           }
         }";
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.AniList);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 var result = JsonSerializer.Deserialize<AniListViewer.AniListGetViewer>(await streamReader.ReadToEndAsync());
@@ -199,7 +200,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
           }
         }";
 
-            Dictionary<string, string> variables = new Dictionary<string, string> {
+            Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "mediaId", id.ToString() },
                 { "status", status.ToString().ToUpper() },
                 { "progress", progress.ToString() }
@@ -221,7 +222,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 variables.Add("endYear", endDate.Value.Year.ToString());
             }
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.AniList, variables);
             return response != null;
         }
 
@@ -250,21 +251,21 @@ namespace jellyfin_ani_sync.Api.Anilist {
         }";
 
             int page = 1;
-            Dictionary<string, string> variables = new Dictionary<string, string> {
+            Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "status", status.ToString().ToUpper() },
                 { "userId", userId.ToString() },
                 { "perPage", PageSize.ToString() },
                 { "page", page.ToString() }
             };
 
-            AniListMediaList.AniListUserMediaList result = await DeserializeRequest<AniListMediaList.AniListUserMediaList>(query, variables);
+            AniListMediaList.AniListUserMediaList result = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
 
             if (result != null) {
                 if (result.Data.Page.PageInfo.HasNextPage) {
                     // impose a hard limit of 10 pages
                     while (page < 100) {
                         page++;
-                        AniListMediaList.AniListUserMediaList nextPageResult = await DeserializeRequest<AniListMediaList.AniListUserMediaList>(query, variables);
+                        AniListMediaList.AniListUserMediaList nextPageResult = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
 
                         result.Data.Page.MediaList = result.Data.Page.MediaList.Concat(nextPageResult.Data.Page.MediaList).ToList();
                         if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
@@ -280,17 +281,6 @@ namespace jellyfin_ani_sync.Api.Anilist {
             }
 
             return null;
-        }
-
-
-        private async Task<T> DeserializeRequest<T>(string query, Dictionary<string, string> variables) {
-            var response = await GraphQlHelper.Request(_httpClient, query, variables);
-            if (response != null) {
-                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
-                return JsonSerializer.Deserialize<T>(await streamReader.ReadToEndAsync());
-            }
-
-            return default;
         }
     }
 }
