@@ -1,8 +1,11 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
@@ -19,7 +22,7 @@ namespace jellyfin_ani_sync.Api.Annict {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly HttpClient _httpClient;
         private readonly UserConfig _userConfig;
-        public static readonly int PageSize = 100;
+        public static readonly int PageSize = 1000;
 
 
         public AnnictApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
@@ -37,45 +40,27 @@ namespace jellyfin_ani_sync.Api.Annict {
         /// <param name="searchString">The name to search for.</param>
         /// <returns>List of anime.</returns>
         public async Task<List<AnnictSearch.AnnictAnime>> SearchAnime(string searchString) {
-            string query = @"query (title: String!, $perPage: Int, $after: Int) {
-            searchWorks(titles: [$title],first: $perPage,after: $after) {
+            string query = @"query ($title: String!) {
+            searchWorks(titles: [$title]) {
                 nodes {
                     id
                     titleEn
                     malAnimeId
-                },
-                pageInfo {
-                  hasNextPage
                 }
             }
         }
         ";
 
-            int after = 0;
-            Dictionary<string, string> variables = new Dictionary<string, string> {
-                { "title", searchString },
-                { "perPage", PageSize.ToString() },
-                { "after", after.ToString() }
+            Dictionary<string, object> variables = new Dictionary<string, object> {
+                { "title", searchString }
             };
 
-            AnnictSearch.AnnictSearchMedia result = await GraphQlHelper.DeserializeRequest<AnnictSearch.AnnictSearchMedia>(_httpClient, query, variables);
+            AnnictSearch.AnnictSearchMedia searchMedia = new AnnictSearch.AnnictSearchMedia();
 
-            if (result != null) {
-                if (result.AnnictSearchData.SearchWorks.PageInfo.HasNextPage) {
-                    // impose a hard limit of 10 pages
-                    while (after < 900) {
-                        after += 100;
-                        AnnictSearch.AnnictSearchMedia nextPageResult = await GraphQlHelper.DeserializeRequest<AnnictSearch.AnnictSearchMedia>(_httpClient, query, variables);
-
-                        result.AnnictSearchData.SearchWorks.Nodes = result.AnnictSearchData.SearchWorks.Nodes.Concat(nextPageResult.AnnictSearchData.SearchWorks.Nodes).ToList();
-                        if (!nextPageResult.AnnictSearchData.SearchWorks.PageInfo.HasNextPage) {
-                            break;
-                        }
-
-                        // sleeping thread so we dont hammer the API
-                        Thread.Sleep(1000);
-                    }
-                }
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            if (response != null) {
+                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                var result = JsonSerializer.Deserialize<AnnictSearch.AnnictSearchMedia>(await streamReader.ReadToEndAsync());
 
                 return result.AnnictSearchData.SearchWorks.Nodes;
             }
@@ -90,7 +75,7 @@ namespace jellyfin_ani_sync.Api.Annict {
         /// <param name="status">Status to set the anime as.</param>
         /// <returns>True if the anime has been updated.</returns>
         public async Task<bool> UpdateAnime(string id, AnnictSearch.AnnictMediaStatus status) {
-            string query = @"mutation ($workId: String!, $state: StatusState" + 
+            string query = @"mutation ($workId: String!, $state: StatusState" +
                            @") {
           updateStatus (input: {workId:$workId, state:$status" +
                            @") {
@@ -98,12 +83,12 @@ namespace jellyfin_ani_sync.Api.Annict {
           }
         }";
 
-            Dictionary<string, string> variables = new Dictionary<string, string> {
+            Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "workId", id },
                 { "status", status.ToString().ToUpper() },
             };
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
             return response != null;
         }
 
@@ -113,50 +98,80 @@ namespace jellyfin_ani_sync.Api.Annict {
         /// <param name="status">Status to filter by.</param>
         /// <returns>List of anime in the users list.</returns>
         public async Task<List<AnnictSearch.AnnictAnime>> GetAnimeList(AnnictSearch.AnnictMediaStatus status) {
-            string query = @"query($state: StatusState, $perPage: Int, $after: Int) {
+            string query = @"query($state: [StatusState!], $perPage: Int, $after: String!) {
             viewer {
                 libraryEntries(states:$state, first: $perPage,after: $after) {
                     nodes {
-                        id
-                        titleEn
-                        malAnimeId
-                        viewStatusState
+                        work {
+                            id
+                            titleEn
+                            malAnimeId
+                            viewerStatusState
+                        },
                     },
                     pageInfo {
-                      hasNextPage
+                      hasNextPage,
+                      startCursor
                     }
                 }
             }
         }
         ";
 
-            int after = 0;
-            Dictionary<string, string> variables = new Dictionary<string, string> {
+            Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "state", status.ToString().ToUpper() },
-                { "perPage", PageSize.ToString() },
-                { "after", after.ToString() }
+                { "perPage", PageSize },
+                { "after", string.Empty }
             };
 
-            AnnictMediaList.AnnictUserMediaList result = await GraphQlHelper.DeserializeRequest<AnnictMediaList.AnnictUserMediaList>(_httpClient, query, variables);
+            AnnictMediaList.AnnictUserMediaList result = new AnnictMediaList.AnnictUserMediaList();
 
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            if (response != null) {
+                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                result = JsonSerializer.Deserialize<AnnictMediaList.AnnictUserMediaList>(await streamReader.ReadToEndAsync());
+            }
             if (result != null) {
-                if (result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.HasNextPage) {
-                    // impose a hard limit of 10 pages
-                    while (after < 900) {
-                        after += 100;
-                        AnnictMediaList.AnnictUserMediaList nextPageResult = await GraphQlHelper.DeserializeRequest<AnnictMediaList.AnnictUserMediaList>(_httpClient, query, variables);
-
-                        result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes = result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes.Concat(nextPageResult.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes).ToList();
-                        if (!nextPageResult.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.HasNextPage) {
-                            break;
-                        }
-
-                        // sleeping thread so we dont hammer the API
-                        Thread.Sleep(1000);
+                while (result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.HasNextPage) {
+                    variables["after"] = result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.StartCursor;
+                    var paginatedResponse = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+                    var paginatedResult = new AnnictMediaList.AnnictUserMediaList();
+                    if (paginatedResponse != null) {
+                        StreamReader streamReader = new StreamReader(await paginatedResponse.Content.ReadAsStreamAsync());
+                        paginatedResult = JsonSerializer.Deserialize<AnnictMediaList.AnnictUserMediaList>(await streamReader.ReadToEndAsync());
                     }
+                    result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes = result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes.Concat(paginatedResult.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes).ToList();
+                    result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo = paginatedResult.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo;
+                    if (!paginatedResult.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.HasNextPage) {
+                        break;
+                    }
+
+
+                    // sleeping thread so we dont hammer the API
+                    Thread.Sleep(1000);
                 }
 
                 return result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes;
+            }
+
+            return null;
+        }
+
+        public async Task<AnnictViewer.AnnictViewerRoot> GetCurrentUser() {
+            string query = @"query {
+          viewer {
+            username
+          }
+        }";
+
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, new Dictionary<string, object>());
+            if (response != null) {
+                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                var result = JsonSerializer.Deserialize<AnnictViewer.AnnictViewerRoot>(await streamReader.ReadToEndAsync());
+
+                if (result != null) {
+                    return result;
+                }
             }
 
             return null;
