@@ -22,12 +22,6 @@ public class AnnictSearch {
         public string MalAnimeId { get; set; }
     }
 
-    public class PageInfo
-    {
-        [JsonPropertyName("hasNextPage")]
-        public bool HasNextPage { get; set; }
-    }
-
     public class AnnictSearchMedia
     {
         [JsonPropertyName("data")]
@@ -38,9 +32,6 @@ public class AnnictSearch {
     {
         [JsonPropertyName("nodes")]
         public List<AnnictAnime> Nodes { get; set; }
-
-        [JsonPropertyName("pageInfo")]
-        public PageInfo PageInfo { get; set; }
     }
 
     public enum AnnictMediaStatus {
