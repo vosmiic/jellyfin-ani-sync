@@ -87,6 +87,7 @@ namespace jellyfin_ani_sync.Models.Mal {
 
     public class Anime {
         [JsonPropertyName("id")] public int Id { get; set; }
+        public string AlternativeId { get; set; }
         [JsonPropertyName("title")] public string Title { get; set; }
         [JsonPropertyName("main_picture")] public MainPicture MainPicture { get; set; }
 
