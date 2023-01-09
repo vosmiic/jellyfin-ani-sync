@@ -44,11 +44,9 @@ namespace jellyfin_ani_sync {
         }
 
         public async void PlaybackStopped(object sender, PlaybackStopEventArgs e) {
-            if (Plugin.Instance.PluginConfiguration.ProviderApiAuth is { Length: > 0 }) {
-                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
-                foreach (User user in e.Users) {
-                    await updateProviderStatus.Update(e.Item, user.Id, e.PlayedToCompletion);
-                }
+            UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
+            foreach (User user in e.Users) {
+                await updateProviderStatus.Update(e.Item, user.Id, e.PlayedToCompletion);
             }
         }
 
