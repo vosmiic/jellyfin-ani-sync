@@ -40,6 +40,7 @@ While I may not commit to the plugin too often, I am still maintaining it. Pleas
 1. MyAnimeList
 2. AniList
 3. (Beta) Kitsu
+4. (Limited support) Annict
 ### In-progress
 1. [Your suggestion](https://github.com/vosmiic/jellyfin-ani-sync/issues/new)
 
