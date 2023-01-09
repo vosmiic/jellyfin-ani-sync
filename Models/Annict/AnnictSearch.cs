@@ -20,6 +20,11 @@ public class AnnictSearch {
 
         [JsonPropertyName("malAnimeId")]
         public string MalAnimeId { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        [JsonPropertyName("viewerStatusState")]
+        public AnnictMediaStatus ViewerStatusState { get; set; }
+        [JsonPropertyName("episodesCount")]
+        public int NumberOfEpisodes { get; set; }
     }
 
     public class AnnictSearchMedia
