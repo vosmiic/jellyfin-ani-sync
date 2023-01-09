@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 
@@ -50,6 +51,35 @@ namespace jellyfin_ani_sync.Helpers {
             }
 
             anime.AlternativeTitles.Synonyms.AddRange(kitsuAnime.Attributes.AbbreviatedTitles);
+
+            return anime;
+        }
+
+        public static Anime ConvertAnnictAnime(AnnictSearch.AnnictAnime annictAnime) {
+            Anime anime = new Anime {
+                AlternativeId = annictAnime.Id,
+                Id = int.TryParse(annictAnime.MalAnimeId, out int id) ? id : -1,
+                Title = annictAnime.TitleEn,
+                NumEpisodes = annictAnime.NumberOfEpisodes,
+                MyListStatus = annictAnime.ViewerStatusState == AnnictSearch.AnnictMediaStatus.No_state ? null : new MyListStatus()
+            };
+            switch (annictAnime.ViewerStatusState) {
+                case AnnictSearch.AnnictMediaStatus.Watching:
+                    anime.MyListStatus.Status = Status.Watching;
+                    break;
+                case AnnictSearch.AnnictMediaStatus.Watched:
+                    anime.MyListStatus.Status = Status.Completed;
+                    break;
+                case AnnictSearch.AnnictMediaStatus.On_hold:
+                    anime.MyListStatus.Status = Status.On_hold;
+                    break;
+                case AnnictSearch.AnnictMediaStatus.Stop_watching:
+                    anime.MyListStatus.Status = Status.Dropped;
+                    break;
+                case AnnictSearch.AnnictMediaStatus.Wanna_watch:
+                    anime.MyListStatus.Status = Status.Plan_to_watch;
+                    break;
+            }
 
             return anime;
         }

@@ -11,7 +11,7 @@ export default function (view, params) {
 async function initialLoad() {
     const page = document;
     Dashboard.showLoadingMsg();
-    
+
     ApiClient.getUsers().then(function (users) {
         populateUserList(page, users);
         loadUserConfiguration(page.querySelector('#selectUser').value);
@@ -22,7 +22,7 @@ async function initialLoad() {
     loadProviderConfiguration(page);
     Dashboard.hideLoadingMsg();
 
-    
+
     page.querySelector('#selectUser')
         .addEventListener('change', function () {
             loadUserConfiguration(page.querySelector('#selectUser').value);
@@ -42,7 +42,7 @@ async function initialLoad() {
         });
 
     page.querySelector('#selectAction').addEventListener('change', function (q) {
-        actionSelectionChange(page, q)  ;
+        actionSelectionChange(page, q);
     });
 
     page.querySelector('#testAnimeListSaveLocation').onclick = runTestAnimeListSaveLocation;
@@ -120,6 +120,8 @@ async function initialLoad() {
 
     function getUser() {
         document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
+        if (document.querySelector('#selectProvider').value === "Annict")
+            saveUserConfig(false);
         fetch(ApiClient.getUrl("/AniSync/user?apiName=" + document.querySelector('#selectProvider').value +
             "&userId=" + document.querySelector('#selectUser').value), {
             method: "GET"
@@ -244,12 +246,31 @@ async function initialLoad() {
             if (config.watchedTickboxUpdatesProvider)
                 page.querySelector('#watchedTickboxUpdatesProvider').checked = config.watchedTickboxUpdatesProvider;
 
+            page.querySelector('#clientSecretLabel').style.display = "block";
+            page.querySelector('#clientSecret').style.display = "block";
+            page.querySelector('#clientSecretDescription').style.display = "block";
+            page.querySelector('#authorizeDevice').style.display = "block";
+            page.querySelector('#authorizeDeviceDescription').style.display = "block";
+            page.querySelector('#testAuthenticationDescription').innerHTML = "Once you have authenticated your user, click the below button to test the authentication:";
             if (providerName === "Kitsu") {
                 page.querySelector('#clientIdLabel').innerHTML = "Username";
+                page.querySelector('#clientIdDescription').innerHTML = "The username used to login to the provider application.";
                 page.querySelector('#clientSecretLabel').innerHTML = "Password";
+                page.querySelector('#clientSecretDescription').innerHTML = "The password used to login to the provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b>";
+            } else if (providerName === "Annict") {
+                page.querySelector('#clientIdLabel').innerHTML = "Personal Access Token";
+                page.querySelector('#clientIdDescription').innerHTML = "The personal access token from your provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b>"
+                page.querySelector('#clientSecret').style.display = "none";
+                page.querySelector('#clientSecretLabel').style.display = "none";
+                page.querySelector('#clientSecretDescription').style.display = "none";
+                page.querySelector('#authorizeDevice').style.display = "none";
+                page.querySelector('#authorizeDeviceDescription').style.display = "none";
+                page.querySelector('#testAuthenticationDescription').innerHTML = "Click the below button to test the authentication:";
             } else {
                 page.querySelector('#clientIdLabel').innerHTML = "Client ID";
+                page.querySelector('#clientIdDescription').innerHTML = "The client ID from your provider application.";
                 page.querySelector('#clientSecretLabel').innerHTML = "Client Secret";
+                page.querySelector('#clientSecretDescription').innerHTML = "The client secret from your provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b>";
             }
 
             if (config.callbackUrl)
@@ -329,6 +350,16 @@ async function initialLoad() {
             userConfig.PlanToWatchOnly = document.querySelector('#PlanToWatchOnly').checked;
             userConfig.RewatchCompleted = document.querySelector('#RewatchCompleted').checked;
 
+            if (document.querySelector('#selectProvider').value === "Annict") {
+                // just save the details directly
+                var existingConfig = userConfig.UserApiAuth.filter(i => i.Name === "Annict");
+                if (existingConfig.length > 0) {
+                    existingConfig[0].AccessToken = document.querySelector('#clientId').value.toString();
+                } else {
+                    userConfig.UserApiAuth.push({"Name": "Annict", "AccessToken": document.querySelector('#clientId').value.toString()})
+                }
+            }
+            
             if (saveTempAuth) {
                 config.currentlyAuthenticatingUser = userId;
                 config.currentlyAuthenticatingProvider = document.querySelector('#selectProvider').value;

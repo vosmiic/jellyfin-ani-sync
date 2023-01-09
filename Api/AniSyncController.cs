@@ -7,8 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Anilist;
+using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
@@ -164,6 +166,21 @@ namespace jellyfin_ani_sync.Api {
                     return new MalApiCalls.User {
                         Name = apiCall.Name
                     };
+                case ApiName.Annict:
+                    // sleep the thread for a short amount of time to let the user config save
+                    Thread.Sleep(100);
+                    AnnictApiCalls annictApiCalls;
+                    try {
+                        annictApiCalls = new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                    } catch (ArgumentNullException) {
+                        _logger.LogError("User not found");
+                        throw;
+                    }
+
+                    var annictApiCall = await annictApiCalls.GetCurrentUser();
+                    return new MalApiCalls.User {
+                        Name = annictApiCall.AnnictSearchData.Viewer.username
+                    };
             }
 
             throw new Exception("Provider not supported.");
@@ -215,7 +232,7 @@ namespace jellyfin_ani_sync.Api {
                     Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, provider, status);
                     return sync.SyncFromProvider(userId);
             }
-            
+
             return Task.CompletedTask;
         }
 
