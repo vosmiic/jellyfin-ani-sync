@@ -46,6 +46,8 @@ namespace jellyfin_ani_sync.Api.Annict {
                     id
                     titleEn
                     malAnimeId
+                    viewerStatusState
+                    episodesCount
                 }
             }
         }
@@ -75,9 +77,9 @@ namespace jellyfin_ani_sync.Api.Annict {
         /// <param name="status">Status to set the anime as.</param>
         /// <returns>True if the anime has been updated.</returns>
         public async Task<bool> UpdateAnime(string id, AnnictSearch.AnnictMediaStatus status) {
-            string query = @"mutation ($workId: String!, $state: StatusState" +
+            string query = @"mutation ($workId: ID!, $state: StatusState!" +
                            @") {
-          updateStatus (input: {workId:$workId, state:$status" +
+          updateStatus (input: {workId:$workId, state:$state}" +
                            @") {
             clientMutationId
           }
@@ -85,7 +87,7 @@ namespace jellyfin_ani_sync.Api.Annict {
 
             Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "workId", id },
-                { "status", status.ToString().ToUpper() },
+                { "state", status.ToString().ToUpper() },
             };
 
             var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
@@ -107,6 +109,7 @@ namespace jellyfin_ani_sync.Api.Annict {
                             titleEn
                             malAnimeId
                             viewerStatusState
+                            episodesCount
                         },
                     },
                     pageInfo {
@@ -152,6 +155,42 @@ namespace jellyfin_ani_sync.Api.Annict {
                 }
 
                 return result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.Nodes;
+            }
+
+            return null;
+        }
+        
+        /// <summary>
+        /// Get a singular anime.
+        /// </summary>
+        /// <param name="id">ID of the anime you want to get.</param>
+        /// <returns>The retrieved anime.</returns>
+        public async Task<AnnictSearch.AnnictAnime> GetAnime(string id) {
+            string query = @"query ($id: ID!) {
+          node(id: $id) {
+            ... on Work {
+                id
+                titleEn
+                malAnimeId
+                viewerStatusState
+                episodesCount
+            }
+          }
+        }";
+
+
+            Dictionary<string, object> variables = new Dictionary<string, object> {
+                { "id", id }
+            };
+
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            if (response != null) {
+                StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                var result = JsonSerializer.Deserialize<AnnictGetMedia.AnnictGetMediaRoot>(await streamReader.ReadToEndAsync());
+
+                if (result != null) {
+                    return result.AnnictGetMediaData.Node;
+                }
             }
 
             return null;
