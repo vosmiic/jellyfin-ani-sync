@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
+using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 
@@ -14,6 +16,7 @@ namespace jellyfin_ani_sync.Helpers {
         private MalApiCalls _malApiCalls;
         private AniListApiCalls _aniListApiCalls;
         private KitsuApiCalls _kitsuApiCalls;
+        private AnnictApiCalls _annictApiCalls;
 
         /// <summary>
         /// This class attempts to combine the different APIs into a single form.
@@ -21,9 +24,12 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="malApiCalls"></param>
         /// <param name="aniListApiCalls"></param>
         /// <param name="kitsuApiCalls"></param>
+        /// <param name="annictApiCalls"></param>
         public ApiCallHelpers(MalApiCalls malApiCalls = null,
             AniListApiCalls aniListApiCalls = null,
-            KitsuApiCalls kitsuApiCalls = null) {
+            KitsuApiCalls kitsuApiCalls = null,
+            AnnictApiCalls annictApiCalls = null) {
+            _annictApiCalls = annictApiCalls;
             _malApiCalls = malApiCalls;
             _aniListApiCalls = aniListApiCalls;
             _kitsuApiCalls = kitsuApiCalls;
@@ -88,10 +94,22 @@ namespace jellyfin_ani_sync.Helpers {
                 return convertedList;
             }
 
+            if (_annictApiCalls != null) {
+                List<AnnictSearch.AnnictAnime> animeList = await _annictApiCalls.SearchAnime(query);
+                List<Anime> convertedList = new List<Anime>();
+                if (animeList != null) {
+                    foreach (AnnictSearch.AnnictAnime annictAnime in animeList) {
+                        convertedList.Add(ClassConversions.ConvertAnnictAnime(annictAnime));
+                    }
+                }
+
+                return convertedList;
+            }
+
             return null;
         }
 
-        public async Task<Anime> GetAnime(int id) {
+        public async Task<Anime> GetAnime(int id, string? alternativeId = null) {
             if (_malApiCalls != null) {
                 return await _malApiCalls.GetAnime(id, new[] { "title", "related_anime", "my_list_status", "num_episodes" });
             }
@@ -219,11 +237,17 @@ namespace jellyfin_ani_sync.Helpers {
                 return convertedAnime;
             }
 
+            if (_annictApiCalls != null && alternativeId != null) {
+                var anime = await _annictApiCalls.GetAnime(alternativeId);
+                if (anime == null) return null;
+                return ClassConversions.ConvertAnnictAnime(anime);
+            }
+
             return null;
         }
 
         public async Task<UpdateAnimeStatusResponse> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status,
-            bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
+            bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null) {
             if (_malApiCalls != null) {
                 return await _malApiCalls.UpdateAnimeStatus(animeId, numberOfWatchedEpisodes, status, isRewatching, numberOfTimesRewatched, startDate, endDate);
             }
@@ -286,6 +310,35 @@ namespace jellyfin_ani_sync.Helpers {
                 }
             }
 
+            if (_annictApiCalls != null) {
+                AnnictSearch.AnnictMediaStatus annictMediaStatus;
+
+                switch (status) {
+                    case Status.Watching:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watching;
+                        break;
+                    case Status.Completed:
+                    case Status.Rewatching:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watched;
+                        break;
+                    case Status.On_hold:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.On_hold;
+                        break;
+                    case Status.Dropped:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Stop_watching;
+                        break;
+                    case Status.Plan_to_watch:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Wanna_watch;
+                        break;
+                    default:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.No_state;
+                        break;
+                }
+
+                if (await _annictApiCalls.UpdateAnime(alternativeId, annictMediaStatus))
+                    return new UpdateAnimeStatusResponse();
+            }
+
             return null;
         }
 
@@ -293,7 +346,7 @@ namespace jellyfin_ani_sync.Helpers {
             if (_malApiCalls != null) {
                 return await _malApiCalls.GetUserInformation();
             }
-            
+
             if (_aniListApiCalls != null) {
                 AniListViewer.Viewer user = await _aniListApiCalls.GetCurrentUser();
                 return ClassConversions.ConvertUser(user.Id, user.Name);
@@ -304,6 +357,14 @@ namespace jellyfin_ani_sync.Helpers {
                 if (user != null)
                     return new MalApiCalls.User {
                         Id = user.Value
+                    };
+            }
+
+            if (_annictApiCalls != null) {
+                AnnictViewer.AnnictViewerRoot user = await _annictApiCalls.GetCurrentUser();
+                if (user != null)
+                    return new MalApiCalls.User {
+                        Name = user.AnnictSearchData.Viewer.username
                     };
             }
 
@@ -371,7 +432,7 @@ namespace jellyfin_ani_sync.Helpers {
                 KitsuUpdate.Status kitsuStatus;
                 switch (status) {
                     case Status.Watching:
-                        case Status.Rewatching:
+                    case Status.Rewatching:
                         kitsuStatus = KitsuUpdate.Status.current;
                         break;
                     case Status.Completed:
@@ -390,6 +451,7 @@ namespace jellyfin_ani_sync.Helpers {
                         kitsuStatus = KitsuUpdate.Status.current;
                         break;
                 }
+
                 KitsuUpdate.KitsuLibraryEntryListRoot animeList = await _kitsuApiCalls.GetUserAnimeList(userId.Value, status: kitsuStatus);
                 if (animeList != null) {
                     List<Anime> convertedList = new List<Anime>();
@@ -408,8 +470,43 @@ namespace jellyfin_ani_sync.Helpers {
                                 toAddAnime.MyListStatus.NumEpisodesWatched = kitsuLibraryEntry.Attributes.Progress.Value;
                             }
                         }
-                        
+
                         convertedList.Add(toAddAnime);
+                    }
+
+                    return convertedList;
+                }
+            }
+
+            if (_annictApiCalls != null) {
+                AnnictSearch.AnnictMediaStatus annictMediaStatus;
+                switch (status) {
+                    case Status.Watching:
+                    case Status.Rewatching:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watching;
+                        break;
+                    case Status.Completed:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watched;
+                        break;
+                    case Status.On_hold:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.On_hold;
+                        break;
+                    case Status.Dropped:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Stop_watching;
+                        break;
+                    case Status.Plan_to_watch:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.Wanna_watch;
+                        break;
+                    default:
+                        annictMediaStatus = AnnictSearch.AnnictMediaStatus.No_state;
+                        break;
+                }
+
+                List<AnnictSearch.AnnictAnime> animeList = await _annictApiCalls.GetAnimeList(annictMediaStatus);
+                if (animeList != null) {
+                    List<Anime> convertedList = new List<Anime>();
+                    foreach (AnnictSearch.AnnictAnime annictAnime in animeList) {
+                        convertedList.Add(ClassConversions.ConvertAnnictAnime(annictAnime));
                     }
 
                     return convertedList;
