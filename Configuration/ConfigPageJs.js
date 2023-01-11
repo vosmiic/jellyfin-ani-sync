@@ -352,6 +352,8 @@ async function initialLoad() {
 
             if (document.querySelector('#selectProvider').value === "Annict") {
                 // just save the details directly
+                if (!userConfig.UserApiAuth)
+                    userConfig.UserApiAuth = [];
                 var existingConfig = userConfig.UserApiAuth.filter(i => i.Name === "Annict");
                 if (existingConfig.length > 0) {
                     existingConfig[0].AccessToken = document.querySelector('#clientId').value.toString();
