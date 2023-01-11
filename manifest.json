@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "7eddbd26312c0461b9167c0520b4c7e1",
+        "changelog": "1. Fixed issue where the user could not save their Annict details if it was the only authenticated API",
+        "targetAbi": "10.8.8.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.7.1/10.8.8.-.ani-sync_2.7.1.0.zip",
+        "timestamp": "2023-01-11 00:00:00",
+        "version": "2.7.1.0"
+      },
+      {
         "checksum": "4800da9b2300036e7e5f7c79debc8b33",
         "changelog": "1. Added Annict support",
         "targetAbi": "10.8.8.0",
