@@ -66,7 +66,7 @@ async function initialLoad() {
     }
 
     async function run() {
-        await fetch(ApiClient.getUrl("/AniSync/sync?provider=" + document.querySelector('#selectSyncProvider').value + "&userId=" + document.querySelector('#selectSyncUser').value + "&status=" + document.querySelector('#status').value + "&syncAction=" + document.querySelector('#selectAction').value), {
+        await fetch(ApiClient.getUrl("/AniSync/sync?provider=" + document.querySelector('#selectSyncProvider').value + "&userId=" + encodeURIComponent(document.querySelector('#selectSyncUser').value) + "&status=" + encodeURIComponent(document.querySelector('#status').value) + "&syncAction=" + encodeURIComponent(document.querySelector('#selectAction').value)), {
             method: "POST"
         });
     }
@@ -74,7 +74,7 @@ async function initialLoad() {
     function runTestAnimeListSaveLocation() {
         document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
 
-        fetch(ApiClient.getUrl("/AniSync/testAnimeListSaveLocation?saveLocation=" + document.querySelector('#animeListSaveLocation').value), {
+        fetch(ApiClient.getUrl("/AniSync/testAnimeListSaveLocation?saveLocation=" + encodeURIComponent(document.querySelector('#animeListSaveLocation').value)), {
             method: "GET"
         }).then((response) => response.json())
             .then((result) => {
@@ -101,15 +101,15 @@ async function initialLoad() {
         // users are unlikely to save after setting client id and secret, so we do it for them
         saveUserConfig(true);
         if (document.querySelector('#selectProvider').value === "Kitsu") {
-            fetch(ApiClient.getUrl("/AniSync/passwordGrant?provider=Kitsu&userId=" + document.querySelector('#selectUser').value +
-                "&username=" + document.querySelector('#clientId').value +
-                "&password=" + document.querySelector('#clientSecret').value), {
+            fetch(ApiClient.getUrl("/AniSync/passwordGrant?provider=Kitsu&userId=" + encodeURIComponent(document.querySelector('#selectUser').value) +
+                "&username=" + encodeURIComponent(document.querySelector('#clientId').value) +
+                "&password=" + encodeURIComponent(document.querySelector('#clientSecret').value)), {
                 method: "GET"
             })
         } else {
-            fetch(ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + document.querySelector('#clientId').value +
-                "&clientSecret=" + document.querySelector('#clientSecret').value +
-                "&url=" + (document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")), {
+            fetch(ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + encodeURIComponent(document.querySelector('#clientId').value) +
+                "&clientSecret=" + encodeURIComponent(document.querySelector('#clientSecret').value) +
+                "&url=" + encodeURIComponent((document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local"))), {
                 method: "GET"
             })
                 .then((response) => response.json())
@@ -123,7 +123,7 @@ async function initialLoad() {
         if (document.querySelector('#selectProvider').value === "Annict")
             saveUserConfig(false);
         fetch(ApiClient.getUrl("/AniSync/user?apiName=" + document.querySelector('#selectProvider').value +
-            "&userId=" + document.querySelector('#selectUser').value), {
+            "&userId=" + encodeURIComponent(document.querySelector('#selectUser').value)), {
             method: "GET"
         })
             .then(function (response) {
