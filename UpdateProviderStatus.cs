@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -34,7 +35,7 @@ namespace jellyfin_ani_sync {
         private readonly ILogger<UpdateProviderStatus> _logger;
 
         private ApiCallHelpers _apiCallHelpers;
-        private UserConfig _userConfig;
+        private UserConfig? _userConfig;
         private Type _animeType;
         private readonly ILibraryManager _libraryManager;
         private readonly IFileSystem _fileSystem;
@@ -71,7 +72,7 @@ namespace jellyfin_ani_sync {
                 video.IndexNumber = 1;
             }
 
-            _userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == userId);
+            _userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == userId);
             if (_userConfig == null) {
                 _logger.LogWarning($"The user {userId} does not exist in the plugins config file. Skipping");
                 return;
