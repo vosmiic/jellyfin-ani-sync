@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "401754db28e8e563ec28ed511062e5cd",
+        "changelog": "1. Fixed issue where special characters in provider auth password caused bad request. 2. Fixed issue where hitting into fatal addon issue caused the entire Jellyfin app to crash.",
+        "targetAbi": "10.8.9.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.8/10.8.9.-.ani-sync_2.8.0.0.zip",
+        "timestamp": "2023-04-10 00:00:00",
+        "version": "2.8.0.0"
+      },
+      {
         "checksum": "7eddbd26312c0461b9167c0520b4c7e1",
         "changelog": "1. Fixed issue where the user could not save their Annict details if it was the only authenticated API",
         "targetAbi": "10.8.8.0",
