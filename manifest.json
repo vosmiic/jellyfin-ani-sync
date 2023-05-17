@@ -8,6 +8,13 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "e3ab7660a6f9a4c1bf283a0812cdbe19",
+        "changelog": "1. Fixed issue where completing a rewatch did not correctly update the MAL rewatch status.",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.9/10.8.10.-.ani-sync_2.9.0.0.zip",
+        "timestamp": "2023-05-17 00:00:00",
+        "version": "2.9.0.0"
+      },
+      {
         "checksum": "401754db28e8e563ec28ed511062e5cd",
         "changelog": "1. Fixed issue where special characters in provider auth password caused bad request. 2. Fixed issue where hitting into fatal addon issue caused the entire Jellyfin app to crash.",
         "targetAbi": "10.8.9.0",
