@@ -210,6 +210,8 @@ namespace jellyfin_ani_sync.Api {
 
             if (isRewatching != null && isRewatching.Value) {
                 body.Add(new KeyValuePair<string, string>("is_rewatching", true.ToString()));
+            } else {
+                body.Add(new KeyValuePair<string, string>("is_rewatching", false.ToString().ToLower()));
             }
 
             if (numberOfTimesRewatched != null) {
