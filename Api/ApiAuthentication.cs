@@ -50,21 +50,13 @@ namespace jellyfin_ani_sync.Api {
                 _redirectUrl = overrideRedirectUrl + "/AniSync/authCallback";
             } else {
                 if (overrideRedirectUrl is "local") {
-#if NET5_0
                     _redirectUrl = serverApplicationHost.ListenWithHttps ? $"https://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpsPort}/AniSync/authCallback" : $"http://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpPort}/AniSync/authCallback";
-#elif NET6_0
-                    _redirectUrl = serverApplicationHost.GetApiUrlForLocalAccess() + "/AniSync/authCallback";
-#endif
                 } else {
-#if NET5_0
                     if (userCallbackUrl != null) {
                         _redirectUrl = userCallbackUrl + "/AniSync/authCallback";
                     } else {
                         _redirectUrl = serverApplicationHost.ListenWithHttps ? $"https://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpsPort}/AniSync/authCallback" : $"http://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpPort}/AniSync/authCallback";
                     }
-#elif NET6_0
-                    _redirectUrl = userCallbackUrl != null ? userCallbackUrl + "/AniSync/authCallback" : serverApplicationHost.GetApiUrlForLocalAccess() + "/AniSync/authCallback";
-#endif
                 }
             }
         }

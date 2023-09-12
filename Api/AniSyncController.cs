@@ -205,7 +205,7 @@ namespace jellyfin_ani_sync.Api {
 #if NET5_0
             toReturn.localApiUrl = _serverApplicationHost.ListenWithHttps ? $"https://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpsPort}" : $"http://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpPort}";
 #elif NET6_0
-            toReturn.localApiUrl = _serverApplicationHost.GetApiUrlForLocalAccess();
+            toReturn.localApiUrl = _serverApplicationHost.ListenWithHttps ? $"https://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpsPort}" : $"http://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpPort}";
 #endif
             return toReturn;
         }
