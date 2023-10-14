@@ -1,11 +1,11 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Entities;
@@ -53,26 +53,29 @@ namespace jellyfin_ani_sync {
             return Task.CompletedTask;
         }
 
-        private void UserDataManagerOnUserDataSaved(object sender, UserDataSaveEventArgs e) {
+        private async void UserDataManagerOnUserDataSaved(object sender, UserDataSaveEventArgs e) {
             if (e.SaveReason == UserDataSaveReason.TogglePlayed && Plugin.Instance.PluginConfiguration.watchedTickboxUpdatesProvider) {
                 if (!e.UserData.Played || e.Item is not Video) return;
-                var _ = UpdateJob(e);
+                await UpdateJob(e);
             }
         }
 
         private async Task UpdateJob(UserDataSaveEventArgs e) {
-            if (_memoryCache.TryGetValue("lastQuery", out DateTime lastQuery)) {
-                if ((DateTime.UtcNow - lastQuery).TotalSeconds <= 5) {
-                    Thread.Sleep(5000);
-                    _logger.LogInformation("Too many requests! Waiting 5 seconds...");
+            var aniSyncConfigUser = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == e.UserId);
+            if (aniSyncConfigUser != null && UpdateProviderStatus.LibraryCheck(aniSyncConfigUser, _libraryManager, _fileSystem, _logger, e.Item)) {
+                if (_memoryCache.TryGetValue("lastQuery", out DateTime lastQuery)) {
+                    if ((DateTime.UtcNow - lastQuery).TotalSeconds <= 5) {
+                        Thread.Sleep(5000);
+                        _logger.LogInformation("Too many requests! Waiting 5 seconds...");
+                    }
                 }
+                
+                _memoryCache.Set("lastQuery", DateTime.UtcNow, new MemoryCacheEntryOptions {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
+                });
+                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
+                await updateProviderStatus.Update(e.Item, e.UserId, true);
             }
-
-            _memoryCache.Set("lastQuery", DateTime.UtcNow, new MemoryCacheEntryOptions {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
-            });
-            UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
-            await updateProviderStatus.Update(e.Item, e.UserId, true);
         }
 
         public void Dispose() {
