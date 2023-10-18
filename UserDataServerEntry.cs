@@ -19,13 +19,14 @@ namespace jellyfin_ani_sync {
         private readonly IUserDataManager _userDataManager;
         private readonly IFileSystem _fileSystem;
         private readonly ILibraryManager _libraryManager;
-        private readonly ILoggerFactory _loggerFactory;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMemoryCache _memoryCache;
         private readonly IApplicationPaths _applicationPaths;
         private readonly ILogger<UpdateProviderStatus> _logger;
+        private readonly TaskProcessMarkedMedia _taskProcessMarkedMedia;
+        private Task _updateTask;
 
         public UserDataServerEntry(IUserDataManager userDataManager,
             IFileSystem fileSystem,
@@ -39,13 +40,13 @@ namespace jellyfin_ani_sync {
             _userDataManager = userDataManager;
             _fileSystem = fileSystem;
             _libraryManager = libraryManager;
-            _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<UpdateProviderStatus>();
             _httpContextAccessor = httpContextAccessor;
             _serverApplicationHost = serverApplicationHost;
             _httpClientFactory = httpClientFactory;
             _memoryCache = memoryCache;
             _applicationPaths = applicationPaths;
+            _taskProcessMarkedMedia = new TaskProcessMarkedMedia(loggerFactory, _libraryManager, _fileSystem, _memoryCache, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
         }
 
         public Task RunAsync() {
@@ -53,28 +54,14 @@ namespace jellyfin_ani_sync {
             return Task.CompletedTask;
         }
 
-        private async void UserDataManagerOnUserDataSaved(object sender, UserDataSaveEventArgs e) {
+        private void UserDataManagerOnUserDataSaved(object sender, UserDataSaveEventArgs e) {
             if (e.SaveReason == UserDataSaveReason.TogglePlayed && Plugin.Instance.PluginConfiguration.watchedTickboxUpdatesProvider) {
                 if (!e.UserData.Played || e.Item is not Video) return;
-                await UpdateJob(e);
-            }
-        }
-
-        private async Task UpdateJob(UserDataSaveEventArgs e) {
-            var aniSyncConfigUser = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == e.UserId);
-            if (aniSyncConfigUser != null && UpdateProviderStatus.LibraryCheck(aniSyncConfigUser, _libraryManager, _fileSystem, _logger, e.Item)) {
-                if (_memoryCache.TryGetValue("lastQuery", out DateTime lastQuery)) {
-                    if ((DateTime.UtcNow - lastQuery).TotalSeconds <= 5) {
-                        Thread.Sleep(5000);
-                        _logger.LogInformation("Too many requests! Waiting 5 seconds...");
-                    }
+                // asynchronous call so it doesn't prevent the UI marking the media as watched
+                _taskProcessMarkedMedia.itemsToUpdate.Add((e.UserId, e.Item));
+                if (_updateTask == null || _updateTask.IsCompleted) {
+                    _updateTask = _taskProcessMarkedMedia.RunUpdate();
                 }
-                
-                _memoryCache.Set("lastQuery", DateTime.UtcNow, new MemoryCacheEntryOptions {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
-                });
-                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
-                await updateProviderStatus.Update(e.Item, e.UserId, true);
             }
         }
 
