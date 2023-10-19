@@ -58,7 +58,7 @@ namespace jellyfin_ani_sync {
                 if (!e.UserData.Played || e.Item is not Video) return;
                 // asynchronous call so it doesn't prevent the UI marking the media as watched
                 Episode? episode = e.Item as Episode;
-                _taskProcessMarkedMedia.itemsToUpdate.Add((e.UserId, episode?.Season.Id, e.Item as Video));
+                _taskProcessMarkedMedia.AddToUpdateList((e.UserId, episode?.Season.Id, e.Item as Video));
                 if (_updateTask == null || _updateTask.IsCompleted) {
                     _updateTask = _taskProcessMarkedMedia.RunUpdate();
                 }

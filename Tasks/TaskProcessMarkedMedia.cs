@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync;
 
 public class TaskProcessMarkedMedia {
-    public List<(Guid userId, Guid? seasonId, Video baseItem)> itemsToUpdate { get; set; } = new ();
+    private List<(Guid userId, Guid? seasonId, Video baseItem)> itemsToUpdate { get; set; } = new ();
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<TaskProcessMarkedMedia> _logger;
     private readonly ILibraryManager _libraryManager;
@@ -39,6 +39,18 @@ public class TaskProcessMarkedMedia {
         _logger = loggerFactory.CreateLogger<TaskProcessMarkedMedia>();
     }
 
+    public void AddToUpdateList((Guid userId, Guid? seasonId, Video baseItem) itemToAdd) {
+        lock (itemsToUpdate) {
+            itemsToUpdate.Add(itemToAdd);
+        }
+    }
+
+    private void RemoveFromUpdateList((Guid userId, Guid? seasonId, Video baseItem) itemToRemove) {
+        lock (itemsToUpdate) {
+            itemsToUpdate.Remove(itemToRemove);
+        }
+    }
+
     public async Task RunUpdate() {
         // wait a second to let the list populate itself if a mass update is occuring
         await Task.Delay(1000);
@@ -46,7 +58,7 @@ public class TaskProcessMarkedMedia {
         while (itemsToUpdate.Any()) {
             var item = itemsToUpdate.FirstOrDefault();
             if (item.Equals(default)) {
-                itemsToUpdate.Remove(item);
+                RemoveFromUpdateList(item);
                 continue;
             };
             
@@ -72,10 +84,10 @@ public class TaskProcessMarkedMedia {
 
             if (pairedItems.Count() > 1) {
                 foreach ((Guid userId, Guid? seasonId, Video baseItem) pairedItem in pairedItems) {
-                    itemsToUpdate.Remove(pairedItem);
+                    RemoveFromUpdateList(pairedItem);
                 }
             } else {
-                itemsToUpdate.Remove(item);
+                RemoveFromUpdateList(item);
             }
         }
     }
