@@ -1,11 +1,11 @@
+#nullable enable
 using System;
-using System.Linq;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Entities;
@@ -24,7 +24,6 @@ namespace jellyfin_ani_sync {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMemoryCache _memoryCache;
         private readonly IApplicationPaths _applicationPaths;
-        private readonly ILogger<UpdateProviderStatus> _logger;
         private readonly TaskProcessMarkedMedia _taskProcessMarkedMedia;
         private Task _updateTask;
 
@@ -40,7 +39,7 @@ namespace jellyfin_ani_sync {
             _userDataManager = userDataManager;
             _fileSystem = fileSystem;
             _libraryManager = libraryManager;
-            _logger = loggerFactory.CreateLogger<UpdateProviderStatus>();
+            loggerFactory.CreateLogger<UpdateProviderStatus>();
             _httpContextAccessor = httpContextAccessor;
             _serverApplicationHost = serverApplicationHost;
             _httpClientFactory = httpClientFactory;
@@ -55,10 +54,11 @@ namespace jellyfin_ani_sync {
         }
 
         private void UserDataManagerOnUserDataSaved(object sender, UserDataSaveEventArgs e) {
-            if (e.SaveReason == UserDataSaveReason.TogglePlayed && Plugin.Instance.PluginConfiguration.watchedTickboxUpdatesProvider) {
+            if (e.SaveReason == UserDataSaveReason.TogglePlayed && Plugin.Instance?.PluginConfiguration.watchedTickboxUpdatesProvider == true) {
                 if (!e.UserData.Played || e.Item is not Video) return;
                 // asynchronous call so it doesn't prevent the UI marking the media as watched
-                _taskProcessMarkedMedia.itemsToUpdate.Add((e.UserId, e.Item));
+                Episode? episode = e.Item as Episode;
+                _taskProcessMarkedMedia.itemsToUpdate.Add((e.UserId, episode?.Season.Id, e.Item as Video));
                 if (_updateTask == null || _updateTask.IsCompleted) {
                     _updateTask = _taskProcessMarkedMedia.RunUpdate();
                 }

@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync;
 
 public class TaskProcessMarkedMedia {
-    public List<(Guid userId, BaseItem baseItem)> itemsToUpdate { get; set; } = new ();
+    public List<(Guid userId, Guid? seasonId, Video baseItem)> itemsToUpdate { get; set; } = new ();
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<TaskProcessMarkedMedia> _logger;
     private readonly ILibraryManager _libraryManager;
@@ -40,9 +40,18 @@ public class TaskProcessMarkedMedia {
     }
 
     public async Task RunUpdate() {
+        // wait a second to let the list populate itself if a mass update is occuring
+        await Task.Delay(1000);
+        
         while (itemsToUpdate.Any()) {
             var item = itemsToUpdate.FirstOrDefault();
+            if (item.Equals(default)) {
+                itemsToUpdate.Remove(item);
+                continue;
+            };
+            
             var aniSyncConfigUser = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(uc => uc.UserId == item.userId);
+            List<(Guid userId, Guid? seasonId, Video baseItem)> pairedItems = new List<(Guid userId, Guid? seasonId, Video baseItem)>();
             if (aniSyncConfigUser != null && UpdateProviderStatus.LibraryCheck(aniSyncConfigUser, _libraryManager, _fileSystem, _logger, item.baseItem)) {
                 if (_memoryCache.TryGetValue("lastQuery", out DateTime lastQuery)) {
                     if ((DateTime.UtcNow - lastQuery).TotalSeconds <= 5) {
@@ -54,11 +63,20 @@ public class TaskProcessMarkedMedia {
                 _memoryCache.Set("lastQuery", DateTime.UtcNow, new MemoryCacheEntryOptions {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
                 });
+                
                 UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
+                pairedItems = itemsToUpdate.Where(items => items.seasonId == item.seasonId && items.userId == item.userId).ToList();
+                item = pairedItems.MaxBy(item => item.baseItem.IndexNumber);
                 await updateProviderStatus.Update(item.baseItem, item.userId, true);
             }
 
-            itemsToUpdate.Remove(item);
+            if (pairedItems.Count() > 1) {
+                foreach ((Guid userId, Guid? seasonId, Video baseItem) pairedItem in pairedItems) {
+                    itemsToUpdate.Remove(pairedItem);
+                }
+            } else {
+                itemsToUpdate.Remove(item);
+            }
         }
     }
 }
