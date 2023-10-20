@@ -83,7 +83,7 @@ namespace jellyfin_ani_sync {
                 return;
             }
 
-            if (LibraryCheck(e) && video is Episode or Movie && playedToCompletion) {
+            if (LibraryCheck(_userConfig, _libraryManager, _fileSystem, _logger, e) && video is Episode or Movie && playedToCompletion) {
                 if ((video is Episode && (episode.IndexNumber == null ||
                                           episode.Season.IndexNumber == null)) ||
                     (video is Movie && movie.IndexNumber == null)) {
@@ -339,14 +339,23 @@ namespace jellyfin_ani_sync {
             return StringFormatter.RemoveSpecialCharacters(first).Contains(StringFormatter.RemoveSpecialCharacters(second), StringComparison.OrdinalIgnoreCase);
         }
 
-        private bool LibraryCheck(BaseItem item) {
+        /// <summary>
+        /// Checks if the supplied item is in a folder the user wants to track for anime updates.
+        /// </summary>
+        /// <param name="userConfig">User config.</param>
+        /// <param name="libraryManager">Library manager instance.</param>
+        /// <param name="fileSystem">File system instance.</param>
+        /// <param name="logger">Logger instance.</param>
+        /// <param name="item">Item to check location of.</param>
+        /// <returns></returns>
+        public static bool LibraryCheck(UserConfig userConfig, ILibraryManager libraryManager, IFileSystem fileSystem, ILogger logger, BaseItem item) {
             try {
-                if (_userConfig.LibraryToCheck is { Length: > 0 }) {
-                    var folders = _libraryManager.GetVirtualFolders().Where(item => _userConfig.LibraryToCheck.Contains(item.ItemId));
+                if (userConfig.LibraryToCheck is { Length: > 0 }) {
+                    var folders = libraryManager.GetVirtualFolders().Where(item => userConfig.LibraryToCheck.Contains(item.ItemId));
 
                     foreach (var folder in folders) {
                         foreach (var location in folder.Locations) {
-                            if (item.Path != null && _fileSystem.ContainsSubPath(location, item.Path)) {
+                            if (item.Path != null && fileSystem.ContainsSubPath(location, item.Path)) {
                                 // item is in a path of a folder the user wants to be monitored
                                 return true;
                             }
@@ -357,10 +366,10 @@ namespace jellyfin_ani_sync {
                     return true;
                 }
 
-                _logger.LogInformation("Item is in a folder the user does not want to be monitored; ignoring");
+                logger.LogInformation("Item is in a folder the user does not want to be monitored; ignoring");
                 return false;
             } catch (Exception e) {
-                _logger.LogInformation($"Library check ran into an issue: {e.Message}");
+                logger.LogInformation($"Library check ran into an issue: {e.Message}");
                 return false;
             }
         }
