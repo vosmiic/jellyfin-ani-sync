@@ -25,7 +25,7 @@ namespace jellyfin_ani_sync {
         private readonly IMemoryCache _memoryCache;
         private readonly IApplicationPaths _applicationPaths;
         private readonly TaskProcessMarkedMedia _taskProcessMarkedMedia;
-        private Task _updateTask;
+        private Task? _updateTask;
 
         public UserDataServerEntry(IUserDataManager userDataManager,
             IFileSystem fileSystem,
