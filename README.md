@@ -2,9 +2,9 @@
 
 ## About
 
-Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular services (currently MyAnimeList and AniList are supported, please [create an issue](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) if you have a different provider you would like to be supported).
+Ani-Sync lets you synchorinze your Jellyfin Anime watch progress to popular services. Please [create a discussion](https://github.com/vosmiic/jellyfin-ani-sync/discussions/new/choose) for new feature ideas.
 
-While I may not commit to the plugin too often, I am still maintaining it. Please do not presume the project is dead, and if you still have any ideas for the plugin or find an errors please do let me know.
+While I may not commit to the plugin too often, I am still maintaining it. Please do not presume the project is dead, and if you still have any ideas for the plugin or find an errors please do let me know by [creating a discussion](https://github.com/vosmiic/jellyfin-ani-sync/discussions/new/choose).
 
 ## Installation
 
@@ -52,14 +52,5 @@ We use the API offered by the [arm server repo](https://github.com/BeeeQueue/arm
 
 Please also help these projects by contributing to the anime database/helping with the API server.
 
-## In progress
-
-The current list of unsupported features (that are being worked on):
-1. Other providers/services. Any suggestions as to which providers the plugin should be extended to support is appreciated (click [here](https://github.com/vosmiic/jellyfin-ani-sync/issues/new) to request a new provider). 
-
-## Known issues
-~~1. Anime with names longer than 60 characters seem to cause the plugin to crash. This is a high priority issue being actively worked on and will be out in the next update.~~ Fixed in build 1.1
-
-~~2. OVA's can throw an error that crashes Jellyfin entirely if the show is not found. A fix will be out on the next release.~~ Fixed
 ## Development
 Unit tests can be found [here](https://github.com/vosmiic/jellyfin-ani-sync-unit-tests).
