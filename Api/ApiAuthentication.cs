@@ -34,6 +34,9 @@ namespace jellyfin_ani_sync.Api {
                 case ApiName.Kitsu:
                     _authApiUrl = "https://kitsu.io/api/oauth";
                     break;
+                case ApiName.Shikimori:
+                    _authApiUrl = "https://shikimori.one/oauth";
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(provider), provider, null);
             }
@@ -66,6 +69,7 @@ namespace jellyfin_ani_sync.Api {
                 case ApiName.Mal:
                     return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&code_challenge={_codeChallenge}&redirect_uri={_redirectUrl}";
                 case ApiName.AniList:
+                case ApiName.Shikimori:
                     return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&redirect_uri={_redirectUrl}";
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -139,13 +143,13 @@ namespace jellyfin_ani_sync.Api {
                         AccessToken = tokenResponse.access_token
                     };
 
-                    if (_provider == ApiName.Mal || _provider == ApiName.Kitsu) {
+                    if (_provider is ApiName.Mal or ApiName.Kitsu or ApiName.Shikimori) {
                         newUserApiAuth.RefreshToken = tokenResponse.refresh_token;
                     }
 
                     if (apiAuth != null) {
                         apiAuth.AccessToken = tokenResponse.access_token;
-                        if (_provider == ApiName.Mal || _provider == ApiName.Kitsu) {
+                        if (_provider is ApiName.Mal or ApiName.Kitsu or ApiName.Shikimori) {
                             apiAuth.RefreshToken = tokenResponse.refresh_token;
                         }
                     } else {
