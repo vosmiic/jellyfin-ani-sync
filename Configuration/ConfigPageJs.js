@@ -143,8 +143,9 @@ async function initialLoad() {
             if (response.ok) {
                 return response.json()
                     .then(function (json) {
-                        setLocalApiUrl(page, json.localApiUrl);
+                        setLocalApiUrl(page, json.https, json.localIpAddress, json.localPort);
                         setProviderSelection(page, json.providerList);
+                        setCallbackRedirectUrlInputDescription(json.localIpAddress, json.localPort)
                     });
             } else {
                 page.querySelector('#localApiUrl').innerHTML = "Could not fetch local URL.";
@@ -152,7 +153,8 @@ async function initialLoad() {
         });
     }
 
-    function setLocalApiUrl(page, localApiUrl) {
+    function setLocalApiUrl(page, https, localIpAddress, localPort) {
+        var localApiUrl = (https ? "https://" : "http://") + localIpAddress + ":" + localPort;
         PluginConfig.localApiUrl = localApiUrl;
         page.querySelector('#localApiUrl').innerHTML = "Local (server) URL: <b>" + localApiUrl + "</b>";
     }
@@ -164,6 +166,10 @@ async function initialLoad() {
         }
         page.querySelector('#selectProvider').innerHTML = html;
         page.querySelector('#selectSyncProvider').innerHTML = html;
+    }
+    
+    function setCallbackRedirectUrlInputDescription(localIpAddress, localPort) {
+        page.querySelector("#callbackRedirectUrlDescription").innerHTML = "Redirect the user to this URL on successful authentication.<br></br>Variables: \"{{LocalIpAddress}}\" will be converted to the detected local IP address (" + localIpAddress + "), \"{{LocalPort}}\" will be converted to the detected Jellyfin port (" + localPort + ")."
     }
 
     function setUserAddress(page) {
@@ -245,6 +251,8 @@ async function initialLoad() {
                 page.querySelector('#animeListSaveLocation').value = config.animeListSaveLocation;
             if (config.watchedTickboxUpdatesProvider)
                 page.querySelector('#watchedTickboxUpdatesProvider').checked = config.watchedTickboxUpdatesProvider;
+            if (config.callbackRedirectUrl)
+                page.querySelector('#callbackRedirectUrlInput').value = config.callbackRedirectUrl;
 
             page.querySelector('#clientSecretLabel').style.display = "block";
             page.querySelector('#clientSecret').style.display = "block";
@@ -342,6 +350,7 @@ async function initialLoad() {
             setProviderApiAuthConfig(config);
             config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
+            config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
 
             userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                 return element.getAttribute('id');

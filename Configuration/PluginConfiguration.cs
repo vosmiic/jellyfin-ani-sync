@@ -26,6 +26,11 @@ namespace jellyfin_ani_sync.Configuration {
         /// Overriden callback URL set if the user is using Jellyfin over the internet. Generally should not be set if the user is on LAN.
         /// </summary>
         public string callbackUrl { get; set; }
+        
+        /// <summary>
+        /// The URL to redirect the user to on successful authentication.
+        /// </summary>
+        public string callbackRedirectUrl { get; set; }
 
         /// <summary>
         /// ID of the user that is currently authenticating. Used during the API provider callback.

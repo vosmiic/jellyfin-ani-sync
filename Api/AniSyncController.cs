@@ -113,15 +113,28 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("authCallback")]
-        public void MalCallback(string code) {
+        public IActionResult MalCallback(string code) {
             Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
             ApiName provider = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingProvider;
             if (userId != null && provider != null) {
                 new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(userId, code);
                 Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser = Guid.Empty;
                 Plugin.Instance.SaveConfiguration();
+                if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
+                    string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
+                        .Replace("{{LocalPort}}", _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort.ToString() : _serverApplicationHost.HttpPort.ToString());
+
+                    if (Uri.TryCreate(replacedCallbackRedirectUrl, UriKind.Absolute, out _)) {
+                        return Redirect(replacedCallbackRedirectUrl);
+                    } else {
+                        _logger.LogWarning($"Invalid redirect URL ({replacedCallbackRedirectUrl}), skipping redirect.");
+                    }
+                }
+
+                return Ok();
             } else {
                 _logger.LogError("Authenticated user ID could not be found in the configuration. Please regenerate the authentication URL and try again");
+                return StatusCode(500);
             }
         }
 
@@ -202,16 +215,16 @@ namespace jellyfin_ani_sync.Api {
                 toReturn.providerList.Add(provider);
             }
 
-#if NET5_0
-            toReturn.localApiUrl = _serverApplicationHost.ListenWithHttps ? $"https://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpsPort}" : $"http://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpPort}";
-#elif NET6_0
-            toReturn.localApiUrl = _serverApplicationHost.ListenWithHttps ? $"https://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpsPort}" : $"http://{Request.HttpContext.Connection.LocalIpAddress}:{_serverApplicationHost.HttpPort}";
-#endif
+            toReturn.localIpAddress = Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost";
+            toReturn.localPort = _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort : _serverApplicationHost.HttpPort;
+            toReturn.https = _serverApplicationHost.ListenWithHttps;
             return toReturn;
         }
 
         private class Parameters {
-            public string localApiUrl { get; set; }
+            public string localIpAddress { get; set; }
+            public int localPort { get; set; }
+            public bool https { get; set; }
             public List<ExpandoObject> providerList { get; set; }
         }
 
