@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
+using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
@@ -141,44 +142,37 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("user")]
         // this only works for mal atm, needs to work for anilist as well
-        public async Task<MalApiCalls.User> GetUser(ApiName apiName, string userId) {
+        public async Task<ActionResult> GetUser(ApiName apiName, string userId) {
+            UserConfig? userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
+            if (userConfig == null) {
+                _logger.LogError("User not found");
+                return new StatusCodeResult(500);
+            }
             switch (apiName) {
                 case ApiName.Mal:
-                    MalApiCalls malApiCalls;
-                    try {
-                        malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
-                    } catch (ArgumentNullException) {
-                        _logger.LogError("User not found");
-                        throw;
-                    }
+                    MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
-                    return await malApiCalls.GetUserInformation();
+                    return new OkObjectResult(await malApiCalls.GetUserInformation());
                 case ApiName.AniList:
-                    AniListApiCalls aniListApiCalls;
-                    try {
-                        aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
-                    } catch (ArgumentNullException) {
-                        _logger.LogError("User not found");
-                        throw;
-                    }
+                    AniListApiCalls aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
                     AniListViewer.Viewer? user = await aniListApiCalls.GetCurrentUser();
-                    return new MalApiCalls.User {
+                    return new OkObjectResult(new MalApiCalls.User {
                         Name = user?.Name
-                    };
+                    });
                 case ApiName.Kitsu:
                     KitsuApiCalls kitsuApiCalls;
                     try {
                         kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
-                        _logger.LogError("User not found");
-                        throw;
+                        _logger.LogError("User could not be retrieved from API");
+                        return new StatusCodeResult(500);
                     }
 
                     var apiCall = await kitsuApiCalls.GetUserInformation();
-                    return new MalApiCalls.User {
+                    return new OkObjectResult(new MalApiCalls.User {
                         Name = apiCall.Name
-                    };
+                    });
                 case ApiName.Annict:
                     // sleep the thread for a short amount of time to let the user config save
                     Thread.Sleep(100);
@@ -186,14 +180,27 @@ namespace jellyfin_ani_sync.Api {
                     try {
                         annictApiCalls = new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
-                        _logger.LogError("User not found");
-                        throw;
+                        _logger.LogError("User could not be retrieved from API");
+                        return new StatusCodeResult(500);
                     }
 
                     var annictApiCall = await annictApiCalls.GetCurrentUser();
-                    return new MalApiCalls.User {
+                    return new OkObjectResult(new MalApiCalls.User {
                         Name = annictApiCall.AnnictSearchData.Viewer.username
-                    };
+                    });
+                case ApiName.Shikimori:
+                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig);
+
+                    ShikimoriApiCalls.User? shikimoriUserApiCall = await shikimoriApiCalls.GetUserInformation();
+                    if (shikimoriUserApiCall != null) {
+                        return new OkObjectResult(new MalApiCalls.User {
+                            Name = shikimoriUserApiCall.Name
+                        });
+                    } else {
+                        _logger.LogError("User could not be retrieved from API");
+                        return new StatusCodeResult(500);
+                    }
+                    
             }
 
             throw new Exception("Provider not supported.");
