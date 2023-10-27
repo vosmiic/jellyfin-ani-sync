@@ -19,8 +19,10 @@ public class ShikimoriApiCalls {
     private readonly AuthApiCall _authApiCall;
     private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
     private readonly string _apiBaseUrl = "https://shikimori.one/api";
+    private readonly UserConfig? _userConfig;
     
-    public ShikimoriApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
+    public ShikimoriApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig? userConfig = null) {
+        _userConfig = userConfig;
         _logger = loggerFactory.CreateLogger<ShikimoriApiCalls>();
         _authApiCall = new AuthApiCall(ApiName.Shikimori, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
     }
@@ -43,7 +45,18 @@ public class ShikimoriApiCalls {
             string streamText = await streamReader.ReadToEndAsync();
 
             try {
-                return JsonSerializer.Deserialize<User>(streamText);
+                User? user = JsonSerializer.Deserialize<User>(streamText);
+
+                if (user != null) {
+                    _userConfig?.KeyPairs.Add(new KeyPairs {
+                        Key = "ShikimoriUserId",
+                        Value = user.Id.ToString()
+                    });
+
+                    Plugin.Instance?.SaveConfiguration();
+                }
+
+                return user;
             } catch (Exception) {
                 return null;
             }
