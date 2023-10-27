@@ -55,7 +55,14 @@ namespace jellyfin_ani_sync.Api {
 
             while (attempts < 2) {
                 var client = _httpClientFactory.CreateClient(NamedClient.Default);
-
+                if (provider == ApiName.Shikimori) {
+                    string shikimoriAppName = Plugin.Instance?.PluginConfiguration.shikimoriAppName;
+                    if (string.IsNullOrWhiteSpace(shikimoriAppName)) {
+                        _logger.LogError("No Shikimori app name in config. Please provide a Shikimori app name on the config page.");
+                        return null;
+                    } 
+                    client.DefaultRequestHeaders.Add("User-Agent", shikimoriAppName);
+                }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
                 HttpResponseMessage responseMessage = new HttpResponseMessage();

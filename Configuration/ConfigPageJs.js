@@ -253,13 +253,20 @@ async function initialLoad() {
                 page.querySelector('#watchedTickboxUpdatesProvider').checked = config.watchedTickboxUpdatesProvider;
             if (config.callbackRedirectUrl)
                 page.querySelector('#callbackRedirectUrlInput').value = config.callbackRedirectUrl;
+            if (config.shikimoriAppName)
+                page.querySelector('#shikimoriAppName').value = config.shikimoriAppName;
 
             page.querySelector('#clientSecretLabel').style.display = "block";
             page.querySelector('#clientSecret').style.display = "block";
             page.querySelector('#clientSecretDescription').style.display = "block";
             page.querySelector('#authorizeDevice').style.display = "block";
             page.querySelector('#authorizeDeviceDescription').style.display = "block";
+            page.querySelector('#shikimoriAppNameContainer').style.display = "none";
             page.querySelector('#testAuthenticationDescription').innerHTML = "Once you have authenticated your user, click the below button to test the authentication:";
+            page.querySelector('#clientIdLabel').innerHTML = "Client ID";
+            page.querySelector('#clientIdDescription').innerHTML = "The client ID from your provider application.";
+            page.querySelector('#clientSecretLabel').innerHTML = "Client Secret";
+            page.querySelector('#clientSecretDescription').innerHTML = "The client secret from your provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b>";
             if (providerName === "Kitsu") {
                 page.querySelector('#clientIdLabel').innerHTML = "Username";
                 page.querySelector('#clientIdDescription').innerHTML = "The username used to login to the provider application.";
@@ -274,11 +281,8 @@ async function initialLoad() {
                 page.querySelector('#authorizeDevice').style.display = "none";
                 page.querySelector('#authorizeDeviceDescription').style.display = "none";
                 page.querySelector('#testAuthenticationDescription').innerHTML = "Click the below button to test the authentication:";
-            } else {
-                page.querySelector('#clientIdLabel').innerHTML = "Client ID";
-                page.querySelector('#clientIdDescription').innerHTML = "The client ID from your provider application.";
-                page.querySelector('#clientSecretLabel').innerHTML = "Client Secret";
-                page.querySelector('#clientSecretDescription').innerHTML = "The client secret from your provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b>";
+            } else if (providerName === "Shikimori") {
+                page.querySelector('#shikimoriAppNameContainer').style.display = "block";
             }
 
             if (config.callbackUrl)
@@ -351,6 +355,7 @@ async function initialLoad() {
             config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
+            config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;
 
             userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                 return element.getAttribute('id');
