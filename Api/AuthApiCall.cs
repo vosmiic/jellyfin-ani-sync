@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +43,7 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="NullReferenceException">Authentication details not found.</exception>
         /// <exception cref="Exception">Non-200 response.</exception>
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
-        public async Task<HttpResponseMessage> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null) {
+        public async Task<HttpResponseMessage> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
             UserApiAuth auth;
             try {
@@ -55,13 +56,10 @@ namespace jellyfin_ani_sync.Api {
 
             while (attempts < 2) {
                 var client = _httpClientFactory.CreateClient(NamedClient.Default);
-                if (provider == ApiName.Shikimori) {
-                    string shikimoriAppName = Plugin.Instance?.PluginConfiguration.shikimoriAppName;
-                    if (string.IsNullOrWhiteSpace(shikimoriAppName)) {
-                        _logger.LogError("No Shikimori app name in config. Please provide a Shikimori app name on the config page.");
-                        return null;
-                    } 
-                    client.DefaultRequestHeaders.Add("User-Agent", shikimoriAppName);
+                if (requestHeaders != null) {
+                    foreach (KeyValuePair<string,string> requestHeader in requestHeaders) {
+                        client.DefaultRequestHeaders.Add(requestHeader.Key, requestHeader.Value);
+                    }
                 }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);

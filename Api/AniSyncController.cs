@@ -189,7 +189,11 @@ namespace jellyfin_ani_sync.Api {
                         Name = annictApiCall.AnnictSearchData.Viewer.username
                     });
                 case ApiName.Shikimori:
-                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig);
+                    string? shikimoriAppName = ConfigHelper.GetShikimoriAppName(_logger);
+                    if (string.IsNullOrEmpty(shikimoriAppName)) {
+                        return new StatusCodeResult(500);
+                    }
+                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string>{{"User-Agent", shikimoriAppName}}, userConfig);
 
                     ShikimoriApiCalls.User? shikimoriUserApiCall = await shikimoriApiCalls.GetUserInformation();
                     if (shikimoriUserApiCall != null) {
