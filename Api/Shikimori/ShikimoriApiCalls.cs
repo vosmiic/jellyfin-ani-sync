@@ -94,7 +94,7 @@ public class ShikimoriApiCalls {
             result = JsonSerializer.Deserialize<List<ShikimoriMedia>>(await streamReader.ReadToEndAsync());
         } catch (Exception e) {
             _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
-            throw;
+            return null;
         }
 
         if (result == null || result.Count == 0) return null;
