@@ -125,4 +125,28 @@ public class ShikimoriApiCalls {
 
         return result;
     }
+
+    /// <summary>
+    /// Get an anime.
+    /// </summary>
+    /// <param name="id">ID of the anime you want to get.</param>
+    /// <returns></returns>
+    public async Task<ShikimoriMedia?> GetAnime(int id) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{_apiBaseUrl}/animes/{id}"
+        };
+        
+        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        if (apiCall == null) {
+            return null;
+        }
+
+        try {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            return JsonSerializer.Deserialize<ShikimoriMedia>(await streamReader.ReadToEndAsync());
+        } catch (Exception e) {
+            _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
+            throw;
+        }
+    }
 }
