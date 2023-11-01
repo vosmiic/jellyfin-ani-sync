@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -79,19 +80,24 @@ public class ShikimoriApiCalls {
         UrlBuilder url = new UrlBuilder {
             Base = $"{_apiBaseUrl}/animes"
         };
-        int page = 1;
         url.Parameters.Add(new KeyValuePair<string, string>("search", searchString));
+        
+        return await PagedCall<ShikimoriMedia>(url, AuthApiCall.CallType.GET);
+    }
+    
+        private async Task<List<T>?> PagedCall<T>(UrlBuilder url, AuthApiCall.CallType callType) {
+        int page = 1;
         url.Parameters.Add(new KeyValuePair<string, string>("limit", "50"));
         url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
 
-        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, callType, url.Build(), requestHeaders: _requestHeaders);
         if (apiCall == null) {
             return null;
         }
-        List<ShikimoriMedia>? result;
+        List<T>? result;
         try {
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-            result = JsonSerializer.Deserialize<List<ShikimoriMedia>>(await streamReader.ReadToEndAsync());
+            result = JsonSerializer.Deserialize<List<T>>(await streamReader.ReadToEndAsync());
         } catch (Exception e) {
             _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
             return null;
@@ -104,12 +110,12 @@ public class ShikimoriApiCalls {
             url.Parameters.RemoveAll(item => item.Key == "page");
             url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
             
-            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build());
+            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, callType, url.Build());
             if (pageApiCall == null) break;
-            List<ShikimoriMedia>? nextPageResult;
+            List<T>? nextPageResult;
             try {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                nextPageResult = JsonSerializer.Deserialize<List<ShikimoriMedia>>(await streamReader.ReadToEndAsync());
+                nextPageResult = JsonSerializer.Deserialize<List<T>>(await streamReader.ReadToEndAsync());
             } catch (Exception e) {
                 _logger.LogError($"Could not retrieve next page of anime, reason: {e.Message}");
                 break;
