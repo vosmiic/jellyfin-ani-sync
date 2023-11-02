@@ -43,7 +43,7 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="NullReferenceException">Authentication details not found.</exception>
         /// <exception cref="Exception">Non-200 response.</exception>
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
-        public async Task<HttpResponseMessage> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
+        public async Task<HttpResponseMessage?> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
             UserApiAuth auth;
             try {
