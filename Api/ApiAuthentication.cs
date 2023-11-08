@@ -6,22 +6,25 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
     public class ApiAuthentication {
         private ApiName _provider;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<ApiAuthentication> _logger;
         private readonly string _authApiUrl;
         private readonly string _redirectUrl;
         private readonly ProviderApiAuth _providerApiAuth;
         private readonly string _codeChallenge = "eZBLUX_JPk4~el62z_k3Q4fV5CzCYHoTz4iLKvwJ~9QTsTJNlzwveKCSYCSiSOa5zAm5Zt~cfyVM~3BuO4kQ0iYwCxPoeN0SOmBYR_C.QgnzyYE4KY-xIe4Vy1bf7_B4";
 
-        public ApiAuthentication(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
+        public ApiAuthentication(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
             _provider = provider;
 
             switch (provider) {
@@ -42,6 +45,7 @@ namespace jellyfin_ani_sync.Api {
             }
 
             _httpClientFactory = httpClientFactory;
+            _logger = loggerFactory.CreateLogger<ApiAuthentication>();
             if (overrideProviderApiAuth != null) {
                 _providerApiAuth = overrideProviderApiAuth;
             } else {
@@ -52,12 +56,12 @@ namespace jellyfin_ani_sync.Api {
             if (overrideRedirectUrl != null && overrideRedirectUrl != "local") {
                 _redirectUrl = overrideRedirectUrl + "/AniSync/authCallback";
             } else {
-                if (overrideRedirectUrl is "local") {
+                if (overrideRedirectUrl is "local" && httpContextAccessor.HttpContext != null) {
                     _redirectUrl = serverApplicationHost.ListenWithHttps ? $"https://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpsPort}/AniSync/authCallback" : $"http://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpPort}/AniSync/authCallback";
                 } else {
                     if (userCallbackUrl != null) {
                         _redirectUrl = userCallbackUrl + "/AniSync/authCallback";
-                    } else {
+                    } else if (httpContextAccessor.HttpContext != null) {
                         _redirectUrl = serverApplicationHost.ListenWithHttps ? $"https://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpsPort}/AniSync/authCallback" : $"http://{httpContextAccessor.HttpContext.Connection.LocalIpAddress}:{serverApplicationHost.HttpPort}/AniSync/authCallback";
                     }
                 }
@@ -122,6 +126,12 @@ namespace jellyfin_ani_sync.Api {
 
                     formUrlEncodedContent = new FormUrlEncodedContent(content.ToArray());
                 }
+            }
+
+            if (_provider == ApiName.Shikimori) {
+                string? shikimoriAppName = ConfigHelper.GetShikimoriAppName(_logger);
+                if (shikimoriAppName == null) return null;
+                client.DefaultRequestHeaders.Add("User-Agent", shikimoriAppName);
             }
 
             var response = client.PostAsync(new Uri($"{_authApiUrl}/token"), formUrlEncodedContent).Result;
