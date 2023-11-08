@@ -222,12 +222,11 @@ public class ShikimoriApiCalls {
             url.Parameters.RemoveAll(item => item.Key == "page");
             url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
 
-            var xd = url.Build();
-            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, xd);
+            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build());
             if (pageApiCall == null) break;
             List<T>? nextPageResult;
             try {
-                StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+                StreamReader streamReader = new StreamReader(await pageApiCall.Content.ReadAsStreamAsync());
                 nextPageResult = JsonSerializer.Deserialize<List<T>>(await streamReader.ReadToEndAsync());
             } catch (Exception e) {
                 _logger.LogWarning($"Could not retrieve next result page, reason: {e.Message}");
