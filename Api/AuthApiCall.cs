@@ -21,6 +21,7 @@ namespace jellyfin_ani_sync.Api {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<AuthApiCall> _logger;
         public UserConfig UserConfig { get; set; }
 
@@ -29,6 +30,7 @@ namespace jellyfin_ani_sync.Api {
             _httpClientFactory = httpClientFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
+            _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<AuthApiCall>();
             UserConfig = userConfig;
         }
@@ -97,7 +99,7 @@ namespace jellyfin_ani_sync.Api {
                         // token has probably expired; try refreshing it
                         UserApiAuth newAuth;
                         try {
-                            newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
+                            newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                         } catch (Exception) {
                             _logger.LogError("Could not re-authenticate. Please manually re-authenticate the user via the AniSync configuration page");
                             return null;

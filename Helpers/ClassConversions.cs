@@ -4,6 +4,7 @@ using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
+using jellyfin_ani_sync.Models.Shikimori;
 
 namespace jellyfin_ani_sync.Helpers {
     public class ClassConversions {
@@ -90,5 +91,12 @@ namespace jellyfin_ani_sync.Helpers {
                 Name = name
             };
         }
+
+        public static Anime ConvertShikimoriAnime(ShikimoriMedia shikimoriAnime) =>
+            new()  {
+                Id = shikimoriAnime.Id,
+                Title = shikimoriAnime.Name,
+                NumEpisodes = shikimoriAnime.Episodes
+            };
     }
 }

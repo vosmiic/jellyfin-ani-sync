@@ -63,7 +63,7 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
         public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url) {
-            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
+            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
         }
 
         [HttpGet]
@@ -88,7 +88,7 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("passwordGrant")]
         public async Task<IActionResult> PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
-            if (new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId)) != null) {
+            if (new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId)) != null) {
                 if (provider == ApiName.Kitsu) {
                     var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
 
@@ -118,7 +118,7 @@ namespace jellyfin_ani_sync.Api {
             Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
             ApiName provider = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingProvider;
             if (userId != null && provider != null) {
-                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(userId, code);
+                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(userId, code);
                 Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser = Guid.Empty;
                 Plugin.Instance.SaveConfiguration();
                 if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {

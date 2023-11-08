@@ -117,7 +117,7 @@ public class ShikimoriApiCalls {
     /// </summary>
     /// <param name="id">Only retrieve user progress of a single anime by ID.</param>
     /// <returns></returns>
-    public async Task<List<ShikimoriUpdate.UserRate>?> GetUserAnimeList(int? id = null) {
+    public async Task<List<ShikimoriUpdate.UserRate>?> GetUserAnimeList(int? id = null, ShikimoriUpdate.UpdateStatus? updateStatus = null) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{_apiBaseUrl}/v2/user_rates"
         };
@@ -129,6 +129,10 @@ public class ShikimoriApiCalls {
         if (id != null) {
             url.Parameters.Add(new KeyValuePair<string, string>("target_id", id.Value.ToString()));
             url.Parameters.Add(new KeyValuePair<string, string>("target_type", "Anime"));
+        }
+
+        if (updateStatus != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("status", updateStatus.Value.ToString()));
         }
         
         HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
@@ -218,14 +222,15 @@ public class ShikimoriApiCalls {
             url.Parameters.RemoveAll(item => item.Key == "page");
             url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
 
-            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build());
+            var xd = url.Build();
+            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, xd);
             if (pageApiCall == null) break;
             List<T>? nextPageResult;
             try {
                 StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
                 nextPageResult = JsonSerializer.Deserialize<List<T>>(await streamReader.ReadToEndAsync());
             } catch (Exception e) {
-                _logger.LogError($"Could not retrieve next result page, reason: {e.Message}");
+                _logger.LogWarning($"Could not retrieve next result page, reason: {e.Message}");
                 break;
             }
 
