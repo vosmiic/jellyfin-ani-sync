@@ -113,6 +113,30 @@ public class ShikimoriApiCalls {
     }
 
     /// <summary>
+    /// Get relations of an anime.
+    /// </summary>
+    /// <param name="id">ID of the anime to get the relations of.</param>
+    /// <returns></returns>
+    public async Task<List<ShikimoriRelated>?> GetRelatedAnime(int id) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{_apiBaseUrl}/animes/{id}/related"
+        };
+
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        if (apiCall == null) {
+            return null;
+        }
+
+        try {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            return JsonSerializer.Deserialize<List<ShikimoriRelated>?>(await streamReader.ReadToEndAsync());
+        } catch (Exception e) {
+            _logger.LogError($"Could not deserialize related anime, reason: {e.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Get a users anime list.
     /// </summary>
     /// <param name="id">Only retrieve user progress of a single anime by ID.</param>

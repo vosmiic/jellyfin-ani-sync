@@ -127,7 +127,7 @@ namespace jellyfin_ani_sync.Helpers {
             return null;
         }
 
-        public async Task<Anime> GetAnime(int id, string? alternativeId = null) {
+        public async Task<Anime> GetAnime(int id, string? alternativeId = null, bool getRelated = false) {
             if (_malApiCalls != null) {
                 return await _malApiCalls.GetAnime(id, new[] { "title", "related_anime", "my_list_status", "num_episodes" });
             }
@@ -263,6 +263,10 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_shikimoriApiCalls != null) {
                 var anime = await _shikimoriApiCalls.GetAnime(id);
+                List<ShikimoriRelated> related = null;
+                if (getRelated) {
+                    related = await _shikimoriApiCalls.GetRelatedAnime(id);
+                }
                 if (anime == null) return null;
                 Anime convertedAnime = ClassConversions.ConvertShikimoriAnime(anime);
 
@@ -304,13 +308,44 @@ namespace jellyfin_ani_sync.Helpers {
                     convertedAnime.AlternativeTitles.Synonyms.Add(relatedAnime);
                 }
 
-                if (anime.English != null) {
-                    convertedAnime.AlternativeTitles.En = anime.English;
+                if (anime.English != null && anime.English.Any()) {
+                    convertedAnime.AlternativeTitles.En = anime.English[0];
                 }
 
-                if (anime.Japanese != null) {
-                    convertedAnime.AlternativeTitles.Ja = anime.Japanese;
+                if (anime.Japanese != null && anime.Japanese.Any()) {
+                    convertedAnime.AlternativeTitles.Ja = anime.Japanese[0];
                 }
+
+                if (related != null) {
+                    convertedAnime.RelatedAnime = new List<RelatedAnime>();
+                    foreach (ShikimoriRelated shikimoriRelated in related.Where(related => related.RelationEnum == ShikimoriRelation.Sequel || related.RelationEnum == ShikimoriRelation.Alternativeversion || related.RelationEnum == ShikimoriRelation.Sidestory)) {
+                        RelationType? convertedAnimeRelationType = null;
+                        switch (shikimoriRelated.RelationEnum) {
+                            case ShikimoriRelation.Sequel:
+                                convertedAnimeRelationType = RelationType.Sequel;
+                                break;
+                            case ShikimoriRelation.Sidestory:
+                                convertedAnimeRelationType = RelationType.Side_Story;
+                                break;
+                            case ShikimoriRelation.Alternativeversion:
+                                convertedAnimeRelationType = RelationType.Alternative_Version;
+                                break;
+                        }
+
+                        RelatedAnime relatedAnime = new RelatedAnime {
+                            Anime = new Anime {
+                                Id = shikimoriRelated.Anime.Id,
+                                Title = shikimoriRelated.Anime.Name
+                            }
+                        };
+                        if (convertedAnimeRelationType != null) {
+                            relatedAnime.RelationType = convertedAnimeRelationType.Value;
+                        }
+                        convertedAnime.RelatedAnime.Add(relatedAnime);
+                    }
+                }
+
+                return convertedAnime;
             }
 
             return null;
