@@ -15,7 +15,7 @@ public class ShikimoriMedia {
     public int EpisodesAired { get; set; }
     [JsonPropertyName("synonyms")] public List<string> RelatedAnime { get; set; } = new();
     [JsonPropertyName("english")]
-    public string? English { get; set; }
+    public List<string>? English { get; set; }
     [JsonPropertyName("japanese")]
-    public string? Japanese { get; set; }
+    public List<string>? Japanese { get; set; }
 }
