@@ -41,6 +41,7 @@ While I may not commit to the plugin too often, I am still maintaining it. Pleas
 2. AniList
 3. (Beta) Kitsu
 4. (Limited support) Annict
+5. Shikimori
 
 ## External tools
 ### Anime Lists
