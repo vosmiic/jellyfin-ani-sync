@@ -9,6 +9,7 @@ using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
+using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
@@ -190,6 +191,11 @@ namespace jellyfin_ani_sync {
                         case ApiName.Annict:
                             // annict works differently to the other providers, so we have to go the traditional route
                             _apiCallHelpers = new ApiCallHelpers(annictApiCalls: new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                            break;
+                        case ApiName.Shikimori:
+                            string? shikimoriAppName = ConfigHelper.GetShikimoriAppName(_logger);
+                            if (shikimoriAppName == null) return;
+                            _apiCallHelpers = new ApiCallHelpers(shikimoriApiCalls: new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, _userConfig));
                             break;
                     }
 
@@ -387,11 +393,14 @@ namespace jellyfin_ani_sync {
 
             // only plan to watch
             if (_userConfig.PlanToWatchOnly) {
+                bool updated = false;
                 if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Plan_to_watch) {
                     _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on plan to watch list");
                     if (_apiName == ApiName.Annict) {
+                        updated = true;
                         await UpdateAnnictStatus(detectedAnime, episodeNumber);
                     } else {
+                        updated = true;
                         await UpdateAnimeStatus(detectedAnime, episodeNumber);
                     }
                 }
@@ -399,9 +408,13 @@ namespace jellyfin_ani_sync {
                 if (_apiName != ApiName.Annict) {
                     // also check if rewatch completed is checked
                     _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) not found in plan to watch list{(_userConfig.RewatchCompleted ? ", checking completed list.." : null)}");
+                    updated = true;
                     await CheckIfRewatchCompleted(detectedAnime, episodeNumber, overrideCheckRewatch);
                 }
 
+                if (!updated) {
+                    _logger.LogInformation($"({_apiName}) Could not update.");
+                }
                 return;
             }
 
@@ -584,7 +597,7 @@ namespace jellyfin_ani_sync {
         /// <returns></returns>
         private async Task<Anime> GetDifferentSeasonAnime(int animeId, int seasonNumber) {
             _logger.LogInformation($"({_apiName}) Attempting to get season 1...");
-            Anime initialSeason = await _apiCallHelpers.GetAnime(animeId);
+            Anime initialSeason = await _apiCallHelpers.GetAnime(animeId, getRelated: true);
 
             if (initialSeason != null) {
                 int i = 1;
@@ -592,7 +605,7 @@ namespace jellyfin_ani_sync {
                     RelatedAnime initialSeasonRelatedAnime = initialSeason.RelatedAnime.FirstOrDefault(item => item.RelationType == RelationType.Sequel);
                     if (initialSeasonRelatedAnime != null) {
                         _logger.LogInformation($"({_apiName}) Attempting to get season {i + 1}...");
-                        Anime nextSeason = await _apiCallHelpers.GetAnime(initialSeasonRelatedAnime.Anime.Id);
+                        Anime nextSeason = await _apiCallHelpers.GetAnime(initialSeasonRelatedAnime.Anime.Id, getRelated: true);
 
                         if (nextSeason != null) {
                             initialSeason = nextSeason;
@@ -612,7 +625,7 @@ namespace jellyfin_ani_sync {
         }
 
         private async Task<Anime> GetOva(int animeId, string episodeName) {
-            Anime anime = await _apiCallHelpers.GetAnime(animeId);
+            Anime anime = await _apiCallHelpers.GetAnime(animeId, getRelated: true);
 
             if (anime != null) {
                 var listOfRelatedAnime = anime.RelatedAnime.Where(relation => relation.RelationType is RelationType.Side_Story or RelationType.Alternative_Version or RelationType.Alternative_Setting);

@@ -6,10 +6,12 @@ using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
+using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
+using jellyfin_ani_sync.Models.Shikimori;
 
 namespace jellyfin_ani_sync.Helpers {
     public class ApiCallHelpers {
@@ -17,6 +19,7 @@ namespace jellyfin_ani_sync.Helpers {
         private AniListApiCalls _aniListApiCalls;
         private KitsuApiCalls _kitsuApiCalls;
         private AnnictApiCalls _annictApiCalls;
+        private ShikimoriApiCalls _shikimoriApiCalls;
 
         /// <summary>
         /// This class attempts to combine the different APIs into a single form.
@@ -25,11 +28,14 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="aniListApiCalls"></param>
         /// <param name="kitsuApiCalls"></param>
         /// <param name="annictApiCalls"></param>
+        /// <param name="shikimoriApiCalls"></param>
         public ApiCallHelpers(MalApiCalls malApiCalls = null,
             AniListApiCalls aniListApiCalls = null,
             KitsuApiCalls kitsuApiCalls = null,
-            AnnictApiCalls annictApiCalls = null) {
+            AnnictApiCalls annictApiCalls = null,
+            ShikimoriApiCalls shikimoriApiCalls = null) {
             _annictApiCalls = annictApiCalls;
+            _shikimoriApiCalls = shikimoriApiCalls;
             _malApiCalls = malApiCalls;
             _aniListApiCalls = aniListApiCalls;
             _kitsuApiCalls = kitsuApiCalls;
@@ -106,10 +112,22 @@ namespace jellyfin_ani_sync.Helpers {
                 return convertedList;
             }
 
+            if (_shikimoriApiCalls != null) {
+                List<ShikimoriMedia> animeList = await _shikimoriApiCalls.SearchAnime(query);
+                List<Anime> convertedList = new List<Anime>();
+                if (animeList != null) {
+                    foreach (ShikimoriMedia shikimoriMedia in animeList) {
+                        convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriMedia));
+                    }
+                }
+
+                return convertedList;
+            }
+
             return null;
         }
 
-        public async Task<Anime> GetAnime(int id, string? alternativeId = null) {
+        public async Task<Anime> GetAnime(int id, string? alternativeId = null, bool getRelated = false) {
             if (_malApiCalls != null) {
                 return await _malApiCalls.GetAnime(id, new[] { "title", "related_anime", "my_list_status", "num_episodes" });
             }
@@ -243,6 +261,93 @@ namespace jellyfin_ani_sync.Helpers {
                 return ClassConversions.ConvertAnnictAnime(anime);
             }
 
+            if (_shikimoriApiCalls != null) {
+                var anime = await _shikimoriApiCalls.GetAnime(id);
+                List<ShikimoriRelated> related = null;
+                if (getRelated) {
+                    related = await _shikimoriApiCalls.GetRelatedAnime(id);
+                }
+                if (anime == null) return null;
+                Anime convertedAnime = ClassConversions.ConvertShikimoriAnime(anime);
+
+                List<ShikimoriUpdate.UserRate> userAnimeStatusList = await _shikimoriApiCalls.GetUserAnimeList(id);
+                ShikimoriUpdate.UserRate userAnimeStatus = userAnimeStatusList?.FirstOrDefault(rate => rate.AnimeId == id);
+                //if (userAnimeStatus == null) return null;
+                convertedAnime.MyListStatus = new MyListStatus {
+                    NumEpisodesWatched = userAnimeStatus?.Episodes ?? 0,
+                    IsRewatching = userAnimeStatus?.Status is ShikimoriUpdate.UpdateStatus.rewatching,
+                    RewatchCount = userAnimeStatus?.Rewatches ?? 0
+                };
+
+                if (userAnimeStatus != null) {
+                    switch (userAnimeStatus.Status) {
+                        case ShikimoriUpdate.UpdateStatus.completed:
+                            convertedAnime.MyListStatus.Status = Status.Completed;
+                            break;
+                        case ShikimoriUpdate.UpdateStatus.watching:
+                            convertedAnime.MyListStatus.Status = Status.Watching;
+                            break;
+                        case ShikimoriUpdate.UpdateStatus.rewatching:
+                            convertedAnime.MyListStatus.Status = Status.Rewatching;
+                            break;
+                        case ShikimoriUpdate.UpdateStatus.dropped:
+                            convertedAnime.MyListStatus.Status = Status.Dropped;
+                            break;
+                        case ShikimoriUpdate.UpdateStatus.on_hold:
+                            convertedAnime.MyListStatus.Status = Status.On_hold;
+                            break;
+                        case ShikimoriUpdate.UpdateStatus.planned:
+                            convertedAnime.MyListStatus.Status = Status.Plan_to_watch;
+                            break;
+                    }
+                }
+
+                convertedAnime.AlternativeTitles = new AlternativeTitles();
+                convertedAnime.AlternativeTitles.Synonyms = new List<string>();
+                foreach (string relatedAnime in anime.RelatedAnime) {
+                    convertedAnime.AlternativeTitles.Synonyms.Add(relatedAnime);
+                }
+
+                if (anime.English != null && anime.English.Any()) {
+                    convertedAnime.AlternativeTitles.En = anime.English[0];
+                }
+
+                if (anime.Japanese != null && anime.Japanese.Any()) {
+                    convertedAnime.AlternativeTitles.Ja = anime.Japanese[0];
+                }
+
+                if (related != null) {
+                    convertedAnime.RelatedAnime = new List<RelatedAnime>();
+                    foreach (ShikimoriRelated shikimoriRelated in related.Where(related => related.RelationEnum == ShikimoriRelation.Sequel || related.RelationEnum == ShikimoriRelation.Alternativeversion || related.RelationEnum == ShikimoriRelation.Sidestory)) {
+                        RelationType? convertedAnimeRelationType = null;
+                        switch (shikimoriRelated.RelationEnum) {
+                            case ShikimoriRelation.Sequel:
+                                convertedAnimeRelationType = RelationType.Sequel;
+                                break;
+                            case ShikimoriRelation.Sidestory:
+                                convertedAnimeRelationType = RelationType.Side_Story;
+                                break;
+                            case ShikimoriRelation.Alternativeversion:
+                                convertedAnimeRelationType = RelationType.Alternative_Version;
+                                break;
+                        }
+
+                        RelatedAnime relatedAnime = new RelatedAnime {
+                            Anime = new Anime {
+                                Id = shikimoriRelated.Anime.Id,
+                                Title = shikimoriRelated.Anime.Name
+                            }
+                        };
+                        if (convertedAnimeRelationType != null) {
+                            relatedAnime.RelationType = convertedAnimeRelationType.Value;
+                        }
+                        convertedAnime.RelatedAnime.Add(relatedAnime);
+                    }
+                }
+
+                return convertedAnime;
+            }
+
             return null;
         }
 
@@ -339,6 +444,38 @@ namespace jellyfin_ani_sync.Helpers {
                     return new UpdateAnimeStatusResponse();
             }
 
+            if (_shikimoriApiCalls != null) {
+                ShikimoriUpdate.UpdateStatus shikimoriUpdateStatus;
+
+                switch (status) {
+                    case Status.Watching:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.watching;
+                        break;
+                    case Status.Completed:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.completed;
+                        break;
+                    case Status.Rewatching:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.rewatching;
+                        break;
+                    case Status.On_hold:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.on_hold;
+                        break;
+                    case Status.Dropped:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.dropped;
+                        break;
+                    case Status.Plan_to_watch:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.planned;
+                        break;
+                    default:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.watching;
+                        break;
+                }
+
+                if (await _shikimoriApiCalls.UpdateAnime(animeId, shikimoriUpdateStatus, numberOfWatchedEpisodes, numberOfTimesRewatched)) {
+                    return new UpdateAnimeStatusResponse();
+                }
+            }
+
             return null;
         }
 
@@ -366,6 +503,16 @@ namespace jellyfin_ani_sync.Helpers {
                     return new MalApiCalls.User {
                         Name = user.AnnictSearchData.Viewer.username
                     };
+            }
+
+            if (_shikimoriApiCalls != null) {
+                ShikimoriApiCalls.User user = await _shikimoriApiCalls.GetUserInformation();
+                if (user != null) {
+                    return new MalApiCalls.User {
+                        Id = user.Id,
+                        Name = user.Name
+                    };
+                }
             }
 
             return null;
@@ -507,6 +654,47 @@ namespace jellyfin_ani_sync.Helpers {
                     List<Anime> convertedList = new List<Anime>();
                     foreach (AnnictSearch.AnnictAnime annictAnime in animeList) {
                         convertedList.Add(ClassConversions.ConvertAnnictAnime(annictAnime));
+                    }
+
+                    return convertedList;
+                }
+            }
+
+            if (_shikimoriApiCalls != null) {
+                ShikimoriUpdate.UpdateStatus shikimoriUpdateStatus;
+
+                switch (status) {
+                    case Status.Watching:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.watching;
+                        break;
+                    case Status.Rewatching:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.rewatching;
+                        break;
+                    case Status.Completed:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.completed;
+                        break;
+                    case Status.On_hold:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.on_hold;
+                        break;
+                    case Status.Dropped:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.dropped;
+                        break;
+                    case Status.Plan_to_watch:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.planned;
+                        break;
+                    default:
+                        shikimoriUpdateStatus = ShikimoriUpdate.UpdateStatus.watching;
+                        break;
+                }
+
+                var animeList = await _shikimoriApiCalls.GetUserAnimeList(updateStatus: shikimoriUpdateStatus);
+                if (animeList != null) {
+                    List<Anime> convertedList = new List<Anime>();
+                    foreach (ShikimoriUpdate.UserRate userRate in animeList) {
+                        convertedList.Add(ClassConversions.ConvertShikimoriAnime(new ShikimoriMedia {
+                            Id = userRate.AnimeId,
+                            Episodes = userRate.Episodes
+                        }));
                     }
 
                     return convertedList;

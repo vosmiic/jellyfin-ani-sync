@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,6 +21,7 @@ namespace jellyfin_ani_sync.Api {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<AuthApiCall> _logger;
         public UserConfig UserConfig { get; set; }
 
@@ -28,6 +30,7 @@ namespace jellyfin_ani_sync.Api {
             _httpClientFactory = httpClientFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
+            _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<AuthApiCall>();
             UserConfig = userConfig;
         }
@@ -42,7 +45,7 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="NullReferenceException">Authentication details not found.</exception>
         /// <exception cref="Exception">Non-200 response.</exception>
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
-        public async Task<HttpResponseMessage> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null) {
+        public async Task<HttpResponseMessage?> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
             UserApiAuth auth;
             try {
@@ -55,7 +58,11 @@ namespace jellyfin_ani_sync.Api {
 
             while (attempts < 2) {
                 var client = _httpClientFactory.CreateClient(NamedClient.Default);
-
+                if (requestHeaders != null) {
+                    foreach (KeyValuePair<string,string> requestHeader in requestHeaders) {
+                        client.DefaultRequestHeaders.Add(requestHeader.Key, requestHeader.Value);
+                    }
+                }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
                 HttpResponseMessage responseMessage = new HttpResponseMessage();
@@ -92,7 +99,7 @@ namespace jellyfin_ani_sync.Api {
                         // token has probably expired; try refreshing it
                         UserApiAuth newAuth;
                         try {
-                            newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
+                            newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                         } catch (Exception) {
                             _logger.LogError("Could not re-authenticate. Please manually re-authenticate the user via the AniSync configuration page");
                             return null;

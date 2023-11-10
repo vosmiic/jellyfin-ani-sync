@@ -9,7 +9,9 @@ namespace jellyfin_ani_sync.Configuration {
         [Display(Name = "Kitsu")]
         Kitsu,
         [Display(Name = "Annict")]
-        Annict
+        Annict,
+        [Display(Name = "Shikimori")]
+        Shikimori
     }
 
     public class UserApiAuth {

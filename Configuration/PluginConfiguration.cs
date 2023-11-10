@@ -51,5 +51,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// Whether or not marking an episode/movie as watched sends an update to the provider API.
         /// </summary>
         public bool watchedTickboxUpdatesProvider { get; set; }
+        
+        /// <summary>
+        /// Shikimori app name, which is required on all Shikimori API calls
+        /// </summary>
+        public string shikimoriAppName { get; set; }
     }
 }

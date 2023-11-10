@@ -85,6 +85,13 @@
                         stored in plain text in the plugin config. Make sure no untrusted users have access to the
                         file.</b></div>
                 </div>
+                <div class="inputContainer" id="shikimoriAppNameContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="shikimoriAppName">Shikimori App Name</label>
+                    <input id="shikimoriAppName" name="shikimoriAppName" type="text" is="emby-input" />
+                    <div id="shikimoriAppNameDescription" class="fieldDescription">
+                        The name of the Shikimori app you are authenticating with. This is required to make valid API calls.
+                    </div>
+                </div>
                 <div class="selectContainer">
                     <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
                 </div>
