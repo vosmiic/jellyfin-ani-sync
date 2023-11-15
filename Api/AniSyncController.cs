@@ -13,6 +13,7 @@ using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Api.Shikimori;
+using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
@@ -148,6 +149,7 @@ namespace jellyfin_ani_sync.Api {
                 _logger.LogError("User not found");
                 return new StatusCodeResult(500);
             }
+
             switch (apiName) {
                 case ApiName.Mal:
                     MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
@@ -193,7 +195,8 @@ namespace jellyfin_ani_sync.Api {
                     if (string.IsNullOrEmpty(shikimoriAppName)) {
                         return new StatusCodeResult(500);
                     }
-                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string>{{"User-Agent", shikimoriAppName}}, userConfig);
+
+                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, userConfig);
 
                     ShikimoriApiCalls.User? shikimoriUserApiCall = await shikimoriApiCalls.GetUserInformation();
                     if (shikimoriUserApiCall != null) {
@@ -204,7 +207,21 @@ namespace jellyfin_ani_sync.Api {
                         _logger.LogError("User could not be retrieved from API");
                         return new StatusCodeResult(500);
                     }
-                    
+                case ApiName.Simkl:
+                    string? simklClientId = ConfigHelper.GetSimklClientId(_logger);
+                    if (string.IsNullOrEmpty(simklClientId)) {
+                        return new StatusCodeResult(500);
+                    }
+
+                    var simklApiCalls = new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, userConfig);
+
+                    if (await simklApiCalls.GetLastActivity()) {
+                        return new OkObjectResult(new MalApiCalls.User {
+                            Name = null
+                        });
+                    } else {
+                        return new StatusCodeResult(500);
+                    }
             }
 
             throw new Exception("Provider not supported.");

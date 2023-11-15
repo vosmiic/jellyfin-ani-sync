@@ -129,7 +129,14 @@ async function initialLoad() {
             .then(function (response) {
                 if (response.ok) {
                     return response.json()
-                        .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
+                        .then(function (json) {
+                            var userResponseElement = document.querySelector('#getUserResponse');
+                            if (json.name) {
+                                return userResponseElement.innerHTML = "Thank you for authenticating " + json.name + ".";
+                            } else {
+                                return userResponseElement.innerHTML = "Thank you for authenticating."
+                            }
+                        });
                 } else {
                     document.querySelector('#getUserResponse').innerHTML = "Test returned an error - try authenticating again or check the logs for a detailed error reason."
                 }
