@@ -122,4 +122,29 @@ public class SimklApiCalls {
 
         return result;
     }
+
+    public async Task<SimklExtendedMedia?> GetAnime(int id) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiBaseUrl}/anime/{id}"
+        };
+
+        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+            url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
+        } else {
+            return null;
+        }
+
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        if (apiCall == null) {
+            return null;
+        }
+
+        try {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            return JsonSerializer.Deserialize<SimklExtendedMedia>(await streamReader.ReadToEndAsync());
+        } catch (Exception e) {
+            _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
+            throw;
+        }
+    }
 }
