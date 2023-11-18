@@ -7,10 +7,13 @@ assignees: ''
 
 ---
 
-/* Please do not create an issue about a specific show or movie not working with the plugin. Shows that have multiple cours or odd seasons generally do not work well with this plugin, and we do not fix individual issues. */
+<!-- Please do not create an issue about a specific show or movie not working with the plugin. Shows that have multiple cours or odd seasons generally do not work well with this plugin, and we do not fix individual issues. -->
 
 **Describe the bug**
 A clear and concise description of what the bug is.
+
+**Logs**
+Please provide your Jellyfin logs below. Do not include any private information that may have be contained in the logs.
 
 **To Reproduce**
 Steps to reproduce the behavior:
