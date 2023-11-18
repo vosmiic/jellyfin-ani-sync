@@ -147,4 +147,30 @@ public class SimklApiCalls {
             throw;
         }
     }
+
+    public async Task<List<SimklUserEntry>?> GetUserAnimeList(SimklStatus status) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiBaseUrl}/sync/all-items/anime/{status}"
+        };
+        
+        url.Parameters.Add(new KeyValuePair<string, string>("extended", "full"));
+
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        if (apiCall == null) {
+            return null;
+        }
+
+        try {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            SimklUserList? deserialized = JsonSerializer.Deserialize<SimklUserList>(await streamReader.ReadToEndAsync());
+            if (deserialized != null) {
+                return deserialized.Entry;
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            _logger.LogError($"Could not deserialize user anime list, reason: {e.Message}");
+            return null;
+        }
+    }
 }

@@ -50,13 +50,27 @@ public class AltTitle {
     [JsonPropertyName("type")] public string Type { get; set; }
 }
 
-public class Relation {
-    [JsonPropertyName("title")] public string Title { get; set; }
+public class Relation : Show {
     [JsonPropertyName("en_title")] public string EnTitle { get; set; }
     [JsonPropertyName("year")] public int Year { get; set; }
     [JsonPropertyName("poster")] public string Poster { get; set; }
     [JsonPropertyName("anime_type")] public string AnimeType { get; set; }
     [JsonPropertyName("relation_type")] public string RelationType { get; set; }
     [JsonPropertyName("is_direct")] public bool IsDirect { get; set; }
-    [JsonPropertyName("ids")] public SimklBaseExtendedIds Ids { get; set; }
+}
+
+public class Show
+{
+    [JsonPropertyName("title")]
+    public string Title { get; set; }
+    [JsonPropertyName("ids")]
+    public SimklExtendedIds Ids { get; set; }
+}
+
+public enum SimklStatus {
+    watching,
+    plantowatch,
+    hold,
+    completed,
+    dropped
 }
