@@ -7,11 +7,13 @@ using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Api.Shikimori;
+using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 using jellyfin_ani_sync.Models.Shikimori;
+using jellyfin_ani_sync.Models.Simkl;
 
 namespace jellyfin_ani_sync.Helpers {
     public class ApiCallHelpers {
@@ -20,6 +22,7 @@ namespace jellyfin_ani_sync.Helpers {
         private KitsuApiCalls _kitsuApiCalls;
         private AnnictApiCalls _annictApiCalls;
         private ShikimoriApiCalls _shikimoriApiCalls;
+        private SimklApiCalls _simklApiCalls;
 
         /// <summary>
         /// This class attempts to combine the different APIs into a single form.
@@ -29,16 +32,19 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="kitsuApiCalls"></param>
         /// <param name="annictApiCalls"></param>
         /// <param name="shikimoriApiCalls"></param>
+        /// <param name="simklApiCalls"></param>
         public ApiCallHelpers(MalApiCalls malApiCalls = null,
             AniListApiCalls aniListApiCalls = null,
             KitsuApiCalls kitsuApiCalls = null,
             AnnictApiCalls annictApiCalls = null,
-            ShikimoriApiCalls shikimoriApiCalls = null) {
+            ShikimoriApiCalls shikimoriApiCalls = null,
+            SimklApiCalls simklApiCalls = null) {
             _annictApiCalls = annictApiCalls;
             _shikimoriApiCalls = shikimoriApiCalls;
             _malApiCalls = malApiCalls;
             _aniListApiCalls = aniListApiCalls;
             _kitsuApiCalls = kitsuApiCalls;
+            _simklApiCalls = simklApiCalls;
         }
 
         public async Task<List<Anime>> SearchAnime(string query) {
@@ -346,6 +352,21 @@ namespace jellyfin_ani_sync.Helpers {
                 }
 
                 return convertedAnime;
+            }
+
+            return null;
+        }
+
+        public async Task<Anime> GetAnime(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, string title, bool getRelated = false) {
+            if (_simklApiCalls != null) {
+                SimklIdLookupMedia idLookupResult = await _simklApiCalls.GetAnimeByIdLookup(ids, title);
+                if (idLookupResult != null && (idLookupResult.Ids?.Simkl != null && idLookupResult.Ids.Simkl != 0)) {
+                    var detailedAnime = await _simklApiCalls.GetAnime(idLookupResult.Ids.Simkl);
+                    var userList = await _simklApiCalls.GetUserAnimeList();
+                    if (detailedAnime != null) {
+                        return ClassConversions.ConvertSimklAnime(detailedAnime, userList?.FirstOrDefault(userEntry => userEntry.Show.Ids.Simkl == detailedAnime.Ids.Simkl));
+                    }
+                }
             }
 
             return null;

@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 using jellyfin_ani_sync.Models.Shikimori;
+using jellyfin_ani_sync.Models.Simkl;
 
 namespace jellyfin_ani_sync.Helpers {
     public class ClassConversions {
@@ -98,5 +100,51 @@ namespace jellyfin_ani_sync.Helpers {
                 Title = shikimoriAnime.Name,
                 NumEpisodes = shikimoriAnime.Episodes
             };
+
+        public static Anime ConvertSimklAnime(SimklExtendedMedia simklExtendedMedia, SimklUserEntry simklUserEntry = null) {
+            Anime anime = new Anime {
+                Title = simklExtendedMedia.Title,
+                AlternativeTitles = new AlternativeTitles {
+                    En = simklExtendedMedia.EnTitle,
+                    Synonyms = simklExtendedMedia.AllTitles.Select(altTitle => altTitle.Name).ToList()
+                },
+            };
+
+            if (simklExtendedMedia.EnTitle != null) {
+                anime.AlternativeTitles.En = simklExtendedMedia.EnTitle;
+            }
+            
+            if (simklExtendedMedia.TotalEpisodes != null) {
+                anime.NumEpisodes = simklExtendedMedia.TotalEpisodes.Value;
+            }
+
+            if (simklUserEntry != null) {
+                anime.MyListStatus = new MyListStatus {
+                    NumEpisodesWatched = simklUserEntry.WatchedEpisodesCount,
+                    IsRewatching = false, // simkl does not support rewatching at the moment
+                    RewatchCount = 0
+                };
+                    
+                switch (simklUserEntry.Status) {
+                    case SimklStatus.watching:
+                        anime.MyListStatus.Status = Status.Watching;
+                        break;
+                    case SimklStatus.plantowatch:
+                        anime.MyListStatus.Status = Status.Plan_to_watch;
+                        break;
+                    case SimklStatus.hold:
+                        anime.MyListStatus.Status = Status.On_hold;
+                        break;
+                    case SimklStatus.completed:
+                        anime.MyListStatus.Status = Status.Completed;
+                        break;
+                    case SimklStatus.dropped:
+                        anime.MyListStatus.Status = Status.Dropped;
+                        break;
+                }
+            }
+
+            return anime;
+        }
     }
 }

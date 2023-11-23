@@ -10,6 +10,7 @@ using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Api.Shikimori;
+using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
@@ -197,6 +198,26 @@ namespace jellyfin_ani_sync {
                             if (shikimoriAppName == null) return;
                             _apiCallHelpers = new ApiCallHelpers(shikimoriApiCalls: new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, _userConfig));
                             break;
+                        case ApiName.Simkl:
+                            string? simklClientId = ConfigHelper.GetSimklClientId(_logger);
+                            if (simklClientId == null) return;
+                            _apiCallHelpers = new ApiCallHelpers(simklApiCalls: new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, _userConfig));
+                            if (((providerIds.MyAnimeList != null && providerIds.MyAnimeList != 0) ||
+                                 (providerIds.Anilist != null && providerIds.Anilist != 0) ||
+                                 (providerIds.Kitsu != null && providerIds.Kitsu != 0) ||
+                                 (providerIds.AniDb != null && providerIds.AniDb != 0)) &&
+                                (episode != null && episode.Season.IndexNumber.Value != 0)) {
+
+                                await CheckUserListAnimeStatus(providerIds, _animeType == typeof(Episode)
+                                        ? (aniDbId.episodeOffset != null
+                                            ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
+                                            : episode.IndexNumber.Value)
+                                        : movie.IndexNumber.Value, _animeType == typeof(Episode) ? episode.SeriesName : video.Name,
+                                    false);
+                                continue;
+                            }
+
+                            break;
                     }
 
                     List<Anime> animeList = await _apiCallHelpers.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name);
@@ -379,11 +400,21 @@ namespace jellyfin_ani_sync {
                 return false;
             }
         }
-        
 
+
+        private async Task CheckUserListAnimeStatus(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse matchingIds, int episodeNumber, string title, bool? overrideCheckRewatch = null, string? alternativeId = null) {
+            Anime detectedAnime = await GetAnime(matchingIds, title, alternativeId: alternativeId);
+
+            await CheckUserListAnimeStatusBase(detectedAnime, episodeNumber, overrideCheckRewatch, alternativeId);
+        }
+        
         private async Task CheckUserListAnimeStatus(int matchingAnimeId, int episodeNumber, bool? overrideCheckRewatch = null, string? alternativeId = null) {
             Anime detectedAnime = await GetAnime(matchingAnimeId, alternativeId: alternativeId);
 
+            await CheckUserListAnimeStatusBase(detectedAnime, episodeNumber, overrideCheckRewatch, alternativeId);
+        }
+
+        private async Task CheckUserListAnimeStatusBase(Anime detectedAnime, int episodeNumber, bool? overrideCheckRewatch = null, string? alternativeId = null) {
             if (detectedAnime == null) return;
             if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Watching && _apiName != ApiName.Annict) {
                 _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on watching list");
@@ -493,7 +524,18 @@ namespace jellyfin_ani_sync {
         /// <param name="status">User status of the show.</param>
         /// <returns>Single anime result.</returns>
         private async Task<Anime> GetAnime(int animeId, Status? status = null, string? alternativeId = null) {
-            Anime anime = await _apiCallHelpers.GetAnime(animeId, alternativeId);
+            Anime anime = await _apiCallHelpers.GetAnime(animeId);
+            
+            if (anime != null && ((status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) || status == null)) {
+                return anime;
+            }
+
+            return null;
+        }
+        
+        private async Task<Anime> GetAnime(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse animeIds, string title, Status? status = null, string? alternativeId = null) {
+            Anime anime = await _apiCallHelpers.GetAnime(animeIds, title);
+
             if (anime != null && ((status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) || status == null)) {
                 return anime;
             }
