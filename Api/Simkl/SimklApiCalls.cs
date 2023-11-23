@@ -148,10 +148,66 @@ public class SimklApiCalls {
         }
     }
 
-    public async Task<List<SimklUserEntry>?> GetUserAnimeList(SimklStatus status) {
+    public async Task<SimklIdLookupMedia?> GetAnimeByIdLookup(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, string title) {
         UrlBuilder url = new UrlBuilder {
-            Base = $"{ApiBaseUrl}/sync/all-items/anime/{status}"
+            Base = $"{ApiBaseUrl}/search/id"
         };
+        
+        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+            url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
+        } else {
+            return null;
+        }
+
+        if (ids.Anilist != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("anilist", ids.Anilist.Value.ToString()));
+        }
+
+        if (ids.Kitsu != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("kitsu", ids.Kitsu.Value.ToString()));
+        }
+
+        if (ids.AniDb != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("anidb", ids.AniDb.Value.ToString()));
+        }
+
+        if (ids.MyAnimeList != null) {
+            url.Parameters.Add(new KeyValuePair<string, string>("mal", ids.MyAnimeList.Value.ToString()));
+        }
+        
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        if (apiCall == null) {
+            return null;
+        }
+
+        try {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            List<SimklIdLookupMedia>? results = JsonSerializer.Deserialize<List<SimklIdLookupMedia>?>(await streamReader.ReadToEndAsync());
+            if (results != null && results.Count > 0) {
+                // attempt to match to title
+                var detectedAnime = results.FirstOrDefault(anime => string.Equals(anime.Title, title, StringComparison.CurrentCultureIgnoreCase));
+                if (detectedAnime != null) {
+                    return detectedAnime;
+                } else {
+                    // might not be a perfect match; just return the first result (should only ever be a single result anyway)
+                    return results[0];
+                }
+            }
+        } catch (Exception e) {
+            _logger.LogError($"Could not deserialize anime list, reason: {e.Message}");
+            throw;
+        }
+
+        return null;
+    }
+
+    public async Task<List<SimklUserEntry>?> GetUserAnimeList(SimklStatus? status = null) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiBaseUrl}/sync/all-items/anime"
+        };
+        if (status != null) {
+            url.Base += $"/{status}";
+        }
         
         url.Parameters.Add(new KeyValuePair<string, string>("extended", "full"));
 

@@ -22,7 +22,7 @@ public class SimklIds {
 public class SimklExtendedMedia : SimklBaseMedia {
     [JsonPropertyName("title")] public string Title { get; set; }
     [JsonPropertyName("ids")] public SimklExtendedIds Ids { get; set; }
-    [JsonPropertyName("en_title")] public object EnTitle { get; set; }
+    [JsonPropertyName("en_title")] public string? EnTitle { get; set; }
     [JsonPropertyName("alt_titles")] public List<AltTitle> AllTitles { get; set; }
     [JsonPropertyName("season")] public string Season { get; set; }
     [JsonPropertyName("total_episodes")] public int? TotalEpisodes { get; set; }
@@ -65,6 +65,10 @@ public class Show
     public string Title { get; set; }
     [JsonPropertyName("ids")]
     public SimklExtendedIds Ids { get; set; }
+}
+
+public class SimklIdLookupMedia : SimklBaseMedia {
+    [JsonPropertyName("ids")] public SimklBaseExtendedIds Ids { get; set; }
 }
 
 public enum SimklStatus {
