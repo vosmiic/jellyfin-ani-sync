@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
@@ -228,5 +229,63 @@ public class SimklApiCalls {
             _logger.LogError($"Could not deserialize user anime list, reason: {e.Message}");
             return null;
         }
+    }
+
+    public async Task<bool> UpdateAnime(int animeId, SimklStatus updateStatus, bool isShow, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids) {
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiBaseUrl}/sync/add-to-list"
+        };
+        
+        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+            url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
+        } else {
+            return false;
+        }
+        
+        SimklExtendedIds convertedIds = new SimklExtendedIds {
+            Simkl = animeId
+        };
+
+        if (ids.Anilist != null) {
+            convertedIds.Anilist = ids.Anilist;
+        }
+
+        if (ids.Kitsu != null) {
+            convertedIds.Kitsu = ids.Kitsu;
+        }
+
+        if (ids.MyAnimeList != null) {
+            convertedIds.Mal = ids.MyAnimeList;
+        }
+
+        if (ids.AniDb != null) {
+            convertedIds.Anidb = ids.AniDb;
+        }
+
+        SimklUpdateBody updateBody = new SimklUpdateBody();
+        if (isShow) {
+            updateBody.Shows = new List<UpdateBodyShow> {
+                new UpdateBodyShow {
+                    Ids = convertedIds,
+                    Status = updateStatus
+                }
+            };
+        } else {
+            updateBody.Movies = new List<UpdateBodyShow> {
+                new UpdateBodyShow {
+                    Ids = convertedIds,
+                    Status = updateStatus
+                }
+            };
+        }
+
+        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody), Encoding.UTF8, "application/json");
+
+        HttpResponseMessage? response = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: _requestHeaders);
+        if (response != null) {
+            return response.IsSuccessStatusCode;
+        }
+
+        return false;
     }
 }

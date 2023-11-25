@@ -71,6 +71,22 @@ public class SimklIdLookupMedia : SimklBaseMedia {
     [JsonPropertyName("ids")] public SimklBaseExtendedIds Ids { get; set; }
 }
 
+public class SimklUpdateBody
+{
+    [JsonPropertyName("movies")]
+    public List<UpdateBodyShow>? Movies { get; set; }
+
+    [JsonPropertyName("shows")]
+    public List<UpdateBodyShow>? Shows { get; set; }
+}
+
+public class UpdateBodyShow : Show
+{
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyName("to")]
+    public SimklStatus Status { get; set; }
+}
+
 public enum SimklStatus {
     watching,
     plantowatch,
