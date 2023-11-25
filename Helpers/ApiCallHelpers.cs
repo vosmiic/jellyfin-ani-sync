@@ -373,7 +373,7 @@ namespace jellyfin_ani_sync.Helpers {
         }
 
         public async Task<UpdateAnimeStatusResponse> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status,
-            bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null) {
+            bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
             if (_malApiCalls != null) {
                 return await _malApiCalls.UpdateAnimeStatus(animeId, numberOfWatchedEpisodes, status, isRewatching, numberOfTimesRewatched, startDate, endDate);
             }
@@ -493,6 +493,32 @@ namespace jellyfin_ani_sync.Helpers {
                 }
 
                 if (await _shikimoriApiCalls.UpdateAnime(animeId, shikimoriUpdateStatus, numberOfWatchedEpisodes, numberOfTimesRewatched)) {
+                    return new UpdateAnimeStatusResponse();
+                }
+            }
+
+            if (_simklApiCalls != null && isShow != null && ids != null) {
+                SimklStatus simklStatus;
+
+                switch (status) {
+                    case Status.Completed:
+                        simklStatus = SimklStatus.completed;
+                        break;
+                    case Status.Dropped:
+                        simklStatus = SimklStatus.dropped;
+                        break;
+                    case Status.On_hold:
+                        simklStatus = SimklStatus.hold;
+                        break;
+                    case Status.Plan_to_watch:
+                        simklStatus = SimklStatus.plantowatch;
+                        break;
+                    default:
+                        simklStatus = SimklStatus.watching;
+                        break;
+                }
+
+                if (await _simklApiCalls.UpdateAnime(animeId, simklStatus, isShow.Value, ids)) {
                     return new UpdateAnimeStatusResponse();
                 }
             }
