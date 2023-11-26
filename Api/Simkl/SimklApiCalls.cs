@@ -126,7 +126,8 @@ public class SimklApiCalls {
 
     public async Task<SimklExtendedMedia?> GetAnime(int id) {
         UrlBuilder url = new UrlBuilder {
-            Base = $"{ApiBaseUrl}/anime/{id}"
+            Base = $"{ApiBaseUrl}/anime/{id}",
+            Parameters = new List<KeyValuePair<string, string>> { new ("extended", "full") }
         };
 
         if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
@@ -153,7 +154,7 @@ public class SimklApiCalls {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiBaseUrl}/search/id"
         };
-        
+
         if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
             url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
         } else {
@@ -175,7 +176,7 @@ public class SimklApiCalls {
         if (ids.MyAnimeList != null) {
             url.Parameters.Add(new KeyValuePair<string, string>("mal", ids.MyAnimeList.Value.ToString()));
         }
-        
+
         HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
         if (apiCall == null) {
             return null;
@@ -209,7 +210,7 @@ public class SimklApiCalls {
         if (status != null) {
             url.Base += $"/{status}";
         }
-        
+
         url.Parameters.Add(new KeyValuePair<string, string>("extended", "full"));
 
         HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
