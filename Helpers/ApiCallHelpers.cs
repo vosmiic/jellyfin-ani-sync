@@ -518,7 +518,7 @@ namespace jellyfin_ani_sync.Helpers {
                         break;
                 }
 
-                if (await _simklApiCalls.UpdateAnime(animeId, simklStatus, isShow.Value, ids)) {
+                if (await _simklApiCalls.UpdateAnime(animeId, simklStatus, isShow.Value, ids, numberOfWatchedEpisodes)) {
                     return new UpdateAnimeStatusResponse();
                 }
             }
