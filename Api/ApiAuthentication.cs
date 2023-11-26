@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
@@ -40,6 +41,9 @@ namespace jellyfin_ani_sync.Api {
                 case ApiName.Shikimori:
                     _authApiUrl = "https://shikimori.one/oauth";
                     break;
+                case ApiName.Simkl:
+                    _authApiUrl = "https://simkl.com/oauth";
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(provider), provider, null);
             }
@@ -74,6 +78,7 @@ namespace jellyfin_ani_sync.Api {
                     return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&code_challenge={_codeChallenge}&redirect_uri={_redirectUrl}";
                 case ApiName.AniList:
                 case ApiName.Shikimori:
+                case ApiName.Simkl:
                     return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&redirect_uri={_redirectUrl}";
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -89,7 +94,7 @@ namespace jellyfin_ani_sync.Api {
         public UserApiAuth GetToken(Guid userId, string? code = null, string? refreshToken = null) {
             var client = _httpClientFactory.CreateClient(NamedClient.Default);
 
-            FormUrlEncodedContent formUrlEncodedContent;
+            HttpContent formUrlEncodedContent;
 
             if (_provider == ApiName.Kitsu) {
                 if (refreshToken != null) {
@@ -124,7 +129,11 @@ namespace jellyfin_ani_sync.Api {
                         content.Add(new KeyValuePair<string, string>("code_verifier", _codeChallenge));
                     }
 
-                    formUrlEncodedContent = new FormUrlEncodedContent(content.ToArray());
+                    if (_provider == ApiName.Simkl) {
+                        formUrlEncodedContent = new StringContent(JsonSerializer.Serialize(content.ToDictionary(item => item.Key, item => item.Value)));
+                    } else {
+                        formUrlEncodedContent = new FormUrlEncodedContent(content.ToArray());
+                    }
                 }
             }
 
@@ -134,7 +143,7 @@ namespace jellyfin_ani_sync.Api {
                 client.DefaultRequestHeaders.Add("User-Agent", shikimoriAppName);
             }
 
-            var response = client.PostAsync(new Uri($"{_authApiUrl}/token"), formUrlEncodedContent).Result;
+            var response = client.PostAsync(new Uri($"{(_provider is not ApiName.Simkl ? _authApiUrl : $"{SimklApiCalls.ApiBaseUrl}/oauth")}/token"), formUrlEncodedContent).Result;
 
             if (response.IsSuccessStatusCode) {
                 var content = response.Content.ReadAsStream();

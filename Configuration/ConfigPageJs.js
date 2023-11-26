@@ -129,7 +129,14 @@ async function initialLoad() {
             .then(function (response) {
                 if (response.ok) {
                     return response.json()
-                        .then((json) => document.querySelector('#getUserResponse').innerHTML = "Thank you for authenticating " + json.name + ".");
+                        .then(function (json) {
+                            var userResponseElement = document.querySelector('#getUserResponse');
+                            if (json.name) {
+                                return userResponseElement.innerHTML = "Thank you for authenticating " + json.name + ".";
+                            } else {
+                                return userResponseElement.innerHTML = "Thank you for authenticating."
+                            }
+                        });
                 } else {
                     document.querySelector('#getUserResponse').innerHTML = "Test returned an error - try authenticating again or check the logs for a detailed error reason."
                 }
@@ -255,6 +262,8 @@ async function initialLoad() {
                 page.querySelector('#callbackRedirectUrlInput').value = config.callbackRedirectUrl;
             if (config.shikimoriAppName)
                 page.querySelector('#shikimoriAppName').value = config.shikimoriAppName;
+            if (config.simklUpdateAll)
+                page.querySelector('#simklUpdateAll').checked = config.simklUpdateAll;
 
             page.querySelector('#clientSecretLabel').style.display = "block";
             page.querySelector('#clientSecret').style.display = "block";
@@ -262,6 +271,7 @@ async function initialLoad() {
             page.querySelector('#authorizeDevice').style.display = "block";
             page.querySelector('#authorizeDeviceDescription').style.display = "block";
             page.querySelector('#shikimoriAppNameContainer').style.display = "none";
+            page.querySelector('#simklUpdateAllContainer').style.display = "none";
             page.querySelector('#testAuthenticationDescription').innerHTML = "Once you have authenticated your user, click the below button to test the authentication:";
             page.querySelector('#clientIdLabel').innerHTML = "Client ID";
             page.querySelector('#clientIdDescription').innerHTML = "The client ID from your provider application.";
@@ -283,6 +293,8 @@ async function initialLoad() {
                 page.querySelector('#testAuthenticationDescription').innerHTML = "Click the below button to test the authentication:";
             } else if (providerName === "Shikimori") {
                 page.querySelector('#shikimoriAppNameContainer').style.display = "block";
+            } else if (providerName === "Simkl") {
+                page.querySelector('#simklUpdateAllContainer').style.display = "block";
             }
 
             if (config.callbackUrl)
@@ -356,6 +368,7 @@ async function initialLoad() {
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;
+            config.simklUpdateAll = document.querySelector('#simklUpdateAll').checked;
 
             userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                 return element.getAttribute('id');
