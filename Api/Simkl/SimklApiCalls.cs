@@ -231,17 +231,17 @@ public class SimklApiCalls {
         }
     }
 
-    public async Task<bool> UpdateAnime(int animeId, SimklStatus updateStatus, bool isShow, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids) {
+    public async Task<bool> UpdateAnime(int animeId, SimklStatus updateStatus, bool isShow, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, int numberOfWatchedEpisodes) {
         UrlBuilder url = new UrlBuilder {
-            Base = $"{ApiBaseUrl}/sync/add-to-list"
+            Base = $"{ApiBaseUrl}/sync/history"
         };
-        
+
         if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
             url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
         } else {
             return false;
         }
-        
+
         SimklExtendedIds convertedIds = new SimklExtendedIds {
             Simkl = animeId
         };
@@ -264,17 +264,32 @@ public class SimklApiCalls {
 
         SimklUpdateBody updateBody = new SimklUpdateBody();
         if (isShow) {
-            updateBody.Shows = new List<UpdateBodyShow> {
-                new UpdateBodyShow {
-                    Ids = convertedIds,
-                    Status = updateStatus
+            var updateBodyShow = new UpdateBodyShow {
+                Ids = convertedIds
+            };
+
+            bool simklUpdateAll = ConfigHelper.GetSimklUpdateAll();
+            updateBodyShow.Episodes = new List<UpdateEpisode>();
+
+            if (simklUpdateAll) {
+                for (int i = 1; i <= numberOfWatchedEpisodes; i++) {
+                    updateBodyShow.Episodes.Add(new UpdateEpisode {
+                        EpisodeNumber = i
+                    });
                 }
+            } else {
+                updateBodyShow.Episodes.Add(new UpdateEpisode {
+                    EpisodeNumber = numberOfWatchedEpisodes
+                });
+            }
+
+            updateBody.Shows = new List<UpdateBodyShow> {
+                updateBodyShow
             };
         } else {
             updateBody.Movies = new List<UpdateBodyShow> {
                 new UpdateBodyShow {
-                    Ids = convertedIds,
-                    Status = updateStatus
+                    Ids = convertedIds
                 }
             };
         }
