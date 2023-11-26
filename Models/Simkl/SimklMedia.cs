@@ -20,7 +20,6 @@ public class SimklIds {
 }
 
 public class SimklExtendedMedia : SimklBaseMedia {
-    [JsonPropertyName("title")] public string Title { get; set; }
     [JsonPropertyName("ids")] public SimklExtendedIds Ids { get; set; }
     [JsonPropertyName("en_title")] public string? EnTitle { get; set; }
     [JsonPropertyName("alt_titles")] public List<AltTitle> AllTitles { get; set; }
@@ -35,13 +34,18 @@ public class SimklBaseExtendedIds {
 }
 
 public class SimklExtendedIds : SimklBaseExtendedIds {
-    [JsonPropertyName("anidb")] public string Anidb { get; set; }
-    [JsonPropertyName("tmdb")] public string Tmdb { get; set; }
-    [JsonPropertyName("imdb")] public string Imdb { get; set; }
-    [JsonPropertyName("mal")] public string Mal { get; set; }
-    [JsonPropertyName("tvdbslug")] public string Tvdbslug { get; set; }
-    [JsonPropertyName("anilist")] public string Anilist { get; set; }
-    [JsonPropertyName("kitsu")] public string Kitsu { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonPropertyName("anidb")] public int? Anidb { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonPropertyName("tmdb")] public int? Tmdb { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonPropertyName("mal")] public int? Mal { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonPropertyName("tvdb")] public int? Tvdb { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonPropertyName("anilist")] public int? Anilist { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    [JsonPropertyName("kitsu")] public int? Kitsu { get; set; }
 }
 
 public class AltTitle {
@@ -82,9 +86,13 @@ public class SimklUpdateBody
 
 public class UpdateBodyShow : Show
 {
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    [JsonPropertyName("to")]
-    public SimklStatus Status { get; set; }
+    [JsonPropertyName("episodes")]
+    public List<UpdateEpisode> Episodes { get; set; }
+}
+
+public class UpdateEpisode {
+    [JsonPropertyName("number")]
+    public int EpisodeNumber { get; set; }
 }
 
 public enum SimklStatus {
