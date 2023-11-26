@@ -207,7 +207,6 @@ namespace jellyfin_ani_sync {
                                  (_apiIds.Kitsu != null && _apiIds.Kitsu != 0) ||
                                  (_apiIds.AniDb != null && _apiIds.AniDb != 0)) &&
                                 (episode != null && episode.Season.IndexNumber.Value != 0)) {
-
                                 await CheckUserListAnimeStatus(_apiIds, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
                                             ? episode.IndexNumber.Value - aniDbId.episodeOffset.Value
@@ -407,7 +406,7 @@ namespace jellyfin_ani_sync {
 
             await CheckUserListAnimeStatusBase(detectedAnime, episodeNumber, overrideCheckRewatch, alternativeId);
         }
-        
+
         private async Task CheckUserListAnimeStatus(int matchingAnimeId, int episodeNumber, bool? overrideCheckRewatch = null, string? alternativeId = null) {
             Anime detectedAnime = await GetAnime(matchingAnimeId, alternativeId: alternativeId);
 
@@ -446,6 +445,7 @@ namespace jellyfin_ani_sync {
                 if (!updated) {
                     _logger.LogInformation($"({_apiName}) Could not update.");
                 }
+
                 return;
             }
 
@@ -474,7 +474,7 @@ namespace jellyfin_ani_sync {
                 await UpdateAnimeStatus(detectedAnime, episodeNumber);
             }
         }
-        
+
         private async Task UpdateAnnictStatus(Anime detectedAnime, int episodeNumber) {
             // rewatching isnt supported by annict; skip
             if (detectedAnime.MyListStatus?.Status == Status.Completed) return;
@@ -502,6 +502,10 @@ namespace jellyfin_ani_sync {
                 overrideCheckRewatch.Value ||
                 detectedAnime.MyListStatus is { Status: Status.Completed } ||
                 detectedAnime.MyListStatus is { Status: Status.Rewatching } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber) {
+                if (_apiName == ApiName.Simkl) {
+                    _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, but {_apiName} does not support re-watching. Skipping");
+                    return;
+                }
                 if (_userConfig.RewatchCompleted) {
                     if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
                         _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, setting as re-watching");
@@ -525,14 +529,14 @@ namespace jellyfin_ani_sync {
         /// <returns>Single anime result.</returns>
         private async Task<Anime> GetAnime(int animeId, Status? status = null, string? alternativeId = null) {
             Anime anime = await _apiCallHelpers.GetAnime(animeId);
-            
+
             if (anime != null && ((status != null && anime.MyListStatus != null && anime.MyListStatus.Status == status) || status == null)) {
                 return anime;
             }
 
             return null;
         }
-        
+
         private async Task<Anime> GetAnime(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse animeIds, string title, Status? status = null, string? alternativeId = null) {
             Anime anime = await _apiCallHelpers.GetAnime(animeIds, title);
 
@@ -561,10 +565,25 @@ namespace jellyfin_ani_sync {
                             // either watched all episodes or the anime only has a single episode (ova)
                             if (detectedAnime.NumEpisodes == 1) {
                                 // its a movie or ova since it only has one "episode", so the start and end date is the same
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, 1, Status.Completed, startDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false, numberOfTimesRewatched: (setRewatching != null && setRewatching.Value) || detectedAnime.MyListStatus.IsRewatching ? detectedAnime.MyListStatus.RewatchCount + 1 : null, ids: _apiIds);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                    1,
+                                    Status.Completed,
+                                    startDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now,
+                                    endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now,
+                                    isRewatching: false,
+                                    numberOfTimesRewatched: (setRewatching != null && setRewatching.Value) || detectedAnime.MyListStatus.IsRewatching ? detectedAnime.MyListStatus.RewatchCount + 1 : null,
+                                    ids: _apiIds,
+                                    isShow: _animeType == typeof(Episode));
                             } else {
                                 // user has reached the number of episodes in the anime, set as completed
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now, isRewatching: false, numberOfTimesRewatched: (setRewatching != null && setRewatching.Value) || detectedAnime.MyListStatus.IsRewatching ? detectedAnime.MyListStatus.RewatchCount + 1 : null, ids: _apiIds);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                    episodeNumber.Value,
+                                    Status.Completed,
+                                    endDate: detectedAnime.MyListStatus.IsRewatching || detectedAnime.MyListStatus.Status == Status.Completed ? null : DateTime.Now,
+                                    isRewatching: false,
+                                    numberOfTimesRewatched: (setRewatching != null && setRewatching.Value) || detectedAnime.MyListStatus.IsRewatching ? detectedAnime.MyListStatus.RewatchCount + 1 : null,
+                                    ids: _apiIds,
+                                    isShow: _animeType == typeof(Episode));
                             }
 
                             _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) complete, marking anime as complete{(_apiName != ApiName.Mal && (setRewatching != null && setRewatching.Value) ? ", increasing re-watch count by 1" : "")}");
@@ -572,20 +591,40 @@ namespace jellyfin_ani_sync {
                                 // also increase number of times re-watched by 1
                                 // only way to get the number of times re-watched is by doing the update and capturing the response, and then re-updating for MAL :/
                                 _logger.LogInformation($"({_apiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) has also been re-watched, increasing re-watch count by 1");
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, numberOfTimesRewatched: response.NumTimesRewatched + 1, isRewatching: false, ids: _apiIds);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                    episodeNumber.Value,
+                                    Status.Completed,
+                                    numberOfTimesRewatched: response.NumTimesRewatched + 1,
+                                    isRewatching: false,
+                                    ids: _apiIds,
+                                    isShow: _animeType == typeof(Episode));
                             }
                         } else {
                             if (detectedAnime.MyListStatus.IsRewatching) {
                                 // MAL likes to mark re-watching shows as completed, instead of watching. I guess technically both are correct
                                 _logger.LogInformation($"({_apiName}) User is re-watching {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}), set as completed but update re-watch progress");
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, isRewatching: true, ids: _apiIds);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                    episodeNumber.Value,
+                                    Status.Completed,
+                                    isRewatching: true,
+                                    ids: _apiIds,
+                                    isShow: _animeType == typeof(Episode));
                             } else {
                                 if (episodeNumber > 1) {
                                     // don't set start date after first episode
-                                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Watching, ids: _apiIds);
+                                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                        episodeNumber.Value,
+                                        Status.Watching,
+                                        ids: _apiIds,
+                                        isShow: _animeType == typeof(Episode));
                                 } else {
                                     _logger.LogInformation($"({_apiName}) Setting new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) as watching.");
-                                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Watching, startDate: DateTime.Now, ids: _apiIds);
+                                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                        episodeNumber.Value,
+                                        Status.Watching,
+                                        startDate: DateTime.Now,
+                                        ids: _apiIds,
+                                        isShow: _animeType == typeof(Episode));
                                 }
                             }
                         }
@@ -599,12 +638,28 @@ namespace jellyfin_ani_sync {
                         if (setRewatching != null && setRewatching.Value) {
                             _logger.LogInformation($"({_apiName}) Series ({GetAnimeTitle(detectedAnime)}) has already been watched, marking anime as re-watching; progress of {episodeNumber.Value}");
                             if (_apiName == ApiName.Kitsu && firstTimeRewatch) {
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Rewatching, true, detectedAnime.MyListStatus.RewatchCount + 1, ids: _apiIds);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                    episodeNumber.Value,
+                                    Status.Rewatching,
+                                    true,
+                                    detectedAnime.MyListStatus.RewatchCount + 1,
+                                    ids: _apiIds,
+                                    isShow: _animeType == typeof(Episode));
                             } else {
-                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, true, ids: _apiIds);
+                                response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                    episodeNumber.Value,
+                                    Status.Completed,
+                                    true,
+                                    ids: _apiIds,
+                                    isShow: _animeType == typeof(Episode));
                                 // anilist seems to (at the moment) not allow you to set the show as rewatching and the progress at the same time; going to have to do a separate call
                                 if (_apiName == ApiName.AniList) {
-                                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, true, ids: _apiIds);
+                                    response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                                        episodeNumber.Value,
+                                        Status.Completed,
+                                        true,
+                                        ids: _apiIds,
+                                        isShow: _animeType == typeof(Episode));
                                 }
                             }
                         } else {
@@ -617,11 +672,19 @@ namespace jellyfin_ani_sync {
                     if (episodeNumber.Value == detectedAnime.NumEpisodes) {
                         // anime completed all at once or user has watched last episode
                         _logger.LogInformation($"({_apiName}) Adding new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) to user list as completed with a progress of {episodeNumber.Value}");
-                        response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Completed, ids: _apiIds);
+                        response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                            episodeNumber.Value,
+                            Status.Completed,
+                            ids: _apiIds,
+                            isShow: _animeType == typeof(Episode));
                     } else {
                         // not on last episodes so must still be watching
                         _logger.LogInformation($"({_apiName}) Adding new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) to user list as watching with a progress of {episodeNumber.Value}");
-                        response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id, episodeNumber.Value, Status.Watching, ids: _apiIds);
+                        response = await _apiCallHelpers.UpdateAnime(detectedAnime.Id,
+                            episodeNumber.Value,
+                            Status.Watching,
+                            ids: _apiIds,
+                            isShow: _animeType == typeof(Episode));
                     }
                 }
 
