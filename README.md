@@ -42,6 +42,7 @@ While I may not commit to the plugin too often, I am still maintaining it. Pleas
 3. (Beta) Kitsu
 4. (Limited support) Annict
 5. Shikimori
+6. Simkl
 
 ## External tools
 ### Anime Lists
