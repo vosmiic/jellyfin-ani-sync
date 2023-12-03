@@ -84,6 +84,47 @@ namespace jellyfin_ani_sync.Helpers {
             return (null, null);
         }
 
+        private static int? GetAniDbByEpisodeOffset(ILogger logger, int? absoluteEpisodeNumber, int seasonNumber, List<AnimeListAnime> related) {
+            if (absoluteEpisodeNumber != null) {
+                var foundMapping = related.FirstOrDefault(animeListAnime => animeListAnime.MappingList?.Mapping?.FirstOrDefault(mapping => mapping.Start < absoluteEpisodeNumber && mapping.End > absoluteEpisodeNumber) != null)?.Anidbid;
+                if (foundMapping != null) {
+                    return int.Parse(foundMapping);
+                } else {
+                    return SeasonLookup();
+                }
+            } else {
+                return SeasonLookup();
+            }
+
+            int? SeasonLookup() {
+                logger.LogWarning("Could not lookup using absolute episode number, falling back to season number lookup");
+                var foundMapping = related.Where(animeListAnime => animeListAnime.Defaulttvdbseason == "a").FirstOrDefault(animeListAnime => animeListAnime.MappingList.Mapping.FirstOrDefault(mapping => mapping.Tvdbseason == seasonNumber) != null)?.Anidbid ??
+                                   related.FirstOrDefault(animeListAnime => animeListAnime.Defaulttvdbseason == seasonNumber.ToString())?.Anidbid;
+                return foundMapping != null ? int.Parse(foundMapping) : null;
+            }
+        }
+
+        private static int? GetAbsoluteEpisodeNumber(Episode episode) {
+            var previousSeasons = episode.Series.Children.OfType<Season>().Where(item => item.IndexNumber < episode.Season.IndexNumber).ToList();
+            int previousSeasonIndexNumber = -1;
+            foreach (int indexNumber in previousSeasons.Where(item => item.IndexNumber != null).Select(item => item.IndexNumber).OrderBy(item => item.Value)) {
+                if (previousSeasonIndexNumber == -1) {
+                    previousSeasonIndexNumber = indexNumber;
+                } else {
+                    if (previousSeasonIndexNumber != indexNumber - 1) {
+                        // series does not contain all seasons, cannot get absolute episode number
+                        return null;
+                    }
+
+                    previousSeasonIndexNumber = indexNumber;
+                }
+            }
+
+            var previousSeasonsEpisodeCount = previousSeasons.SelectMany(item => item.Children.OfType<Episode>()).Count();
+            // this is presuming the user has all episodes
+            return previousSeasonsEpisodeCount + episode.IndexNumber;
+        }
+
         /// <summary>
         /// Get the season number of an AniDb entry.
         /// </summary>
@@ -142,6 +183,7 @@ namespace jellyfin_ani_sync.Helpers {
         public class AnimeListAnime {
             [XmlElement(ElementName = "name")] public string Name { get; set; }
 
+            [XmlElement(ElementName = "mapping-list")] public MappingList MappingList { get; set; }
             [XmlAttribute(AttributeName = "anidbid")]
             public string Anidbid { get; set; }
 
@@ -156,6 +198,30 @@ namespace jellyfin_ani_sync.Helpers {
 
             [XmlAttribute(AttributeName = "tmdbid")]
             public string Tmdbid { get; set; }
+        }
+
+        [XmlRoot(ElementName = "mapping-list")]
+        public class MappingList {
+            [XmlElement(ElementName = "mapping")] public List<Mapping> Mapping { get; set; }
+        }
+
+        [XmlRoot(ElementName = "mapping")]
+        public class Mapping {
+            [XmlAttribute(AttributeName = "anidbseason")]
+            public int Anidbseason { get; set; }
+
+            [XmlAttribute(AttributeName = "tvdbseason")]
+            public int Tvdbseason { get; set; }
+
+            [XmlText] public string Text { get; set; }
+
+            [XmlAttribute(AttributeName = "start")]
+            public int Start { get; set; }
+
+            [XmlAttribute(AttributeName = "end")] public int End { get; set; }
+
+            [XmlAttribute(AttributeName = "offset")]
+            public int Offset { get; set; }
         }
 
         [XmlRoot(ElementName = "anime-list")]
