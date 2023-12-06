@@ -21,9 +21,8 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="episodeNumber">Episode number.</param>
         /// <param name="seasonNumber">Season number.</param>
         /// <returns></returns>
-        public static async Task<(int? aniDbId, int? episodeOffset)> GetAniDbId(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, Video video, int episodeNumber, int seasonNumber) {
+        public static async Task<(int? aniDbId, int? episodeOffset)> GetAniDbId(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, Video video, int episodeNumber, int seasonNumber, AnimeListXml animeListXml) {
             int aniDbId;
-            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
             if (animeListXml == null) return (null, null);
             Dictionary<string, string> providers;
             if (video is Episode) {
@@ -38,14 +37,37 @@ namespace jellyfin_ani_sync.Helpers {
             if (providers.ContainsKey("Anidb")) {
                 logger.LogInformation("(Anidb) Anime already has AniDb ID; no need to look it up");
                 if (!int.TryParse(providers["Anidb"], out aniDbId)) return (null, null);
-                var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId &&
-                                                                   ((video as Episode).Season.ProviderIds.ContainsKey("Anidb") ||
-                                                                    (int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) && xmlSeason == seasonNumber || anime.Defaulttvdbseason == "a"))).ToList();
+                var foundAnime = animeListXml.Anime.Where(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) &&
+                                                                   xmlAniDbId == aniDbId &&
+                                                                   (
+                                                                       (video as Episode).Season.ProviderIds.ContainsKey("Anidb") ||
+                                                                       (int.TryParse(anime.Defaulttvdbseason, out int xmlSeason) &&
+                                                                        xmlSeason == seasonNumber ||
+                                                                        anime.Defaulttvdbseason == "a")
+                                                                   )
+                ).ToList();
                 switch (foundAnime.Count()) {
                     case 1:
-                        logger.LogInformation($"(Anidb) Anime {foundAnime[0].Name} found in anime XML file");
-                        return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
+                        var related = animeListXml.Anime.Where(anime => anime.Tvdbid == foundAnime.First().Tvdbid).ToList();
+                        if (video is Episode episode && episode.Series.Children.OfType<Season>().Count() > 1 && related.Count > 1) {
+                            // contains more than 1 season, need to do a lookup
+                            logger.LogInformation($"(Anidb) Anime {episode.Series.Name} found in anime XML file");
+                            logger.LogInformation($"(Anidb) Looking up anime {episode.Series.Name} in the anime XML file by absolute episode number...");
+                            var aniDb = GetAniDbByEpisodeOffset(logger, GetAbsoluteEpisodeNumber(episode), seasonNumber, related);
+                            if (aniDb != null) {
+                                logger.LogInformation($"(Anidb) Anime {episode.Series.Name} found in anime XML file, detected AniDB ID {aniDb}");
+                                return (aniDb.Value, null);
+                            } else {
+                                logger.LogInformation($"(Anidb) Anime {episode.Series.Name} could not found in anime XML file; falling back to other metadata providers if available...");
+                            }
+                        } else {
+                            logger.LogInformation($"(Anidb) Anime {(video is Episode episodeWithoutSeason ? episodeWithoutSeason.Name : video.Name)} found in anime XML file");
+                            // is movie / only has one season / no related; just return the only result
+                            return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
+                        }
+                        break;
                     case > 1:
+                        // here
                         logger.LogWarning("(Anidb) More than one result found; possibly an issue with the XML. Falling back to other metadata providers if available...");
                         break;
                     case 0:
@@ -97,7 +119,7 @@ namespace jellyfin_ani_sync.Helpers {
             }
 
             int? SeasonLookup() {
-                logger.LogWarning("Could not lookup using absolute episode number, falling back to season number lookup");
+                logger.LogWarning("(AniDb) Could not lookup using absolute episode number, falling back to season number lookup");
                 var foundMapping = related.Where(animeListAnime => animeListAnime.Defaulttvdbseason == "a").FirstOrDefault(animeListAnime => animeListAnime.MappingList.Mapping.FirstOrDefault(mapping => mapping.Tvdbseason == seasonNumber) != null)?.Anidbid ??
                                    related.FirstOrDefault(animeListAnime => animeListAnime.Defaulttvdbseason == seasonNumber.ToString())?.Anidbid;
                 return foundMapping != null ? int.Parse(foundMapping) : null;
@@ -134,16 +156,14 @@ namespace jellyfin_ani_sync.Helpers {
         /// <param name="applicationPaths"></param>
         /// <param name="aniDbId"></param>
         /// <returns>Season.</returns>
-        public static async Task<AnimeListAnime> GetAniDbSeason(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId) {
-            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
+        public static async Task<AnimeListAnime> GetAniDbSeason(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId, AnimeListXml animeListXml) {
             if (animeListXml == null) return null;
 
             return animeListXml.Anime.FirstOrDefault(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId);
         }
 
 
-        public static async Task<IEnumerable<AnimeListAnime>> ListAllSeasonOfAniDbSeries(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId) {
-            AnimeListXml animeListXml = await GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
+        public static async Task<IEnumerable<AnimeListAnime>> ListAllSeasonOfAniDbSeries(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, int aniDbId, AnimeListXml animeListXml) {
             if (animeListXml == null) return null;
 
             AnimeListAnime foundXmlAnime = animeListXml.Anime.FirstOrDefault(anime => int.TryParse(anime.Anidbid, out int xmlAniDbId) && xmlAniDbId == aniDbId);
@@ -157,7 +177,7 @@ namespace jellyfin_ani_sync.Helpers {
         /// </summary>
         /// <param name="logger">Logger.</param>
         /// <returns></returns>
-        private static async Task<AnimeListXml> GetAnimeListFileContents(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths) {
+        public static async Task<AnimeListXml> GetAnimeListFileContents(ILogger logger, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths) {
             UpdateAnimeList updateAnimeList = new UpdateAnimeList(httpClientFactory, loggerFactory, applicationPaths);
 
             try {
