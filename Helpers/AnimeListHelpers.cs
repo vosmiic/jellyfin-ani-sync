@@ -61,10 +61,21 @@ namespace jellyfin_ani_sync.Helpers {
                                 logger.LogInformation($"(Anidb) Anime {episode.Series.Name} could not found in anime XML file; falling back to other metadata providers if available...");
                             }
                         } else {
+                            if (video is Episode episodeWithMultipleSeasons && episodeWithMultipleSeasons.Season.IndexNumber > 1) {
+                                // user doesnt have full series; have to do season lookup
+                                logger.LogInformation($"(Tvdb) Anime {episodeWithMultipleSeasons.Series.Name} found in anime XML file");
+                                var aniDb = SeasonLookup(logger, seasonNumber, related);
+                                return aniDb != null ? (aniDb, null) : (null, null);
+                            } else {
+                                logger.LogInformation($"(Tvdb) Anime {video.Name} found in anime XML file");
+                                // is movie / only has one season / no related; just return the only result
+                                return int.TryParse(related.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
+                            }
                             logger.LogInformation($"(Anidb) Anime {(video is Episode episodeWithoutSeason ? episodeWithoutSeason.Name : video.Name)} found in anime XML file");
                             // is movie / only has one season / no related; just return the only result
                             return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
                         }
+
                         break;
                     case > 1:
                         // here
@@ -85,7 +96,7 @@ namespace jellyfin_ani_sync.Helpers {
                 int tvDbId;
                 if (!int.TryParse(providers["Tvdb"], out tvDbId)) return (null, null);
                 var related = animeListXml.Anime.Where(anime => int.TryParse(anime.Tvdbid, out int xmlTvDbId) && xmlTvDbId == tvDbId).ToList();
-                
+
                 if (!related.Any()) {
                     logger.LogWarning("(Tvdb) Anime not found in anime list XML; querying the appropriate providers API");
                     return (null, null);
@@ -103,9 +114,16 @@ namespace jellyfin_ani_sync.Helpers {
                         logger.LogInformation($"(Tvdb) Anime {episode.Series.Name} could not found in anime XML file; falling back to other metadata providers if available...");
                     }
                 } else {
-                    logger.LogInformation($"(Tvdb) Anime {(video is Episode episodeWithoutSeason ? episodeWithoutSeason.Name : video.Name)} found in anime XML file");
-                    // is movie / only has one season / no related; just return the only result
-                    return int.TryParse(related.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
+                    if (video is Episode episodeWithMultipleSeasons && episodeWithMultipleSeasons.Season.IndexNumber > 1) {
+                        // user doesnt have full series; have to do season lookup
+                        logger.LogInformation($"(Tvdb) Anime {episodeWithMultipleSeasons.Name} found in anime XML file");
+                        var aniDb = SeasonLookup(logger, seasonNumber, related);
+                        return aniDb != null ? (aniDb, null) : (null, null);
+                    } else {
+                        logger.LogInformation($"(Tvdb) Anime {video.Name} found in anime XML file");
+                        // is movie / only has one season / no related; just return the only result
+                        return int.TryParse(related.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
+                    }
                 }
             }
 
@@ -118,18 +136,20 @@ namespace jellyfin_ani_sync.Helpers {
                 if (foundMapping != null) {
                     return int.Parse(foundMapping);
                 } else {
-                    return SeasonLookup();
+                    logger.LogWarning("(AniDb) Could not lookup using absolute episode number (reason: no mappings found)");
+                    return SeasonLookup(logger, seasonNumber, related);
                 }
             } else {
-                return SeasonLookup();
+                logger.LogWarning("(AniDb) Could not lookup using absolute episode number (reason: absolute episode number is null)");
+                return SeasonLookup(logger, seasonNumber, related);
             }
+        }
 
-            int? SeasonLookup() {
-                logger.LogWarning("(AniDb) Could not lookup using absolute episode number, falling back to season number lookup");
-                var foundMapping = related.Where(animeListAnime => animeListAnime.Defaulttvdbseason == "a").FirstOrDefault(animeListAnime => animeListAnime.MappingList.Mapping.FirstOrDefault(mapping => mapping.Tvdbseason == seasonNumber) != null)?.Anidbid ??
-                                   related.FirstOrDefault(animeListAnime => animeListAnime.Defaulttvdbseason == seasonNumber.ToString())?.Anidbid;
-                return foundMapping != null ? int.Parse(foundMapping) : null;
-            }
+        private static int? SeasonLookup(ILogger logger, int seasonNumber, List<AnimeListAnime> related) {
+            logger.LogInformation("Looking up AniDB by season offset");
+            var foundMapping = related.Where(animeListAnime => animeListAnime.Defaulttvdbseason == "a").FirstOrDefault(animeListAnime => animeListAnime.MappingList.Mapping.FirstOrDefault(mapping => mapping.Tvdbseason == seasonNumber) != null)?.Anidbid ??
+                               related.FirstOrDefault(animeListAnime => animeListAnime.Defaulttvdbseason == seasonNumber.ToString())?.Anidbid;
+            return foundMapping != null ? int.Parse(foundMapping) : null;
         }
 
         private static int? GetAbsoluteEpisodeNumber(Episode episode) {
@@ -209,7 +229,9 @@ namespace jellyfin_ani_sync.Helpers {
         public class AnimeListAnime {
             [XmlElement(ElementName = "name")] public string Name { get; set; }
 
-            [XmlElement(ElementName = "mapping-list")] public MappingList MappingList { get; set; }
+            [XmlElement(ElementName = "mapping-list")]
+            public MappingList MappingList { get; set; }
+
             [XmlAttribute(AttributeName = "anidbid")]
             public string Anidbid { get; set; }
 
