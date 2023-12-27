@@ -78,6 +78,7 @@ namespace jellyfin_ani_sync.Api {
                 }
 
                 url.Parameters.Add(new KeyValuePair<string, string>("q", query));
+                url.Parameters.Add(new KeyValuePair<string, string>("nsfw", "true"));
             }
 
             if (fields != null) {
