@@ -61,5 +61,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// True to update all simkl series episodes to current point.
         /// </summary>
         public bool simklUpdateAll { get; set; }
+        
+        /// <summary>
+        /// True to update NSFW anime.
+        /// </summary>
+        public bool updateNsfw { get; set; }
     }
 }

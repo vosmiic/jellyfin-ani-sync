@@ -264,6 +264,8 @@ async function initialLoad() {
                 page.querySelector('#shikimoriAppName').value = config.shikimoriAppName;
             if (config.simklUpdateAll)
                 page.querySelector('#simklUpdateAll').checked = config.simklUpdateAll;
+            if (config.updateNsfw)
+                page.querySelector('#UpdateNsfw').checked = config.updateNsfw;
 
             page.querySelector('#clientSecretLabel').style.display = "block";
             page.querySelector('#clientSecret').style.display = "block";
@@ -369,6 +371,7 @@ async function initialLoad() {
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;
             config.simklUpdateAll = document.querySelector('#simklUpdateAll').checked;
+            config.updateNsfw = document.querySelector('#UpdateNsfw').checked;
 
             userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                 return element.getAttribute('id');
