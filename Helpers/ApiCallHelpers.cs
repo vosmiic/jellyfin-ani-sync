@@ -49,7 +49,7 @@ namespace jellyfin_ani_sync.Helpers {
 
         public async Task<List<Anime>> SearchAnime(string query) {
             if (_malApiCalls != null) {
-                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes", "status" });
+                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes", "status" }, Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw);
             }
 
             if (_aniListApiCalls != null) {
