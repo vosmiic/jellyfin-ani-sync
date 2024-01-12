@@ -6,6 +6,8 @@ on:
     tags: ["*.*.*"]
   pull_request:
     branches: ["master"]
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at 12 AM UTC (builds nightly)
 
 env:
   REGISTRY: ghcr.io
