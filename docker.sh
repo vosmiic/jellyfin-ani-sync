@@ -9,6 +9,12 @@ cd "$(dirname "$0")"
 SCRIPT_PATH="$(pwd)"
 
 DEST_PATH=$1
+
+if [[ $DEST_PATH == "" ]]; then
+    echo "Usage: $0 <path to Ani-Sync or plugins folder> [docker image]"
+    exit 1
+fi
+
 DOCKER_IMAGE=$2
 
 # If "Ani-Sync" not in path name, try to find it in the given folder
