@@ -9,7 +9,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,11 +25,17 @@ jobs:
       matrix:
         platform:
           - linux/amd64
-          - linux/arm64
+          - linux/arm64/v8
+          - linux/arm/v7
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Convert image name to lowercase
+        run: |
+          GITHUB_REPOSITORY="${{ github.repository }}"
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.0.0
@@ -81,6 +86,10 @@ jobs:
     permissions:
       packages: write
     steps:
+      - name: Convert image name to lowercase
+        run: |
+          GITHUB_REPOSITORY="${{ github.repository }}"
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
       - name: Download digests
         uses: actions/download-artifact@v3
         with:
