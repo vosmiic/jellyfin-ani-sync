@@ -5,7 +5,7 @@ on:
     branches: ['**']
     tags: ["*.*.*"]
   pull_request:
-    branches: ["main"]
+    branches: ["master"]
 
 env:
   REGISTRY: ghcr.io
