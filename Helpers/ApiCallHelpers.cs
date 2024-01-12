@@ -48,8 +48,9 @@ namespace jellyfin_ani_sync.Helpers {
         }
 
         public async Task<List<Anime>> SearchAnime(string query) {
+            bool updateNsfw = Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw;
             if (_malApiCalls != null) {
-                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes", "status" }, Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw);
+                return await _malApiCalls.SearchAnime(query, new[] { "id", "title", "alternative_titles", "num_episodes", "status" }, updateNsfw);
             }
 
             if (_aniListApiCalls != null) {
@@ -57,6 +58,7 @@ namespace jellyfin_ani_sync.Helpers {
                 List<Anime> convertedList = new List<Anime>();
                 if (animeList != null) {
                     foreach (AniListSearch.Media media in animeList) {
+                        if (!updateNsfw && media.IsAdult) continue; // Skip NSFW anime if the user doesn't want to update them
                         var synonyms = new List<string> {
                             { media.Title.Romaji },
                             { media.Title.UserPreferred }

@@ -60,6 +60,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                     synonyms
                     episodes
                     status
+                    isAdult
                 }
             }
         }
@@ -108,6 +109,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
           Media(id: $id) {
             id
             episodes
+            isAdult
             title {
               romaji
               english
