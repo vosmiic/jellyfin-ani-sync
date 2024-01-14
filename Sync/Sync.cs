@@ -218,7 +218,8 @@ public class Sync {
                 continue;
             }
 
-            AnimeListHelpers.AnimeListAnime season = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb.Value);
+            AnimeListHelpers.AnimeListXml animeListXml = await AnimeListHelpers.GetAnimeListFileContents(_logger, _loggerFactory, _httpClientFactory, _applicationPaths);
+            AnimeListHelpers.AnimeListAnime season = await AnimeListHelpers.GetAniDbSeason(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, ids.AniDb.Value, animeListXml);
             if (season == null || (!int.TryParse(season.Defaulttvdbseason, out var seasonNumber) && season.Defaulttvdbseason != "a")) {
                 _logger.LogError("(Sync) Could not retrieve season number; skipping item...");
                 Sleep();
