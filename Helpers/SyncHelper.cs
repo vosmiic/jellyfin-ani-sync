@@ -118,7 +118,8 @@ public class SyncHelper {
         List<int> seasonFilter = null) {
         var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(httpClientFactory.CreateClient(NamedClient.Default), providerId, source);
         if (id is { AniDb: { } }) {
-            var seasons = await AnimeListHelpers.ListAllSeasonOfAniDbSeries(logger, loggerFactory, httpClientFactory, applicationPaths, id.AniDb.Value);
+            AnimeListHelpers.AnimeListXml animeListXml = await AnimeListHelpers.GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
+            var seasons = await AnimeListHelpers.ListAllSeasonOfAniDbSeries(logger, loggerFactory, httpClientFactory, applicationPaths, id.AniDb.Value, animeListXml);
             List<AnimeListHelpers.AnimeListAnime> seasonsList;
             if (seasonFilter != null) {
                 IEnumerable<AnimeListHelpers.AnimeListAnime> listAnimeSeasons = seasons.ToList();
