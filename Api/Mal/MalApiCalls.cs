@@ -66,7 +66,7 @@ namespace jellyfin_ani_sync.Api {
         /// <param name="query">Search by title.</param>
         /// <param name="fields">The fields you would like returned.</param>
         /// <returns>List of anime.</returns>
-        public async Task<List<Anime>> SearchAnime(string? query, string[]? fields) {
+        public async Task<List<Anime>> SearchAnime(string? query, string[]? fields, bool updateNsfw = false) {
             UrlBuilder url = new UrlBuilder {
                 Base = $"{ApiUrl}/anime"
             };
@@ -78,6 +78,9 @@ namespace jellyfin_ani_sync.Api {
                 }
 
                 url.Parameters.Add(new KeyValuePair<string, string>("q", query));
+                if (updateNsfw) {
+                    url.Parameters.Add(new KeyValuePair<string, string>("nsfw", "true"));
+                }
             }
 
             if (fields != null) {

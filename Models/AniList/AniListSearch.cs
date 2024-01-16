@@ -82,6 +82,8 @@ namespace jellyfin_ani_sync.Models {
             
             [JsonPropertyName("siteUrl")]
             public string SiteUrl { get; set; }
+
+            [JsonPropertyName("isAdult")] public bool IsAdult { get; set; }
         }
 
         public class Page {
