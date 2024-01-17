@@ -63,6 +63,8 @@ We use the API offered by the [arm server repo](https://github.com/BeeeQueue/arm
 Please also help these projects by contributing to the anime database/helping with the API server.
 
 ## Development
+Beta releases can be installed automatically by replacing the manifest URL with `https://raw.githubusercontent.com/vosmiic/jellyfin-ani-sync/master/beta-manifest.json`. This will replace your version with the latest beta release (if there is a beta release more recent than the latest stable release). It will be replaced with the latest stable release when it is released, so both repos can be used at the same time. Authentication and other settings should be carried over. Use at your own risk.
+
 Unit tests can be found [here](https://github.com/vosmiic/jellyfin-ani-sync-unit-tests).
 
 The `docker.sh` file can be used to build and automatically copy the resulting DLL to the correct place. The first argument should be either the path to the Ani-Sync folder or the plugins folder (where it will attempt to find the latest Ani-Sync plugin folder). The second optional argument can be an image, or left empty to build using the Dockerfile.
