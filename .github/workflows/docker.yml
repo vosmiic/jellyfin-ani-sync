@@ -3,7 +3,7 @@ name: Build Docker Container
 on:
   push:
     branches: ['**']
-    tags: ["*.*.*"]
+    tags: ["v*.*"]
   pull_request:
     branches: ["master"]
   schedule:
