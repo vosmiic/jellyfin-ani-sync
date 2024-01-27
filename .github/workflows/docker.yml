@@ -45,7 +45,7 @@ jobs:
         uses: docker/setup-buildx-action@v3.0.0
 
       - name: Log into registry ${{ env.REGISTRY }}
-        if: ${{ !github.event.pull_request || github.event.pull_request.base.repo == github.event.pull_request.head.repo }}
+        if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
         uses: docker/login-action@v3.0.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -69,16 +69,16 @@ jobs:
           platforms: ${{ matrix.platform }}
           provenance: true
           sbom: true
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ !github.event.pull_request || github.event.pull_request.base.repo == github.event.pull_request.head.repo }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
 
       - name: Export digest
-        if: ${{ !github.event.pull_request || github.event.pull_request.base.repo == github.event.pull_request.head.repo }}
+        if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Upload digest
-        if: ${{ !github.event.pull_request || github.event.pull_request.base.repo == github.event.pull_request.head.repo }}
+        if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
         uses: actions/upload-artifact@v3
         with:
           name: digests
@@ -88,7 +88,7 @@ jobs:
 
   merge:
     runs-on: ubuntu-latest
-    if: ${{ !github.event.pull_request || github.event.pull_request.base.repo == github.event.pull_request.head.repo }}
+    if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
     needs:
       - build
     permissions:
