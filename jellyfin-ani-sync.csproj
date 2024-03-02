@@ -14,8 +14,8 @@
     </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.8.4" />
-    <PackageReference Include="Jellyfin.Model" Version="10.8.4" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.8.13" />
+    <PackageReference Include="Jellyfin.Model" Version="10.8.13" />
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
             <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
             <PackageReference Include="System.Collections" Version="4.3.0" />
