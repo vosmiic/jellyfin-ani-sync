@@ -20,8 +20,6 @@ public class ShikimoriUpdate {
         public int Episodes { get; set; }
         [JsonPropertyName("rewatches")]
         public int Rewatches { get; set; }
-        [JsonPropertyName("score")]
-        public int Score { get; set; }
         [JsonPropertyName("status")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public UpdateStatus Status { get; set; }
