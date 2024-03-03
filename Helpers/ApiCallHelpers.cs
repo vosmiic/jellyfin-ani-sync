@@ -125,7 +125,18 @@ namespace jellyfin_ani_sync.Helpers {
                 List<Anime> convertedList = new List<Anime>();
                 if (animeList != null) {
                     foreach (ShikimoriMedia shikimoriMedia in animeList) {
-                        convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriMedia));
+                        // Unlike Shikimori GraphQL API, HTTP/JSON API does not
+                        // return full anime model. In particular, `synonyms`,
+                        // `english` and `japanese` fields are missing.
+                        //
+                        // TODO: use GraphQL for searching anime to avoid
+                        // additional requests?
+                        // See also https://shikimori.one/api/doc/graphql
+                        ShikimoriMedia fullShikimoriMedia = await _shikimoriApiCalls.GetAnime(shikimoriMedia.Id);
+                        if (fullShikimoriMedia == null) {
+                            continue;
+                        }
+                        convertedList.Add(ClassConversions.ConvertShikimoriAnime(fullShikimoriMedia));
                     }
                 }
 
@@ -308,20 +319,6 @@ namespace jellyfin_ani_sync.Helpers {
                             convertedAnime.MyListStatus.Status = Status.Plan_to_watch;
                             break;
                     }
-                }
-
-                convertedAnime.AlternativeTitles = new AlternativeTitles();
-                convertedAnime.AlternativeTitles.Synonyms = new List<string>();
-                foreach (string relatedAnime in anime.RelatedAnime) {
-                    convertedAnime.AlternativeTitles.Synonyms.Add(relatedAnime);
-                }
-
-                if (anime.English != null && anime.English.Any()) {
-                    convertedAnime.AlternativeTitles.En = anime.English[0];
-                }
-
-                if (anime.Japanese != null && anime.Japanese.Any()) {
-                    convertedAnime.AlternativeTitles.Ja = anime.Japanese[0];
                 }
 
                 if (related != null) {

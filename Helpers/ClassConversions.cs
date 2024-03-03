@@ -94,12 +94,28 @@ namespace jellyfin_ani_sync.Helpers {
             };
         }
 
-        public static Anime ConvertShikimoriAnime(ShikimoriMedia shikimoriAnime) =>
-            new()  {
+        public static Anime ConvertShikimoriAnime(ShikimoriMedia shikimoriAnime) {
+            Anime anime = new Anime {
                 Id = shikimoriAnime.Id,
                 Title = shikimoriAnime.Name,
-                NumEpisodes = shikimoriAnime.Episodes
+                NumEpisodes = shikimoriAnime.Episodes,
+                AlternativeTitles = new AlternativeTitles(),
             };
+
+            if (shikimoriAnime.Synonyms != null) {
+                anime.AlternativeTitles.Synonyms = shikimoriAnime.Synonyms.ToList();
+            }
+
+            if (shikimoriAnime.English != null && shikimoriAnime.English.Any()) {
+                anime.AlternativeTitles.En = shikimoriAnime.English[0];
+            }
+
+            if (shikimoriAnime.Japanese != null && shikimoriAnime.Japanese.Any()) {
+                anime.AlternativeTitles.Ja = shikimoriAnime.Japanese[0];
+            }
+
+            return anime;
+        }
 
         public static Anime ConvertSimklAnime(SimklExtendedMedia simklExtendedMedia, SimklUserEntry simklUserEntry = null) {
             Anime anime = new Anime {

@@ -341,7 +341,7 @@ namespace jellyfin_ani_sync {
         private bool TitleCheck(Anime anime, Episode episode, Movie movie) {
             var title = _animeType == typeof(Episode) ? episode.SeriesName : movie.Name;
             return CompareStrings(anime.Title, title) ||
-                   CompareStrings(anime.AlternativeTitles.En, title) ||
+                   (anime.AlternativeTitles.En != null && CompareStrings(anime.AlternativeTitles.En, title)) ||
                    (anime.AlternativeTitles.Ja != null && CompareStrings(anime.AlternativeTitles.Ja, title)) ||
                    (anime.AlternativeTitles.Synonyms != null && anime.AlternativeTitles.Synonyms.Any(synonym => CompareStrings(synonym, title)));
         }
