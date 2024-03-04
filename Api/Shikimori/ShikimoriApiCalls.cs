@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
-using jellyfin_ani_sync.JsonConverters;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Shikimori;
 using MediaBrowser.Controller;
@@ -287,7 +286,6 @@ public class ShikimoriApiCalls {
 
         var jsonSerializerOptions = new JsonSerializerOptions {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new IntToStringConverter.IntToStringJsonConverter() }
         };
 
         var stringContent = new StringContent(JsonSerializer.Serialize(updateBody, jsonSerializerOptions), Encoding.UTF8, "application/json");
