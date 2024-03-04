@@ -94,24 +94,50 @@ namespace jellyfin_ani_sync.Helpers {
             };
         }
 
-        public static Anime ConvertShikimoriAnime(ShikimoriMedia shikimoriAnime) {
+        public static Anime ConvertShikimoriAnime(ShikimoriAnime shikimoriAnime) {
             Anime anime = new Anime {
-                Id = shikimoriAnime.Id,
+                AlternativeId = shikimoriAnime.Id,
+                Id = int.TryParse(shikimoriAnime.MalId ?? "", out int id) ? id : -1,
                 Title = shikimoriAnime.Name,
                 NumEpisodes = shikimoriAnime.Episodes,
-                AlternativeTitles = new AlternativeTitles(),
+                AlternativeTitles = new AlternativeTitles {
+                    En = shikimoriAnime.English,
+                    Ja = shikimoriAnime.Japanese,
+                    Synonyms = shikimoriAnime.Synonyms.ToList(),
+                },
             };
 
-            if (shikimoriAnime.Synonyms != null) {
-                anime.AlternativeTitles.Synonyms = shikimoriAnime.Synonyms.ToList();
+            if (shikimoriAnime.Russian != null) {
+                anime.AlternativeTitles.Synonyms.Add(shikimoriAnime.Russian);
             }
 
-            if (shikimoriAnime.English != null && shikimoriAnime.English.Any()) {
-                anime.AlternativeTitles.En = shikimoriAnime.English[0];
-            }
-
-            if (shikimoriAnime.Japanese != null && shikimoriAnime.Japanese.Any()) {
-                anime.AlternativeTitles.Ja = shikimoriAnime.Japanese[0];
+            if (shikimoriAnime.UserRate != null) {
+                var userRate = shikimoriAnime.UserRate;
+                anime.MyListStatus = new MyListStatus {
+                    NumEpisodesWatched = userRate.Episodes,
+                    IsRewatching = userRate.Status is ShikimoriUserRate.StatusEnum.rewatching,
+                    RewatchCount = userRate.Rewatches,
+                };
+                switch (userRate.Status) {
+                    case ShikimoriUserRate.StatusEnum.completed:
+                        anime.MyListStatus.Status = Status.Completed;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.watching:
+                        anime.MyListStatus.Status = Status.Watching;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.rewatching:
+                        anime.MyListStatus.Status = Status.Rewatching;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.dropped:
+                        anime.MyListStatus.Status = Status.Dropped;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.on_hold:
+                        anime.MyListStatus.Status = Status.On_hold;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.planned:
+                        anime.MyListStatus.Status = Status.Plan_to_watch;
+                        break;
+                }
             }
 
             return anime;

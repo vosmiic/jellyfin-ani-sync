@@ -1,10 +1,15 @@
 using System;
 using System.Text.Json.Serialization;
+using jellyfin_ani_sync.Models.Shikimori;
 
 namespace jellyfin_ani_sync.Models.Shikimori;
 
 public class ShikimoriRelated {
-    [JsonPropertyName("relation")] public string Relation { get; set; }
+    [JsonPropertyName("anime")]
+    public ShikimoriAnime? Anime { get; set; }
+
+    [JsonPropertyName("relationEn")]
+    public string Relation { get; set; }
 
     public ShikimoriRelation? RelationEnum {
         get {
@@ -15,8 +20,6 @@ public class ShikimoriRelated {
             }
         }
     }
-
-    [JsonPropertyName("anime")] public ShikimoriMedia Anime { get; set; }
 }
 
 public enum ShikimoriRelation {
