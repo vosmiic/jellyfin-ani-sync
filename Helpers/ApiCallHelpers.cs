@@ -277,11 +277,14 @@ namespace jellyfin_ani_sync.Helpers {
 
                 if (anime.Related != null) {
                     convertedAnime.RelatedAnime = new List<RelatedAnime>();
-                    foreach (ShikimoriRelated shikimoriRelated in anime.Related.Where(related => related.Anime != null && related.RelationEnum == null)) {
+                    foreach (ShikimoriRelated shikimoriRelated in anime.Related.Where(related => related.Anime != null)) {
                         RelationType? convertedAnimeRelationType = null;
                         switch (shikimoriRelated.RelationEnum) {
                             case ShikimoriRelation.Sequel:
                                 convertedAnimeRelationType = RelationType.Sequel;
+                                break;
+                            case ShikimoriRelation.Prequel:
+                                convertedAnimeRelationType = RelationType.Prequel;
                                 break;
                             case ShikimoriRelation.Sidestory:
                                 convertedAnimeRelationType = RelationType.Side_Story;

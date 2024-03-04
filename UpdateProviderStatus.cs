@@ -220,19 +220,22 @@ namespace jellyfin_ani_sync {
                             break;
                     }
 
+                    var animeType = _animeType == typeof(Episode) ? "series" : "movie";
+                    var searchTitle = _animeType == typeof(Episode) ? episode.SeriesName : video.Name;
+                    _logger.LogInformation($"({_apiName}) Searching for {animeType}: {searchTitle}");
                     List<Anime> animeList = await _apiCallHelpers.SearchAnime(_animeType == typeof(Episode) ? episode.SeriesName : video.Name);
                     bool found = false;
                     if (animeList != null) {
                         foreach (var anime in animeList) {
-                            var checkMalId = _apiName == ApiName.Annict || _apiName == ApiName.Shikimori;
-                            var checkTitle = _apiName != ApiName.Annict;
+                            var checkMalId = _apiName == ApiName.Annict ||
+                                _apiName == ApiName.Shikimori && _apiIds.MyAnimeList != null && anime.Id > 0;
                             if (checkMalId && _apiIds.MyAnimeList != null && anime.Id == _apiIds.MyAnimeList ||
-                                checkTitle && TitleCheck(anime, episode, movie)) {
-                                _logger.LogInformation($"({_apiName}) Found matching {(_animeType == typeof(Episode) ? "series" : "movie")}: {GetAnimeTitle(anime)}");
+                                !checkMalId && TitleCheck(anime, episode, movie)) {
+                                _logger.LogInformation($"({_apiName}) Found matching {animeType}: {GetAnimeTitle(anime)}");
                                 Anime matchingAnime = anime;
                                 if (_animeType == typeof(Episode)) {
                                     int episodeNumber = episode.IndexNumber.Value;
-                                    if (_apiName != ApiName.Annict) {
+                                    if (!checkMalId) {
                                         // should have already found the appropriate series/season/movie, no need to do other checks
                                         if (episode?.Season.IndexNumber is > 1) {
                                             // if this is not the first season, then we need to lookup the related season.
@@ -727,7 +730,7 @@ namespace jellyfin_ani_sync {
                             initialSeason = nextSeason;
                         }
                     } else {
-                        _logger.LogInformation($"({_apiName}) Could not find any related anime");
+                        _logger.LogInformation($"({_apiName}) Could not find any related anime sequel");
                         return null;
                     }
 

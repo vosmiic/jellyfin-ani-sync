@@ -24,6 +24,7 @@ public class ShikimoriRelated {
 
 public enum ShikimoriRelation {
     Sequel,
+    Prequel,
     Sidestory,
     Alternativeversion
 }
