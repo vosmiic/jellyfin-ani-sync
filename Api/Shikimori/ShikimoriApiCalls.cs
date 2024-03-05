@@ -322,14 +322,14 @@ public class ShikimoriApiCalls {
         public Dictionary<string, object>? Variables { get; set; }
     }
 
-    private class GraphqlResponse<DataType> {
+    public class GraphqlResponse<DataType> {
         [JsonPropertyName("data")]
         public DataType? Data { get; set; }
         [JsonPropertyName("errors")]
         public List<GraphqlError>? Errors { get; set; }
     }
 
-    private class GraphqlError {
+    public class GraphqlError {
         [JsonPropertyName("message")]
         public string Message { get; set; }
     }
