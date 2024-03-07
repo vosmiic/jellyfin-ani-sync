@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
-using jellyfin_ani_sync.JsonConverters;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Shikimori;
 using MediaBrowser.Controller;
@@ -25,8 +24,61 @@ public class ShikimoriApiCalls {
     private readonly AuthApiCall _authApiCall;
     private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
     private readonly string _apiBaseUrl = "https://shikimori.one/api";
+    private readonly int _sleepDelay = 1000;
     private readonly UserConfig? _userConfig;
     private readonly Dictionary<string, string>? _requestHeaders;
+
+    private readonly string _graphqlQuery = @"
+      query SearchAnime($search: String!, $page: Int!, $limit: Int!) {
+        animes(search: $search, page: $page, limit: $limit) {
+          ...AnimeFields
+        }
+      }
+
+      query GetAnime($id: String!, $getRelated: Boolean!) {
+        animes(ids: $id) {
+          ...AnimeFields
+
+          userRate {
+            ...UserRateFields
+          }
+
+          related @include(if: $getRelated) {
+            anime {
+              ...AnimeFields
+            }
+            relationEn
+          }
+        }
+      }
+
+      query GetUserAnimeList($mylist: MylistString!, $page: Int!, $limit: Int!) {
+        animes(mylist: $mylist, page: $page, limit: $limit) {
+          ...AnimeFields
+          userRate {
+            ...UserRateFields
+          }
+        }
+      }
+
+      fragment UserRateFields on UserRate {
+         status
+         rewatches
+         episodes
+      }
+
+      fragment AnimeFields on Anime {
+        id
+        malId
+        name
+        episodes
+        synonyms
+        russian
+        english
+        japanese
+        isCensored
+      }
+    ";
 
     public ShikimoriApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
         _userConfig = userConfig;
@@ -78,115 +130,153 @@ public class ShikimoriApiCalls {
     /// </summary>
     /// <param name="searchString">The name to search for.</param>
     /// <returns></returns>
-    public async Task<List<ShikimoriMedia>?> SearchAnime(string searchString) {
-        UrlBuilder url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/animes"
-        };
-        url.Parameters.Add(new KeyValuePair<string, string>("search", searchString));
+    public async Task<List<ShikimoriAnime>?> SearchAnime(string searchString) {
+        const int maxPages = 10;
+        const int limit = 50;
 
-        return await PagedCall<ShikimoriMedia>(url, 50);
+        List<ShikimoriAnime>? result = null;
+        for (int page = 1; page < maxPages; page++) {
+            var request = new GraphqlRequest {
+                Query = _graphqlQuery,
+                OperationName = "SearchAnime",
+                Variables = new Dictionary<string, object>() {
+                    { "search", searchString },
+                    { "limit", limit },
+                    { "page", page },
+                },
+            };
+
+            var data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
+            if (data == null) {
+                break;
+            }
+
+            List<ShikimoriAnime> animes;
+            if (!data.TryGetValue("animes", out animes)) {
+                _logger.LogWarning("GraphQL response does not contain animes query");
+                break;
+            }
+
+            if (result != null) {
+                result.AddRange(animes);
+            } else {
+                result = animes;
+            }
+
+            if (animes.Count < limit) {
+                break;
+            }
+
+            // sleeping task so we dont hammer the API
+            await Task.Delay(_sleepDelay);
+        }
+        return result;
     }
-
 
     /// <summary>
     /// Get an anime.
     /// </summary>
     /// <param name="id">ID of the anime you want to get.</param>
     /// <returns></returns>
-    public async Task<ShikimoriMedia?> GetAnime(int id) {
-        UrlBuilder url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/animes/{id}"
+    public async Task<ShikimoriAnime?> GetAnime(string id, bool getRelated = false) {
+        var request = new GraphqlRequest {
+            Query = _graphqlQuery,
+            OperationName = "GetAnime",
+            Variables = new Dictionary<string, object>() {
+                { "id", id },
+                { "getRelated", getRelated },
+            },
         };
 
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
-        if (apiCall == null) {
+        var data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
+        if (data == null) {
             return null;
         }
 
-        try {
-            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-            return JsonSerializer.Deserialize<ShikimoriMedia>(await streamReader.ReadToEndAsync());
-        } catch (Exception e) {
-            _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
+        List<ShikimoriAnime> animes;
+        if (!data.TryGetValue("animes", out animes)) {
+            _logger.LogWarning("GraphQL response does not contain animes query");
             return null;
         }
+
+        if (!animes.Any()) {
+            return null;
+        }
+
+        return animes[0];
     }
 
     /// <summary>
-    /// Get relations of an anime.
+    /// Get a anime users rates.
     /// </summary>
-    /// <param name="id">ID of the anime to get the relations of.</param>
+    /// <param name="status">Only retrieve user rate with a given status.</param>
     /// <returns></returns>
-    public async Task<List<ShikimoriRelated>?> GetRelatedAnime(int id) {
-        UrlBuilder url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/animes/{id}/related"
-        };
+    public async Task<List<ShikimoriAnime>?> GetUserAnimeList(ShikimoriUserRate.StatusEnum? status = null) {
+        const int limit = 50;
 
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
-        if (apiCall == null) {
-            return null;
+        string mylist;
+        if (status == null) {
+            mylist = String.Join(
+                ",",
+                Enum.GetValues(typeof(ShikimoriUserRate.StatusEnum))
+                    .Cast<ShikimoriUserRate.StatusEnum>()
+                    .Select(x => x.ToString()));
+        } else {
+            mylist = status.Value.ToString();
         }
 
-        try {
-            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-            return JsonSerializer.Deserialize<List<ShikimoriRelated>?>(await streamReader.ReadToEndAsync());
-        } catch (Exception e) {
-            _logger.LogError($"Could not deserialize related anime, reason: {e.Message}");
-            return null;
+        List<ShikimoriAnime>? result = null;
+        for (int page = 1; ; page++) {
+            var request = new GraphqlRequest {
+                Query = _graphqlQuery,
+                OperationName = "GetUserAnimeList",
+                Variables = new Dictionary<string, object>() {
+                    { "page", page },
+                    { "limit", limit },
+                    { "mylist", mylist },
+                },
+            };
+
+            var data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
+            if (data == null) {
+                return null;
+            }
+
+            List<ShikimoriAnime> animes;
+            if (!data.TryGetValue("animes", out animes)) {
+                _logger.LogWarning("GraphQL response does not contain animes query");
+                return null;
+            }
+
+            if (result != null) {
+                result.AddRange(animes);
+            } else {
+                result = animes;
+            }
+
+            if (animes.Count < limit) {
+                break;
+            }
+
+            await Task.Delay(_sleepDelay);
         }
+        return result;
     }
 
-    /// <summary>
-    /// Get a users anime list.
-    /// </summary>
-    /// <param name="id">Only retrieve user progress of a single anime by ID.</param>
-    /// <returns></returns>
-    public async Task<List<ShikimoriUpdate.UserRate>?> GetUserAnimeList(int? id = null, ShikimoriUpdate.UpdateStatus? updateStatus = null) {
-        UrlBuilder url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/v2/user_rates"
-        };
-
-        string? shikimoriUserId = await GetUserId();
-        if (shikimoriUserId == null) return null;
-        
-        url.Parameters.Add(new KeyValuePair<string, string>("user_id", shikimoriUserId));
-        if (id != null) {
-            url.Parameters.Add(new KeyValuePair<string, string>("target_id", id.Value.ToString()));
-            url.Parameters.Add(new KeyValuePair<string, string>("target_type", "Anime"));
-        }
-
-        if (updateStatus != null) {
-            url.Parameters.Add(new KeyValuePair<string, string>("status", updateStatus.Value.ToString()));
-        }
-        
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
-        if (apiCall == null) {
-            return null;
-        }
-
-        try {
-            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-            return JsonSerializer.Deserialize<List<ShikimoriUpdate.UserRate>>(await streamReader.ReadToEndAsync());
-        } catch (Exception e) {
-            _logger.LogError($"Could not deserialize user anime list, reason: {e.Message}");
-            return null;
-        }
-    }
-
-    public async Task<bool> UpdateAnime(int id, ShikimoriUpdate.UpdateStatus updateStatus, int progress, int? numberOfTimesRewatched = null) {
+    public async Task<bool> UpdateAnime(string id, ShikimoriUserRate.StatusEnum updateStatus, int progress, int? numberOfTimesRewatched = null) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{_apiBaseUrl}/v2/user_rates"
         };
 
         string? shikimoriUserId = await GetUserId();
         if (shikimoriUserId == null) return false;
-        
+
         ShikimoriUpdate.UpdateBody updateBody = new ShikimoriUpdate.UpdateBody {
             UserRate = new ShikimoriUpdate.UserRate {
                 AnimeId = id,
-                UserId = int.Parse(shikimoriUserId),
+                UserId = shikimoriUserId,
                 Episodes = progress,
-                Status = updateStatus
+                Status = updateStatus,
             }
         };
 
@@ -196,76 +286,15 @@ public class ShikimoriApiCalls {
 
         var jsonSerializerOptions = new JsonSerializerOptions {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new IntToStringConverter.IntToStringJsonConverter() }
         };
-        
-        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody, jsonSerializerOptions), Encoding.UTF8, "application/json");
 
-        // get users current watch status of anime
-        var currentAnimeStatus = await GetUserAnimeList(id);
-        if (currentAnimeStatus == null) return false;
-        AuthApiCall.CallType callType;
-        if (currentAnimeStatus.Count == 0 || currentAnimeStatus.FirstOrDefault(ur => ur.Id == id) == null) {
-            callType = AuthApiCall.CallType.POST;
-        } else {
-            callType = AuthApiCall.CallType.PATCH;
-        }
-        // wait before making next call
-        await Task.Delay(1000);
-        HttpResponseMessage? response = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, callType, url.Build(), stringContent: stringContent, requestHeaders: _requestHeaders);
-        if (response != null) {
-            return response.IsSuccessStatusCode;
+        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody, jsonSerializerOptions), Encoding.UTF8, "application/json");
+        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: _requestHeaders);
+        if (apiCall != null) {
+            return apiCall.IsSuccessStatusCode;
         }
 
         return false;
-    }
-
-    private async Task<List<T>?> PagedCall<T>(UrlBuilder url, int pageSize) {
-        int page = 1;
-        url.Parameters.Add(new KeyValuePair<string, string>("limit", pageSize.ToString()));
-        url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
-
-        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
-        if (apiCall == null) {
-            return null;
-        }
-
-        List<T>? result;
-        try {
-            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-            result = JsonSerializer.Deserialize<List<T>>(await streamReader.ReadToEndAsync());
-        } catch (Exception e) {
-            _logger.LogError($"Could not deserialize result, reason: {e.Message}");
-            return null;
-        }
-
-        if (result == null || result.Count == 0) return null;
-        while (page < 10) {
-            page++;
-
-            url.Parameters.RemoveAll(item => item.Key == "page");
-            url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
-
-            HttpResponseMessage? pageApiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build());
-            if (pageApiCall == null) break;
-            List<T>? nextPageResult;
-            try {
-                StreamReader streamReader = new StreamReader(await pageApiCall.Content.ReadAsStreamAsync());
-                nextPageResult = JsonSerializer.Deserialize<List<T>>(await streamReader.ReadToEndAsync());
-            } catch (Exception e) {
-                _logger.LogWarning($"Could not retrieve next result page, reason: {e.Message}");
-                break;
-            }
-
-            if (nextPageResult != null) {
-                result = result.Concat(nextPageResult).ToList();
-            }
-
-            // sleeping task so we dont hammer the API
-            await Task.Delay(1000);
-        }
-
-        return result;
     }
 
     private async Task<string?> GetUserId() {
@@ -282,5 +311,71 @@ public class ShikimoriApiCalls {
         }
 
         return shikimoriUserId;
+    }
+
+    private class GraphqlRequest {
+        [JsonPropertyName("query")]
+        public string Query { get; set; }
+        [JsonPropertyName("operationName")]
+        public string? OperationName { get; set; }
+        [JsonPropertyName("variables")]
+        public Dictionary<string, object>? Variables { get; set; }
+    }
+
+    public class GraphqlResponse<DataType> {
+        [JsonPropertyName("data")]
+        public DataType? Data { get; set; }
+        [JsonPropertyName("errors")]
+        public List<GraphqlError>? Errors { get; set; }
+    }
+
+    public class GraphqlError {
+        [JsonPropertyName("message")]
+        public string Message { get; set; }
+    }
+
+    private async Task<T?> GraphqlApiCall<T>(GraphqlRequest request) where T: class {
+        var url = new UrlBuilder {
+            Base = $"{_apiBaseUrl}/graphql"
+        };
+
+        var jsonSerializerOptions = new JsonSerializerOptions {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        };
+
+        // See also https://graphql.org/learn/serving-over-http
+        var stringContent = new StringContent(
+            JsonSerializer.Serialize(request, jsonSerializerOptions),
+            Encoding.UTF8, "application/json");
+        var apiCall = await _authApiCall.AuthenticatedApiCall(
+            ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(),
+            stringContent: stringContent,
+            requestHeaders: _requestHeaders);
+        if (apiCall == null) {
+            return null;
+        }
+
+        GraphqlResponse<T> response;
+        try {
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            response = JsonSerializer.Deserialize<GraphqlResponse<T>>(await streamReader.ReadToEndAsync());
+        } catch (Exception e) {
+            _logger.LogError($"Could not deserialize GraphQL response, reason: {e.Message}");
+            return null;
+        }
+
+        if (response.Errors != null && response.Errors.Any()) {
+            foreach (GraphqlError error in response.Errors) {
+                _logger.LogError($"GraphQL error: {error.Message}");
+            }
+            return null;
+        }
+
+        if (response.Data == null) {
+            _logger.LogError("GraphQL returned empty data");
+            return null;
+        }
+
+        return response.Data;
     }
 }

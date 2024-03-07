@@ -94,12 +94,54 @@ namespace jellyfin_ani_sync.Helpers {
             };
         }
 
-        public static Anime ConvertShikimoriAnime(ShikimoriMedia shikimoriAnime) =>
-            new()  {
-                Id = shikimoriAnime.Id,
+        public static Anime ConvertShikimoriAnime(ShikimoriAnime shikimoriAnime) {
+            Anime anime = new Anime {
+                AlternativeId = shikimoriAnime.Id,
+                Id = int.TryParse(shikimoriAnime.MalId ?? "", out int id) ? id : -1,
                 Title = shikimoriAnime.Name,
-                NumEpisodes = shikimoriAnime.Episodes
+                NumEpisodes = shikimoriAnime.Episodes,
+                AlternativeTitles = new AlternativeTitles {
+                    En = shikimoriAnime.English,
+                    Ja = shikimoriAnime.Japanese,
+                    Synonyms = shikimoriAnime.Synonyms.ToList(),
+                },
             };
+
+            if (shikimoriAnime.Russian != null) {
+                anime.AlternativeTitles.Synonyms.Add(shikimoriAnime.Russian);
+            }
+
+            if (shikimoriAnime.UserRate != null) {
+                var userRate = shikimoriAnime.UserRate;
+                anime.MyListStatus = new MyListStatus {
+                    NumEpisodesWatched = userRate.Episodes,
+                    IsRewatching = userRate.Status is ShikimoriUserRate.StatusEnum.rewatching,
+                    RewatchCount = userRate.Rewatches,
+                };
+                switch (userRate.Status) {
+                    case ShikimoriUserRate.StatusEnum.completed:
+                        anime.MyListStatus.Status = Status.Completed;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.watching:
+                        anime.MyListStatus.Status = Status.Watching;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.rewatching:
+                        anime.MyListStatus.Status = Status.Rewatching;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.dropped:
+                        anime.MyListStatus.Status = Status.Dropped;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.on_hold:
+                        anime.MyListStatus.Status = Status.On_hold;
+                        break;
+                    case ShikimoriUserRate.StatusEnum.planned:
+                        anime.MyListStatus.Status = Status.Plan_to_watch;
+                        break;
+                }
+            }
+
+            return anime;
+        }
 
         public static Anime ConvertSimklAnime(SimklExtendedMedia simklExtendedMedia, SimklUserEntry simklUserEntry = null) {
             Anime anime = new Anime {

@@ -12,30 +12,23 @@ public class ShikimoriUpdate {
 
     public class UserRate
     {
-        [JsonPropertyName("id")]
-        public int Id { get; set; }
         [JsonPropertyName("target_id")]
-        public int AnimeId { get; set; }
+        public string AnimeId { get; set; }
+
         [JsonPropertyName("episodes")]
         public int Episodes { get; set; }
+
         [JsonPropertyName("rewatches")]
         public int Rewatches { get; set; }
-        [JsonPropertyName("score")]
-        public int Score { get; set; }
+
         [JsonPropertyName("status")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
-        public UpdateStatus Status { get; set; }
+        public ShikimoriUserRate.StatusEnum Status { get; set; }
+
         [JsonPropertyName("user_id")]
-        public int UserId { get; set; }
-        [JsonPropertyName("target_type")] public string TargetType => "Anime";
-    }
-    
-    public enum UpdateStatus {
-        planned,
-        watching,
-        rewatching,
-        completed,
-        on_hold,
-        dropped
+        public string UserId { get; set; }
+
+        [JsonPropertyName("target_type")]
+        public string TargetType => "Anime";
     }
 }
