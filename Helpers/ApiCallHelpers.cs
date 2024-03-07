@@ -270,7 +270,7 @@ namespace jellyfin_ani_sync.Helpers {
                 return ClassConversions.ConvertAnnictAnime(anime);
             }
 
-            if (_shikimoriApiCalls != null) {
+            if (_shikimoriApiCalls != null && alternativeId != null) {
                 var anime = await _shikimoriApiCalls.GetAnime(alternativeId, getRelated);
                 if (anime == null) return null;
                 Anime convertedAnime = ClassConversions.ConvertShikimoriAnime(anime);
@@ -389,7 +389,7 @@ namespace jellyfin_ani_sync.Helpers {
                 }
             }
 
-            if (_annictApiCalls != null) {
+            if (_annictApiCalls != null && alternativeId != null) {
                 AnnictSearch.AnnictMediaStatus annictMediaStatus;
 
                 switch (status) {
@@ -418,7 +418,7 @@ namespace jellyfin_ani_sync.Helpers {
                     return new UpdateAnimeStatusResponse();
             }
 
-            if (_shikimoriApiCalls != null) {
+            if (_shikimoriApiCalls != null && alternativeId != null) {
                 ShikimoriUserRate.StatusEnum shikimoriUpdateStatus;
 
                 switch (status) {
