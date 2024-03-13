@@ -22,7 +22,8 @@ namespace jellyfin_ani_sync.Api.Anilist {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly HttpClient _httpClient;
         private readonly UserConfig _userConfig;
-        public static readonly int PageSize = 50;
+        private static readonly int PageSize = 50;
+        private static readonly int ChunkSize = 500;
 
 
         public AniListApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
@@ -230,51 +231,49 @@ namespace jellyfin_ani_sync.Api.Anilist {
             return response != null;
         }
 
-        public async Task<List<AniListMediaList.MediaList>> GetAnimeList(int userId, AniListSearch.MediaListStatus status) {
-            string query = @"query ($status: MediaListStatus, $userId: Int, $perPage: Int, $page: Int) {
-            Page (perPage: $perPage, page: $page) {
-                pageInfo {
-                    total
-                    perPage
-                    currentPage
-                    lastPage
-                    hasNextPage
-                }
-                mediaList (status: $status, userId: $userId) {
+        public async Task<List<AniListMediaList.Entries>> GetAnimeList(int userId, AniListSearch.MediaListStatus status) {
+            string query = @"query ($status: MediaListStatus, $userId: Int, $chunk: Int, $chunkSize: Int) {
+              MediaListCollection(userId: $userId, status: $status, chunk: $chunk, perChunk: $chunkSize, type: ANIME) {
+                hasNextChunk
+                lists {
+                  entries {
                     media {
-                        siteUrl
+                      id
+                      siteUrl
                     }
                     completedAt {
-                        day
-                        month
-                        year
+                      day
+                      month
+                      year
                     }
                     progress
+                  }
                 }
-            }
-        }";
+              }
+            }";
 
             int page = 1;
             Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "status", status.ToString().ToUpper() },
                 { "userId", userId.ToString() },
-                { "perPage", PageSize.ToString() },
-                { "page", page.ToString() }
+                { "chunkSize", ChunkSize.ToString() },
+                { "chunk", page.ToString() }
             };
 
             AniListMediaList.AniListUserMediaList result = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
 
-            if (result != null) {
-                if (result.Data.Page.PageInfo.HasNextPage) {
+            if (result?.Data?.MediaListCollection?.MediaList != null) {
+                var entriesList = result.Data.MediaListCollection.MediaList.SelectMany(entries => entries.Entries);
+                if (result.Data.MediaListCollection.HasNextChunk) {
                     // impose a hard limit of 10 pages
-                    while (page < 100) {
+                    while (page < 10) {
                         page++;
                         variables["page"] = page.ToString();
-                        
+
                         AniListMediaList.AniListUserMediaList nextPageResult = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
 
-                        result.Data.Page.MediaList = result.Data.Page.MediaList.Concat(nextPageResult.Data.Page.MediaList).ToList();
-                        if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
+                        entriesList = entriesList.Concat(nextPageResult.Data.MediaListCollection.MediaList.SelectMany(entries => entries.Entries));
+                        if (!nextPageResult.Data.MediaListCollection.HasNextChunk) {
                             break;
                         }
 
@@ -283,7 +282,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                     }
                 }
 
-                return result.Data.Page.MediaList;
+                return entriesList.ToList();
             }
 
             return null;
