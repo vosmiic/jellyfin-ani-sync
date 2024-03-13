@@ -278,7 +278,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                         }
 
                         // sleeping thread so we dont hammer the API
-                        Thread.Sleep(1000);
+                        Thread.Sleep(2000);
                     }
                 }
 
