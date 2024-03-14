@@ -268,7 +268,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                     // impose a hard limit of 10 pages
                     while (page < 10) {
                         page++;
-                        variables["page"] = page.ToString();
+                        variables["chunk"] = page.ToString();
 
                         AniListMediaList.AniListUserMediaList nextPageResult = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
 
