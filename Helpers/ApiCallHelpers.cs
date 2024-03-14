@@ -562,7 +562,7 @@ namespace jellyfin_ani_sync.Helpers {
                             }
 
                             convertedList.Add(new Anime {
-                                Id = int.TryParse(media.Media.SiteUrl.Substring(lastIndex + 1, media.Media.SiteUrl.Length - lastIndex - 1), out int id) ? id : 0,
+                                Id = media.Media.Id,
                                 MyListStatus = new MyListStatus {
                                     FinishDate = finishDate.ToShortDateString(),
                                     NumEpisodesWatched = media.Progress ?? -1

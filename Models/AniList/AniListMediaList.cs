@@ -5,19 +5,23 @@ namespace jellyfin_ani_sync.Models;
 
 public class AniListMediaList {
     public class Data {
-        [JsonPropertyName("Page")] public Page Page { get; set; }
+        [JsonPropertyName("MediaListCollection")] public MediaListCollection MediaListCollection { get; set; }
     }
 
-    public class MediaList {
+    public class Entries {
         [JsonPropertyName("media")] public AniListSearch.Media Media { get; set; }
         [JsonPropertyName("completedAt")] public AniListSearch.FuzzyDate CompletedAt { get; set; }
         [JsonPropertyName("progress")] public int? Progress { get; set; }
     }
 
-    public class Page {
-        [JsonPropertyName("mediaList")] public List<MediaList> MediaList { get; set; }
+    public class EntriesContainer {
+        [JsonPropertyName("entries")] public List<Entries> Entries { get; set; }
+    }
 
-        [JsonPropertyName("pageInfo")] public AniListSearch.PageInfo PageInfo { get; set; }
+    public class MediaListCollection {
+        [JsonPropertyName("lists")] public List<EntriesContainer> MediaList { get; set; }
+
+        [JsonPropertyName("hasNextChunk")] public bool HasNextChunk { get; set; }
     }
 
     public class AniListUserMediaList {
