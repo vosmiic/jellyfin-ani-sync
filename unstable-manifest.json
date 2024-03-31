@@ -1,0 +1,20 @@
+[
+  {
+    "category": "General",
+    "guid": "c78f11cf-93e6-4423-8c42-d2c255b70e47",
+    "name": "Ani-Sync",
+    "description": "Synchronize anime watch status between Jellyfin and anime tracking sites.",
+    "owner": "vosmiic",
+    "overview": "Synchronize anime watch status",
+    "versions": [
+      {
+        "checksum": "37781c18e8150bd932e7760529980696",
+        "changelog": "1. Fixing issues around marking seasons/episodes as watched. 2. Redirect user on successful auth 3. Shikimori support 4. Anime detection changes",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.0/10.8.13.-.ani-sync_3.0.0.0.zip",
+        "timestamp": "2024-03-31 00:00:00",
+        "targetAbi": "10.9.0.0",
+        "version": "3.0.0.0"
+      }
+    ]
+  }
+]
