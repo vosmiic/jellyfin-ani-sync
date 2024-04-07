@@ -381,20 +381,21 @@ namespace jellyfin_ani_sync {
         /// <returns></returns>
         public static bool LibraryCheck(UserConfig userConfig, ILibraryManager libraryManager, IFileSystem fileSystem, ILogger logger, BaseItem item) {
             try {
-                if (userConfig.LibraryToCheck is { Length: > 0 }) {
-                    var folders = libraryManager.GetVirtualFolders().Where(item => userConfig.LibraryToCheck.Contains(item.ItemId));
-
-                    foreach (var folder in folders) {
-                        foreach (var location in folder.Locations) {
-                            if (item.Path != null && fileSystem.ContainsSubPath(location, item.Path)) {
-                                // item is in a path of a folder the user wants to be monitored
-                                return true;
-                            }
-                        }
-                    }
-                } else {
-                    // user has no library filters
+                // user has no library filters
+                if (userConfig.LibraryToCheck is { Length: 0 }) {
                     return true;
+                }
+
+                // item is in a path of a folder the user wants to be monitored
+                var topParent = item.GetTopParent();
+                if (topParent is not null) {
+                    var allLocations = libraryManager.GetVirtualFolders()
+                        .Where(item => userConfig.LibraryToCheck.Contains(item.ItemId))
+                        .SelectMany(f => f.Locations)
+                        .ToHashSet();
+                    if (allLocations.Contains(topParent.Path)) {
+                        return true;
+                    }
                 }
 
                 logger.LogInformation("Item is in a folder the user does not want to be monitored; ignoring");
