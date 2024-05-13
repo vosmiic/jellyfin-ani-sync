@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Helpers;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
@@ -94,7 +95,7 @@ public class SyncProviderFromLocal {
             }
             
             var query = new InternalItemsQuery(_userManager.GetUserById(_userId)) {
-                MediaTypes = new []{"Video"},
+                MediaTypes = [ MediaType.Video ],
                 ParentId = season.ParentId,
                 ParentIndexNumber = season.IndexNumber,
                 Recursive = true
