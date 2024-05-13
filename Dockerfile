@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 COPY . /app
 
-RUN dotnet publish --configuration Release --property:OutputPath=bin
+RUN dotnet publish --configuration Release --property:PublishDir=bin
 
 FROM alpine as final
 WORKDIR /app
