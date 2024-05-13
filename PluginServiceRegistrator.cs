@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace jellyfin_ani_sync;
 
-public class PluginServiceRegistrator :IPluginServiceRegistrator
+public class PluginServiceRegistrator : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
