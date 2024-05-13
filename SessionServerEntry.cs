@@ -1,18 +1,19 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync {
-    public class SessionServerEntry : IServerEntryPoint {
+    public class SessionServerEntry : IHostedService {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -40,8 +41,13 @@ namespace jellyfin_ani_sync {
             _fileSystem = fileSystem;
         }
 
-        public Task RunAsync() {
+        public Task StartAsync(CancellationToken cancellationToken) {
             _sessionManager.PlaybackStopped += PlaybackStopped;
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) {
+            _sessionManager.PlaybackStopped -= PlaybackStopped;
             return Task.CompletedTask;
         }
 
@@ -54,12 +60,6 @@ namespace jellyfin_ani_sync {
             } catch (Exception exception) {
                 _logger.LogError($"Fatal error occured during anime sync job: {exception}");
             }
-        }
-
-
-        public void Dispose() {
-            _sessionManager.PlaybackStopped -= PlaybackStopped;
-            GC.SuppressFinalize(this);
         }
     }
 }

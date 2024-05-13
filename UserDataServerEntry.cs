@@ -1,6 +1,6 @@
 #nullable enable
-using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
@@ -12,10 +12,11 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync {
-    public class UserDataServerEntry : IServerEntryPoint {
+    public class UserDataServerEntry : IHostedService {
         private readonly IUserDataManager _userDataManager;
         private readonly IFileSystem _fileSystem;
         private readonly ILibraryManager _libraryManager;
@@ -48,12 +49,17 @@ namespace jellyfin_ani_sync {
             _taskProcessMarkedMedia = new TaskProcessMarkedMedia(loggerFactory, _libraryManager, _fileSystem, _memoryCache, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
         }
 
-        public Task RunAsync() {
+        public Task StartAsync(CancellationToken cancellationToken) {
             _userDataManager.UserDataSaved += UserDataManagerOnUserDataSaved;
             return Task.CompletedTask;
         }
 
-        private void UserDataManagerOnUserDataSaved(object sender, UserDataSaveEventArgs e) {
+        public Task StopAsync(CancellationToken cancellationToken) {
+            _userDataManager.UserDataSaved -= UserDataManagerOnUserDataSaved;
+            return Task.CompletedTask;
+        }
+
+        private void UserDataManagerOnUserDataSaved(object? sender, UserDataSaveEventArgs e) {
             if (e.SaveReason == UserDataSaveReason.TogglePlayed && Plugin.Instance?.PluginConfiguration.watchedTickboxUpdatesProvider == true) {
                 if (!e.UserData.Played || e.Item is not Video) return;
                 // asynchronous call so it doesn't prevent the UI marking the media as watched
@@ -63,11 +69,6 @@ namespace jellyfin_ani_sync {
                     _updateTask = _taskProcessMarkedMedia.RunUpdate();
                 }
             }
-        }
-
-        public void Dispose() {
-            _userDataManager.UserDataSaved -= UserDataManagerOnUserDataSaved;
-            GC.SuppressFinalize(this);
         }
     }
 }
