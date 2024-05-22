@@ -33,7 +33,7 @@ namespace jellyfin_ani_sync {
         public SessionServerEntry(ISessionManager sessionManager, ILoggerFactory loggerFactory,
             IHttpClientFactory httpClientFactory, ILibraryManager libraryManager, IFileSystem fileSystem,
             IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor,
-            IApplicationPaths applicationPaths, IMemoryCache memoryCache, IAsyncDelayer delayer) {
+            IApplicationPaths applicationPaths, IMemoryCache memoryCache) {
             _httpClientFactory = httpClientFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
@@ -44,7 +44,7 @@ namespace jellyfin_ani_sync {
             _libraryManager = libraryManager;
             _fileSystem = fileSystem;
             _memoryCache = memoryCache;
-            _delayer = delayer;
+            _delayer = new Delayer();
         }
 
         public Task StartAsync(CancellationToken cancellationToken) {
