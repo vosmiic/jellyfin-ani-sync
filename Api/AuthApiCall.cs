@@ -8,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
@@ -23,15 +24,15 @@ namespace jellyfin_ani_sync.Api {
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<AuthApiCall> _logger;
         private readonly IMemoryCache _memoryCache;
+        private readonly IAsyncDelayer _delayer;
         public UserConfig UserConfig { get; set; }
 
-        public AuthApiCall(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, UserConfig userConfig) {
-            _provider = provider;
         public AuthApiCall(IHttpClientFactory httpClientFactory,
             IServerApplicationHost serverApplicationHost,
             IHttpContextAccessor httpContextAccessor,
             ILoggerFactory loggerFactory,
             IMemoryCache memoryCache,
+            IAsyncDelayer delayer,
             UserConfig userConfig) {
             _httpClientFactory = httpClientFactory;
             _serverApplicationHost = serverApplicationHost;
