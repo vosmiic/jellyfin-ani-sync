@@ -16,6 +16,7 @@ using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
@@ -23,6 +24,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
@@ -39,6 +41,8 @@ namespace jellyfin_ani_sync.Api {
         private readonly IUserDataManager _userDataManager;
         private readonly IFileSystem _fileSystem;
         private readonly ILogger<AniSyncController> _logger;
+        private readonly IMemoryCache _memoryCache;
+        private readonly IAsyncDelayer _delayer;
 
         public AniSyncController(IHttpClientFactory httpClientFactory,
             ILoggerFactory loggerFactory,
@@ -48,7 +52,8 @@ namespace jellyfin_ani_sync.Api {
             IUserManager userManager,
             IApplicationPaths applicationPaths,
             IUserDataManager userDataManager,
-            IFileSystem fileSystem) {
+            IFileSystem fileSystem,
+            IMemoryCache memoryCache) {
             _httpClientFactory = httpClientFactory;
             _loggerFactory = loggerFactory;
             _serverApplicationHost = serverApplicationHost;
@@ -59,6 +64,8 @@ namespace jellyfin_ani_sync.Api {
             _userDataManager = userDataManager;
             _fileSystem = fileSystem;
             _logger = loggerFactory.CreateLogger<AniSyncController>();
+            _memoryCache = memoryCache;
+            _delayer = new Delayer();
         }
 
         [HttpGet]
@@ -94,7 +101,7 @@ namespace jellyfin_ani_sync.Api {
                     var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
 
                     if (userConfig != null) {
-                        KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig);
+                        KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, userConfig);
                         var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
                         var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
                         if (existingKeyPair != null) {
@@ -152,11 +159,11 @@ namespace jellyfin_ani_sync.Api {
 
             switch (apiName) {
                 case ApiName.Mal:
-                    MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                    MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
                     return new OkObjectResult(await malApiCalls.GetUserInformation());
                 case ApiName.AniList:
-                    AniListApiCalls aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                    AniListApiCalls aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
                     AniListViewer.Viewer? user = await aniListApiCalls.GetCurrentUser();
                     return new OkObjectResult(new MalApiCalls.User {
@@ -165,7 +172,7 @@ namespace jellyfin_ani_sync.Api {
                 case ApiName.Kitsu:
                     KitsuApiCalls kitsuApiCalls;
                     try {
-                        kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                        kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
                         _logger.LogError("User could not be retrieved from API");
                         return new StatusCodeResult(500);
@@ -180,7 +187,7 @@ namespace jellyfin_ani_sync.Api {
                     Thread.Sleep(100);
                     AnnictApiCalls annictApiCalls;
                     try {
-                        annictApiCalls = new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
+                        annictApiCalls = new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
                         _logger.LogError("User could not be retrieved from API");
                         return new StatusCodeResult(500);
@@ -196,7 +203,7 @@ namespace jellyfin_ani_sync.Api {
                         return new StatusCodeResult(500);
                     }
 
-                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, userConfig);
+                    ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, userConfig);
 
                     ShikimoriApiCalls.User? shikimoriUserApiCall = await shikimoriApiCalls.GetUserInformation();
                     if (shikimoriUserApiCall != null) {
@@ -213,7 +220,7 @@ namespace jellyfin_ani_sync.Api {
                         return new StatusCodeResult(500);
                     }
 
-                    var simklApiCalls = new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, userConfig);
+                    var simklApiCalls = new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, userConfig);
 
                     if (await simklApiCalls.GetLastActivity()) {
                         return new OkObjectResult(new MalApiCalls.User {
@@ -267,10 +274,10 @@ namespace jellyfin_ani_sync.Api {
         public Task Sync(ApiName provider, string userId, SyncHelper.Status status, SyncAction syncAction) {
             switch (syncAction) {
                 case SyncAction.UpdateProvider:
-                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _userDataManager, _fileSystem, userId);
+                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _userDataManager, _fileSystem, _memoryCache, _delayer, userId);
                     return syncProviderFromLocal.SyncFromLocal();
                 case SyncAction.UpdateJellyfin:
-                    Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, provider, status);
+                    Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, _memoryCache, _delayer, provider, status);
                     return sync.SyncFromProvider(userId);
             }
 

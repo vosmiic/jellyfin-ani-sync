@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
@@ -13,6 +14,7 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync;
@@ -27,6 +29,8 @@ public class SyncProviderFromLocal {
     private readonly IFileSystem _fileSystem;
     private readonly Guid _userId;
     private readonly ILogger<SyncProviderFromLocal> _logger;
+    private readonly IMemoryCache _memoryCache;
+    private readonly IAsyncDelayer _delayer;
     private IServerApplicationHost _serverApplicationHost;
     private IHttpContextAccessor _httpContextAccessor;
 
@@ -37,6 +41,8 @@ public class SyncProviderFromLocal {
         IApplicationPaths applicationPaths,
         IUserDataManager userDataManager,
         IFileSystem fileSystem,
+        IMemoryCache memoryCache,
+        IAsyncDelayer delayer,
         string userId) {
         _userManager = userManager;
         _libraryManager = libraryManager;
@@ -47,6 +53,8 @@ public class SyncProviderFromLocal {
         _fileSystem = fileSystem;
         _userId = Guid.Parse(userId);
         _logger = loggerFactory.CreateLogger<SyncProviderFromLocal>();
+        _memoryCache = memoryCache;
+        _delayer = delayer;
     }
 
     public async Task SyncFromLocal() {
@@ -57,7 +65,7 @@ public class SyncProviderFromLocal {
 
     private async Task GetSeasonDetails(List<Series> userSeriesList) {
         _logger.LogInformation($"(Sync) Starting sync to provider from local process");
-        UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
+        UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths, _memoryCache, _delayer);
 
         foreach (Series series in userSeriesList) {
             _logger.LogInformation($"(Sync) Retrieved {series.Name}'s seasons latest watched episode and when it was watched...");

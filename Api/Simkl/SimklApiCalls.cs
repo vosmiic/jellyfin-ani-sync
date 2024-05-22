@@ -9,32 +9,26 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Simkl;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Simkl;
 
 public class SimklApiCalls {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IServerApplicationHost _serverApplicationHost;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly Dictionary<string, string> _requestHeaders;
-    private readonly UserConfig _userConfig;
     private readonly ILogger<SimklApiCalls> _logger;
     private readonly AuthApiCall _authApiCall;
     public static readonly string ApiBaseUrl = "https://api.simkl.com";
 
-    public SimklApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
-        _httpClientFactory = httpClientFactory;
-        _serverApplicationHost = serverApplicationHost;
-        _httpContextAccessor = httpContextAccessor;
+    public SimklApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
         _requestHeaders = requestHeaders;
-        _userConfig = userConfig;
         _logger = loggerFactory.CreateLogger<SimklApiCalls>();
-        _authApiCall = new AuthApiCall(ApiName.Simkl, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
+        _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
     }
 
     /// <summary>

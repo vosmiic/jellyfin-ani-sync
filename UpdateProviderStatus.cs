@@ -13,9 +13,9 @@ using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Mal;
-using Jellyfin.Data.Entities;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
@@ -25,6 +25,7 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync {
@@ -33,6 +34,8 @@ namespace jellyfin_ani_sync {
         private readonly IApplicationPaths _applicationPaths;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IMemoryCache _memoryCache;
+        private readonly IAsyncDelayer _delayer;
 
         private readonly ILogger<UpdateProviderStatus> _logger;
 
@@ -52,7 +55,9 @@ namespace jellyfin_ani_sync {
             IHttpContextAccessor httpContextAccessor,
             IServerApplicationHost serverApplicationHost,
             IHttpClientFactory httpClientFactory,
-            IApplicationPaths applicationPaths) {
+            IApplicationPaths applicationPaths,
+            IMemoryCache memoryCache,
+            IAsyncDelayer delayer) {
             _fileSystem = fileSystem;
             _libraryManager = libraryManager;
             _httpContextAccessor = httpContextAccessor;
@@ -61,6 +66,8 @@ namespace jellyfin_ani_sync {
             _applicationPaths = applicationPaths;
             _logger = loggerFactory.CreateLogger<UpdateProviderStatus>();
             _loggerFactory = loggerFactory;
+            _memoryCache = memoryCache;
+            _delayer = delayer;
         }
 
 
@@ -142,7 +149,7 @@ namespace jellyfin_ani_sync {
                     _logger.LogInformation($"Using provider {userApiAuth.Name}...");
                     switch (userApiAuth.Name) {
                         case ApiName.Mal:
-                            _apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                            _apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig));
                             if (_apiIds.MyAnimeList != null && _apiIds.MyAnimeList != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
                                 await CheckUserListAnimeStatus(_apiIds.MyAnimeList.Value, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
@@ -155,7 +162,7 @@ namespace jellyfin_ani_sync {
 
                             break;
                         case ApiName.AniList:
-                            _apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                            _apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig));
                             if (_apiIds.Anilist != null && _apiIds.Anilist != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
                                 await CheckUserListAnimeStatus(_apiIds.Anilist.Value, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
@@ -178,7 +185,7 @@ namespace jellyfin_ani_sync {
 
                             break;
                         case ApiName.Kitsu:
-                            _apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                            _apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig));
                             if (_apiIds.Kitsu != null && _apiIds.Kitsu != 0 && (episode != null && episode.Season.IndexNumber.Value != 0)) {
                                 await CheckUserListAnimeStatus(_apiIds.Kitsu.Value, _animeType == typeof(Episode)
                                         ? (aniDbId.episodeOffset != null
@@ -192,17 +199,17 @@ namespace jellyfin_ani_sync {
                             break;
                         case ApiName.Annict:
                             // annict works differently to the other providers, so we have to go the traditional route
-                            _apiCallHelpers = new ApiCallHelpers(annictApiCalls: new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig));
+                            _apiCallHelpers = new ApiCallHelpers(annictApiCalls: new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig));
                             break;
                         case ApiName.Shikimori:
                             string? shikimoriAppName = ConfigHelper.GetShikimoriAppName(_logger);
                             if (shikimoriAppName == null) return;
-                            _apiCallHelpers = new ApiCallHelpers(shikimoriApiCalls: new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, _userConfig));
+                            _apiCallHelpers = new ApiCallHelpers(shikimoriApiCalls: new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, _userConfig));
                             break;
                         case ApiName.Simkl:
                             string? simklClientId = ConfigHelper.GetSimklClientId(_logger);
                             if (simklClientId == null) return;
-                            _apiCallHelpers = new ApiCallHelpers(simklApiCalls: new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, _userConfig));
+                            _apiCallHelpers = new ApiCallHelpers(simklApiCalls: new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, _userConfig));
                             if (((_apiIds.MyAnimeList != null && _apiIds.MyAnimeList != 0) ||
                                  (_apiIds.Anilist != null && _apiIds.Anilist != 0) ||
                                  (_apiIds.Kitsu != null && _apiIds.Kitsu != 0) ||

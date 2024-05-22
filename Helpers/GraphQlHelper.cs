@@ -7,9 +7,11 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Helpers {
@@ -20,8 +22,8 @@ namespace jellyfin_ani_sync.Helpers {
             return call.IsSuccessStatusCode ? call : null;
         }
 
-        public static async Task<HttpResponseMessage> AuthenticatedRequest(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig, string query, ApiName provider, Dictionary<string, object> variables = null) {
-            AuthApiCall authApiCall = new AuthApiCall(provider, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig);
+        public static async Task<HttpResponseMessage> AuthenticatedRequest(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig, string query, ApiName provider, Dictionary<string, object> variables = null) {
+            AuthApiCall authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig);
             string url = string.Empty;
             switch (provider) {
                 case ApiName.AniList:

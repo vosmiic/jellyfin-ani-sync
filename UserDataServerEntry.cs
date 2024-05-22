@@ -2,12 +2,12 @@
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Interfaces;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +25,7 @@ namespace jellyfin_ani_sync {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMemoryCache _memoryCache;
         private readonly IApplicationPaths _applicationPaths;
+        private readonly IAsyncDelayer _delayer;
         private readonly TaskProcessMarkedMedia _taskProcessMarkedMedia;
         private Task? _updateTask;
 
@@ -46,7 +47,8 @@ namespace jellyfin_ani_sync {
             _httpClientFactory = httpClientFactory;
             _memoryCache = memoryCache;
             _applicationPaths = applicationPaths;
-            _taskProcessMarkedMedia = new TaskProcessMarkedMedia(loggerFactory, _libraryManager, _fileSystem, _memoryCache, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
+            _delayer = new Delayer();
+            _taskProcessMarkedMedia = new TaskProcessMarkedMedia(loggerFactory, _libraryManager, _fileSystem, _memoryCache, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths, _delayer);
         }
 
         public Task StartAsync(CancellationToken cancellationToken) {
