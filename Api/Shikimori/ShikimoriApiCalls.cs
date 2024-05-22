@@ -25,7 +25,6 @@ public class ShikimoriApiCalls {
     private readonly AuthApiCall _authApiCall;
     private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
     private readonly string _apiBaseUrl = "https://shikimori.one/api";
-    private readonly int _sleepDelay = 1000;
     private readonly UserConfig? _userConfig;
     private readonly Dictionary<string, string>? _requestHeaders;
 
@@ -167,9 +166,6 @@ public class ShikimoriApiCalls {
             if (animes.Count < limit) {
                 break;
             }
-
-            // sleeping task so we dont hammer the API
-            await Task.Delay(_sleepDelay);
         }
         return result;
     }
@@ -258,8 +254,6 @@ public class ShikimoriApiCalls {
             if (animes.Count < limit) {
                 break;
             }
-
-            await Task.Delay(_sleepDelay);
         }
         return result;
     }

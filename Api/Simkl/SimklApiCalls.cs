@@ -110,9 +110,6 @@ public class SimklApiCalls {
                     break;
                 }
             }
-
-            // sleeping task so we dont hammer the API
-            await Task.Delay(1000);
         }
 
         return result;
