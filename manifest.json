@@ -10,6 +10,7 @@
       {
         "checksum": "91d4f8731da1317c669c2194061fb9f9",
         "changelog": "1. Updated plugin to support Jellyfin version 10.9. 2. Fixed AniList related bugs 3. Fixed Shikimori related bugs 4. Fixed issue with library checks",
+        "targetAbi": "10.9.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.2/10.9.0.-.ani-sync_3.2.0.0.zip",
         "timestamp": "2024-05-13 00:00:00",
         "version": "3.2.0.0"
@@ -17,6 +18,7 @@
       {
         "checksum": "37781c18e8150bd932e7760529980696",
         "changelog": "1. Fixing issues around marking seasons/episodes as watched. 2. Redirect user on successful auth 3. Shikimori support 4. Anime detection changes",
+        "targetAbi": "10.8.13.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.0/10.8.13.-.ani-sync_3.0.0.0.zip",
         "timestamp": "2024-02-21 00:00:00",
         "version": "3.0.0.0"
@@ -24,6 +26,7 @@
       {
         "checksum": "e3ab7660a6f9a4c1bf283a0812cdbe19",
         "changelog": "1. Fixed issue where completing a rewatch did not correctly update the MAL rewatch status.",
+        "targetAbi": "10.8.10.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.9/10.8.10.-.ani-sync_2.9.0.0.zip",
         "timestamp": "2023-05-17 00:00:00",
         "version": "2.9.0.0"
