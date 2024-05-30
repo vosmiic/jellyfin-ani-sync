@@ -17,16 +17,19 @@ using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
+using MediaBrowser.Common.Api;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
     [ApiController]
+    [Authorize(Policy = Policies.RequiresElevation)]
     [Route("[controller]")]
     public class AniSyncController : ControllerBase {
         private readonly IHttpClientFactory _httpClientFactory;
