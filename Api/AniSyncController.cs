@@ -73,6 +73,9 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("testAnimeListSaveLocation")]
         public async Task<IActionResult> TestAnimeSaveLocation(string saveLocation) {
+            if (String.IsNullOrEmpty(saveLocation))
+                return BadRequest("Save location is empty");
+            
             try {
                 await using (System.IO.File.Create(
                                  Path.Combine(

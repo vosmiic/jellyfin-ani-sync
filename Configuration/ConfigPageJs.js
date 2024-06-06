@@ -75,8 +75,13 @@ async function initialLoad() {
 
     async function runTestAnimeListSaveLocation() {
         document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
+        var location = document.querySelector('#animeListSaveLocation').value;
+        if (!location) {
+            document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Error: Save location is empty";
+            return;
+        }
 
-        var url = ApiClient.getUrl("/AniSync/testAnimeListSaveLocation?saveLocation=" + encodeURIComponent(document.querySelector('#animeListSaveLocation').value));
+        var url = ApiClient.getUrl("/AniSync/testAnimeListSaveLocation?saveLocation=" + encodeURIComponent(location));
         await ApiClient.ajax({
             type: 'GET',
             url
