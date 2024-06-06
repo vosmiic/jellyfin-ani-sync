@@ -108,25 +108,44 @@ async function initialLoad() {
 
 
     async function onAuthorizeButtonClick() {
+        document.querySelector('#authorizeClientIdError').innerHTML = "";
+        document.querySelector('#authorizeClientSecretError').innerHTML = "";
+        
+        var kitsuAuth = document.querySelector('#selectProvider').value === "Kitsu";
+        var clientId = document.querySelector('#clientId').value;
+        var clientSecret = document.querySelector('#clientSecret').value;
+        if (!clientId || !clientSecret) {
+            if (!clientId)
+                document.querySelector('#authorizeClientIdError').innerHTML = `Error: ${kitsuAuth ? "Username" : "Client ID"} is empty.`;
+            
+            if (!clientSecret)
+                document.querySelector('#authorizeClientSecretError').innerHTML = `Error: ${kitsuAuth ? "Username" : "Client Secret"} is empty.`;
+                
+            return
+        }
+        
         // users are unlikely to save after setting client id and secret, so we do it for them
         saveUserConfig(true);
-        if (document.querySelector('#selectProvider').value === "Kitsu") {
+        if (kitsuAuth) {
             var url = ApiClient.getUrl("/AniSync/passwordGrant?provider=Kitsu&userId=" + encodeURIComponent(document.querySelector('#selectUser').value) +
-                "&username=" + encodeURIComponent(document.querySelector('#clientId').value) +
-                "&password=" + encodeURIComponent(document.querySelector('#clientSecret').value));
+                "&username=" + encodeURIComponent(clientId) +
+                "&password=" + encodeURIComponent(clientSecret));
             await ApiClient.ajax({
                 type: "GET",
                 url
             })
+                .then((_) => document.querySelector('#authorizeLinkGenerationNotification').innerHTML = "Authentication successful.")
+                .catch((error) => error.text().then(errorText => document.querySelector('#authorizeLinkGenerationNotification').innerHTML = "Error: " + errorText));
         } else {
-            var url = ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + encodeURIComponent(document.querySelector('#clientId').value) +
-                "&clientSecret=" + encodeURIComponent(document.querySelector('#clientSecret').value) +
+            var url = ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + encodeURIComponent(clientId) +
+                "&clientSecret=" + encodeURIComponent(clientSecret) +
                 "&url=" + encodeURIComponent((document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")));
             await ApiClient.ajax({
                 type: "GET",
                 url
             })
                 .then((response) => response.json())
+                .catch((_) => document.querySelector('#authorizeLinkGenerationNotification').innerHTML = "Error: Could not generate authorize link. Check the logs for more information.")
                 .then((json) => document.querySelector('#authorizeLink').innerHTML = json);
         }
     }

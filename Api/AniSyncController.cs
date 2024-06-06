@@ -95,28 +95,30 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("passwordGrant")]
         public async Task<IActionResult> PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
-            if (new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId)) != null) {
-                if (provider == ApiName.Kitsu) {
-                    var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
-
-                    if (userConfig != null) {
-                        KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig);
-                        var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
-                        var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
-                        if (existingKeyPair != null) {
-                            existingKeyPair.Value = kitsuUserConfig.Id.ToString();
-                        } else {
-                            userConfig.KeyPairs.Add(new KeyPairs { Key = "KitsuUserId", Value = kitsuUserConfig.Id.ToString() });
-                        }
-
-                        Plugin.Instance.SaveConfiguration();
-                    }
-                }
-
-                return Ok();
+            try {
+                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId));
+            } catch (Exception e) {
+                return StatusCode(500, $"Could not authenticate; {e.Message}");
             }
 
-            return BadRequest();
+            if (provider == ApiName.Kitsu) {
+                var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
+
+                if (userConfig != null) {
+                    KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, userConfig);
+                    var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
+                    var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
+                    if (existingKeyPair != null) {
+                        existingKeyPair.Value = kitsuUserConfig.Id.ToString();
+                    } else {
+                        userConfig.KeyPairs.Add(new KeyPairs { Key = "KitsuUserId", Value = kitsuUserConfig.Id.ToString() });
+                    }
+
+                    Plugin.Instance.SaveConfiguration();
+                }
+            }
+
+            return Ok();
         }
 
         [HttpGet]
