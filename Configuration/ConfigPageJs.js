@@ -12,11 +12,13 @@ async function initialLoad() {
     const page = document;
     Dashboard.showLoadingMsg();
 
-    ApiClient.getUsers().then(function (users) {
-        populateUserList(page, users);
-        loadUserConfiguration(page.querySelector('#selectUser').value);
-        setUserAddress(page);
-    });
+    ApiClient.getUsers()
+        .then(function (users) {
+            populateUserList(page, users);
+            loadUserConfiguration(page.querySelector('#selectUser').value);
+            setUserAddress(page);
+        })
+        .catch(error => console.log("Could not populate users list: " + error));
 
     await setParameters(page);
     loadProviderConfiguration(page);
@@ -438,11 +440,13 @@ async function initialLoad() {
 
             ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
                 Dashboard.processPluginConfigurationUpdateResult(result);
-                ApiClient.getUsers().then(function (users) {
-                    populateUserList(users);
-                    document.querySelector('#selectUser').value = userId;
-                    loadUserConfiguration(userId);
-                });
+                ApiClient.getUsers()
+                    .then(function (users) {
+                        populateUserList(users);
+                        document.querySelector('#selectUser').value = userId;
+                        loadUserConfiguration(userId);
+                    })
+                    .catch(error => console.log("Could not populate users list: " + error));
             });
         });
     }
