@@ -152,8 +152,8 @@ namespace jellyfin_ani_sync.Api {
         public async Task<ActionResult> GetUser(ApiName apiName, string userId) {
             UserConfig? userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
             if (userConfig == null) {
-                _logger.LogError("User not found");
-                return new StatusCodeResult(500);
+                _logger.LogError("User not found in config");
+                return StatusCode(500, "User not found in config");
             }
 
             switch (apiName) {
@@ -165,8 +165,12 @@ namespace jellyfin_ani_sync.Api {
                     AniListApiCalls aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
                     AniListViewer.Viewer? user = await aniListApiCalls.GetCurrentUser();
+                    if (user == null) {
+                        return StatusCode(500, "Authentication failed");
+                    }
+
                     return new OkObjectResult(new MalApiCalls.User {
-                        Name = user?.Name
+                        Name = user.Name
                     });
                 case ApiName.Kitsu:
                     KitsuApiCalls kitsuApiCalls;
@@ -174,10 +178,14 @@ namespace jellyfin_ani_sync.Api {
                         kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
                         _logger.LogError("User could not be retrieved from API");
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "User could not be retrieved from API");
                     }
 
                     var apiCall = await kitsuApiCalls.GetUserInformation();
+                    if (apiCall == null) {
+                        return StatusCode(500, "Authentication failed");
+                    }
+                    
                     return new OkObjectResult(new MalApiCalls.User {
                         Name = apiCall.Name
                     });
@@ -189,17 +197,21 @@ namespace jellyfin_ani_sync.Api {
                         annictApiCalls = new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
                         _logger.LogError("User could not be retrieved from API");
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "User could not be retrieved from API");
                     }
 
                     var annictApiCall = await annictApiCalls.GetCurrentUser();
+                    if (annictApiCall == null) {
+                        return StatusCode(500, "Authentication failed");
+                    }
+                    
                     return new OkObjectResult(new MalApiCalls.User {
                         Name = annictApiCall.AnnictSearchData.Viewer.username
                     });
                 case ApiName.Shikimori:
                     string? shikimoriAppName = ConfigHelper.GetShikimoriAppName(_logger);
                     if (string.IsNullOrEmpty(shikimoriAppName)) {
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "No App Name");
                     }
 
                     ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, userConfig);
@@ -211,12 +223,12 @@ namespace jellyfin_ani_sync.Api {
                         });
                     } else {
                         _logger.LogError("User could not be retrieved from API");
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "User could not be retrieved from API");
                     }
                 case ApiName.Simkl:
                     string? simklClientId = ConfigHelper.GetSimklClientId(_logger);
                     if (string.IsNullOrEmpty(simklClientId)) {
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "No Client ID");
                     }
 
                     var simklApiCalls = new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, userConfig);
@@ -226,7 +238,7 @@ namespace jellyfin_ani_sync.Api {
                             Name = null
                         });
                     } else {
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "Not authenticated");
                     }
             }
 

@@ -131,7 +131,6 @@ async function initialLoad() {
         }
     }
 
-
     async function getUser() {
         document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
         if (document.querySelector('#selectProvider').value === "Annict")
@@ -156,6 +155,8 @@ async function initialLoad() {
                 } else {
                     document.querySelector('#getUserResponse').innerHTML = "Test returned an error - try authenticating again or check the logs for a detailed error reason."
                 }
+            }).catch(function (error) {
+                error.text().then(errorText => document.querySelector('#getUserResponse').innerHTML = "Test returned an error: " + errorText + "; try authenticating again or check the logs for a detailed error reason.")
             });
     }
 

@@ -47,11 +47,8 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
         public async Task<HttpResponseMessage?> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
-            UserApiAuth auth;
-            try {
-                auth = UserConfig.UserApiAuth.FirstOrDefault(item => item.Name == provider);
-                if (auth == null || auth.AccessToken == null) throw new NullReferenceException();
-            } catch (NullReferenceException) {
+            UserApiAuth? auth = UserConfig.UserApiAuth?.FirstOrDefault(item => item.Name == provider);
+            if (auth == null) {
                 _logger.LogError("Could not find authentication details, please authenticate the plugin first");
                 return null;
             }
