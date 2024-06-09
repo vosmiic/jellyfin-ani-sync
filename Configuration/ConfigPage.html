@@ -1,14 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Template</title>
-</head>
-<body>
-<div id="TemplateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
-     data-require="emby-input,emby-button,emby-select,emby-checkbox" data-controller="__plugin/ConfigPageJs">
+<div id="TemplateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox" data-controller="__plugin/AniSync_ConfigPageJs">
     <div data-role="content">
         <div class="content-primary">
+            <div id="navigationTabs" data-role="controlgroup" data-type="horizontal" class="localnav"></div>
+            
             <form id="TemplateConfigForm">
                 <p>Please follow the <a href="https://github.com/vosmiic/jellyfin-ani-sync/wiki/Installation-&-Config">plugin
                     installation guide</a> for a more detailed explanation of what the below config options do.</p>
@@ -156,51 +151,7 @@
                         <span>Save</span>
                     </button>
                 </div>
-                <h2>Manual Sync</h2>
-                <p><b>Warning: this feature is in alpha, and bugs are probably present. In its current state it may disrupt your Jellyfin or provider library.</b></p>
-                <p>At the moment this functionality requires the AniList and/or AniDb metadata providers installed.</p>
-                <p>Here you can synchronize the selected users Jellyfin library and their provider list(s).</p>
-                <p>Updating the provider library with the users Jellyfin library will update all providers that the user is authenticated with.</p>
-                <p>This functionality is also loyal to the users configuration options (only update plan to watch, set as rewatching)</p>
-                <div class="inputContainer">
-                    <div class="selectContainer">
-                        <select is="emby-select" id="selectAction" name="selectAction" label="Select Action">
-                            <option value="UpdateJellyfin">Update Jellyfin with provider progress</option>
-                            <option value="UpdateProvider">Update provider with Jellyfin progress</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="inputContainer">
-                    <div class="selectContainer">
-                        <select is="emby-select" id="selectSyncUser" name="selectUser" label="User"></select>
-                        <div class="fieldDescription">The user you would like to organize the library for. Only used when updating Jellyfin.</div>
-                    </div>
-                </div>
-                <div class="inputContainer">
-                    <div class="selectContainer">
-                        <select is="emby-select" id="selectSyncProvider" name="selectProvider" label="Provider"></select>
-                        <div class="fieldDescription">Provider to sync the anime list from. Only used when updating Jellyfin.</div>
-                    </div>
-                </div>
-                <div class="inputContainer">
-                    <div class="selectContainer">
-                        <select is="emby-select" id="status" name="status" label="Status">
-                            <option value="Completed">Completed (only fully completed shows and movies will be updated)</option>
-                            <option value="Watching">Watching (only currently being watched shows and movies will be updated)</option>
-                            <option value="Both">Completed and Watching (both watching and completed will be updated)</option>
-                        </select>
-                        <div class="fieldDescription">Status of the show on the users watch list you want to sync.</div>
-                    </div>
-                </div>
-                <div>
-                    <button is="emby-button" type="button" id="run" class="raised button-submit block emby-button">
-                        <span>Run</span>
-                    </button>
-                </div>
-                <p>This will run in the background. Please check the Jellyfin logs for operation progress.</p>
             </form>
         </div>
     </div>
 </div>
-</body>
-</html>

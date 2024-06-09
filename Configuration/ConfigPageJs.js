@@ -4,23 +4,25 @@ var PluginConfig = {
 
 export default function (view, params) {
     view.addEventListener('viewshow', async function () {
-        await initialLoad();
+        var generalFunctionsUrl = ApiClient.getUrl("web/ConfigurationPage", { name: "AniSync_CommonJs" });
+        import(generalFunctionsUrl).then(async (generalFunctions) => await initialLoad(generalFunctions))
     });
 }
 
-async function initialLoad() {
+async function initialLoad(common) {
     const page = document;
+    common.setTabs(common.TabGeneral, common.getTabs);
     Dashboard.showLoadingMsg();
 
     ApiClient.getUsers()
         .then(function (users) {
-            populateUserList(page, users);
+            common.populateUserList(page, users, '#selectUser');
             loadUserConfiguration(page.querySelector('#selectUser').value);
             setUserAddress(page);
         })
         .catch(error => console.log("Could not populate users list: " + error));
 
-    await setParameters(page);
+    await setParameters(common, page);
     loadProviderConfiguration(page);
     Dashboard.hideLoadingMsg();
 
@@ -38,42 +40,15 @@ async function initialLoad() {
 
     page.querySelector('#TemplateConfigForm')
         .addEventListener('submit', function (e) {
-            saveUserConfig();
+            saveUserConfig(common);
             e.preventDefault();
             return false;
         });
 
-    page.querySelector('#selectAction').addEventListener('change', function (q) {
-        actionSelectionChange(page, q);
-    });
-
     page.querySelector('#testAnimeListSaveLocation').onclick = await runTestAnimeListSaveLocation;
     page.querySelector('#generateCallbackUrlButton').onclick = generateCallbackUrl;
-    page.querySelector('#authorizeDevice').onclick = await onAuthorizeButtonClick;
-    page.querySelector('#testAuthentication').onclick = getUser;
-    page.querySelector('#run').onclick = run;
-
-
-    function actionSelectionChange(page, value) {
-        switch (value.target.value) {
-            case "UpdateProvider":
-                page.querySelector('#selectSyncProvider').disabled = true;
-                page.querySelector('#status').disabled = true;
-                break;
-            case "UpdateJellyfin":
-                page.querySelector('#selectSyncProvider').disabled = false;
-                page.querySelector('#status').disabled = false;
-                break;
-        }
-    }
-
-    async function run() {
-        var url = ApiClient.getUrl("/AniSync/sync?provider=" + document.querySelector('#selectSyncProvider').value + "&userId=" + encodeURIComponent(document.querySelector('#selectSyncUser').value) + "&status=" + encodeURIComponent(document.querySelector('#status').value) + "&syncAction=" + encodeURIComponent(document.querySelector('#selectAction').value));
-        await ApiClient.ajax({
-            type: "POST",
-            url
-        });
-    }
+    page.querySelector('#authorizeDevice').onclick = (async () => await onAuthorizeButtonClick(common));
+    page.querySelector('#testAuthentication').onclick = (() => getUser(common));
 
     async function runTestAnimeListSaveLocation() {
         document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
@@ -91,7 +66,7 @@ async function initialLoad() {
             .then((response) => response.json())
             .then((result) => {
                 if (result === "") {
-                    document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Anime list save location is valid! Please remember to save"
+                    document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Anime list save location is valid! Please remember to save."
                 } else {
                     document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Error: " + result;
                 }
@@ -109,25 +84,25 @@ async function initialLoad() {
     }
 
 
-    async function onAuthorizeButtonClick() {
+    async function onAuthorizeButtonClick(common) {
         document.querySelector('#authorizeClientIdError').innerHTML = "";
         document.querySelector('#authorizeClientSecretError').innerHTML = "";
-        
+
         var kitsuAuth = document.querySelector('#selectProvider').value === "Kitsu";
         var clientId = document.querySelector('#clientId').value;
         var clientSecret = document.querySelector('#clientSecret').value;
         if (!clientId || !clientSecret) {
             if (!clientId)
                 document.querySelector('#authorizeClientIdError').innerHTML = `Error: ${kitsuAuth ? "Username" : "Client ID"} is empty.`;
-            
+
             if (!clientSecret)
                 document.querySelector('#authorizeClientSecretError').innerHTML = `Error: ${kitsuAuth ? "Username" : "Client Secret"} is empty.`;
-                
+
             return
         }
-        
+
         // users are unlikely to save after setting client id and secret, so we do it for them
-        saveUserConfig(true);
+        saveUserConfig(common, true);
         if (kitsuAuth) {
             var url = ApiClient.getUrl("/AniSync/passwordGrant?provider=Kitsu&userId=" + encodeURIComponent(document.querySelector('#selectUser').value) +
                 "&username=" + encodeURIComponent(clientId) +
@@ -152,10 +127,10 @@ async function initialLoad() {
         }
     }
 
-    async function getUser() {
+    async function getUser(common) {
         document.querySelector('#getUserResponse').innerHTML = "Testing authentication.. this can take some time."
         if (document.querySelector('#selectProvider').value === "Annict")
-            saveUserConfig(false);
+            saveUserConfig(common, false);
         var url = ApiClient.getUrl("/AniSync/user?apiName=" + document.querySelector('#selectProvider').value +
             "&userId=" + encodeURIComponent(document.querySelector('#selectUser').value));
         await ApiClient.ajax({
@@ -181,7 +156,7 @@ async function initialLoad() {
             });
     }
 
-    async function setParameters(page) {
+    async function setParameters(common, page) {
         var url = ApiClient.getUrl("/AniSync/parameters");
         await ApiClient.ajax({type: 'GET', url})
             .then(function (response) {
@@ -189,7 +164,7 @@ async function initialLoad() {
                     return response.json()
                         .then(function (json) {
                             setLocalApiUrl(page, json.https, json.localIpAddress, json.localPort);
-                            setProviderSelection(page, json.providerList);
+                            common.setProviderSelection(page, json.providerList, '#selectProvider');
                             setCallbackRedirectUrlInputDescription(json.localIpAddress, json.localPort);
                         });
                 } else {
@@ -204,30 +179,12 @@ async function initialLoad() {
         page.querySelector('#localApiUrl').innerHTML = "Local (server) URL: <b>" + localApiUrl + "</b>";
     }
 
-    function setProviderSelection(page, providerList) {
-        var html = '';
-        for (var x = 0; x < providerList.length; x++) {
-            html += '<option value="' + providerList[x].Key + '">' + providerList[x].Name + '</option>';
-        }
-        page.querySelector('#selectProvider').innerHTML = html;
-        page.querySelector('#selectSyncProvider').innerHTML = html;
-    }
-
     function setCallbackRedirectUrlInputDescription(localIpAddress, localPort) {
         page.querySelector("#callbackRedirectUrlDescription").innerHTML = "Redirect the user to this URL on successful authentication.<br></br>Variables: \"{{LocalIpAddress}}\" will be converted to the detected local IP address (" + localIpAddress + "), \"{{LocalPort}}\" will be converted to the detected Jellyfin port (" + localPort + ")."
     }
 
     function setUserAddress(page) {
         page.querySelector('#userAddress').innerHTML = "User URL: <b>" + ApiClient.serverAddress() + "</b>";
-    }
-
-    function populateUserList(page, users) {
-        var html = '';
-        for (var x = 0; x < users.length; x++) {
-            html += '<option value="' + users[x].Id + '">' + users[x].Name + '</option>';
-        }
-        page.querySelector('#selectUser').innerHTML = html;
-        page.querySelector('#selectSyncUser').innerHTML = html;
     }
 
     function loadUserConfiguration(userId) {
@@ -385,7 +342,7 @@ async function initialLoad() {
         }
     }
 
-    function saveUserConfig(saveTempAuth) {
+    function saveUserConfig(common, saveTempAuth) {
         ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
             var userId = document.querySelector('#selectUser').value;
 
@@ -442,7 +399,7 @@ async function initialLoad() {
                 Dashboard.processPluginConfigurationUpdateResult(result);
                 ApiClient.getUsers()
                     .then(function (users) {
-                        populateUserList(users);
+                        common.populateUserList(users, '#selectUser');
                         document.querySelector('#selectUser').value = userId;
                         loadUserConfiguration(userId);
                     })

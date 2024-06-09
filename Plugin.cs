@@ -29,8 +29,20 @@ namespace jellyfin_ani_sync {
                     EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.ConfigPage.html"
                 },
                 new PluginPageInfo {
-                    Name = "ConfigPageJs",
+                    Name = "AniSync_ConfigPageJs",
                     EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.ConfigPageJs.js"
+                },
+                new PluginPageInfo {
+                    Name = "AniSync_CommonJs",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.CommonJs.js"
+                },
+                new PluginPageInfo {
+                    Name = "AniSync_ManualSync",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.ManualSync.html"
+                },
+                new PluginPageInfo {
+                    Name = "AniSync_ManualSyncJs",
+                    EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.ManualSyncJs.js"
                 }
             };
         }

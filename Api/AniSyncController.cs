@@ -75,7 +75,7 @@ namespace jellyfin_ani_sync.Api {
         public async Task<IActionResult> TestAnimeSaveLocation(string saveLocation) {
             if (String.IsNullOrEmpty(saveLocation))
                 return BadRequest("Save location is empty");
-            
+
             try {
                 await using (System.IO.File.Create(
                                  Path.Combine(
@@ -187,7 +187,7 @@ namespace jellyfin_ani_sync.Api {
                     if (apiCall == null) {
                         return StatusCode(500, "Authentication failed");
                     }
-                    
+
                     return new OkObjectResult(new MalApiCalls.User {
                         Name = apiCall.Name
                     });
@@ -206,7 +206,7 @@ namespace jellyfin_ani_sync.Api {
                     if (annictApiCall == null) {
                         return StatusCode(500, "Authentication failed");
                     }
-                    
+
                     return new OkObjectResult(new MalApiCalls.User {
                         Name = annictApiCall.AnnictSearchData.Viewer.username
                     });
@@ -249,24 +249,36 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("parameters")]
-        public object GetFrontendParameters() {
+        public object GetFrontendParameters(ParameterInclude[]? includes) {
             Parameters toReturn = new Parameters();
-            toReturn.providerList = new List<ExpandoObject>();
-            foreach (ApiName apiName in Enum.GetValues<ApiName>()) {
-                dynamic provider = new ExpandoObject();
-                provider.Name = apiName.GetType()
-                    .GetMember(apiName.ToString())
-                    .First()
-                    .GetCustomAttribute<DisplayAttribute>()
-                    ?.GetName();
-                provider.Key = apiName;
-                toReturn.providerList.Add(provider);
+            if (includes == null || includes.Contains(ParameterInclude.ProviderList)) {
+                toReturn.providerList = new List<ExpandoObject>();
+                foreach (ApiName apiName in Enum.GetValues<ApiName>()) {
+                    dynamic provider = new ExpandoObject();
+                    provider.Name = apiName.GetType()
+                        .GetMember(apiName.ToString())
+                        .First()
+                        .GetCustomAttribute<DisplayAttribute>()
+                        ?.GetName();
+                    provider.Key = apiName;
+                    toReturn.providerList.Add(provider);
+                }
             }
 
-            toReturn.localIpAddress = Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost";
-            toReturn.localPort = _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort : _serverApplicationHost.HttpPort;
-            toReturn.https = _serverApplicationHost.ListenWithHttps;
+            if (includes == null || includes.Contains(ParameterInclude.LocalIpAddress))
+                toReturn.localIpAddress = Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost";
+            if (includes == null || includes.Contains(ParameterInclude.LocalPort))
+                toReturn.localPort = _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort : _serverApplicationHost.HttpPort;
+            if (includes == null || includes.Contains(ParameterInclude.Https))
+                toReturn.https = _serverApplicationHost.ListenWithHttps;
             return toReturn;
+        }
+
+        public enum ParameterInclude {
+            ProviderList = 0,
+            LocalIpAddress = 1,
+            LocalPort = 2,
+            Https = 3
         }
 
         private class Parameters {
