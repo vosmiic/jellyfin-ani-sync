@@ -162,7 +162,8 @@ namespace jellyfin_ani_sync.Api {
                 case ApiName.Mal:
                     MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
-                    return new OkObjectResult(await malApiCalls.GetUserInformation());
+                    MalApiCalls.User? malUser = await malApiCalls.GetUserInformation();
+                    return malUser != null ? new OkObjectResult(malUser) : StatusCode(500, "Authentication failed");
                 case ApiName.AniList:
                     AniListApiCalls aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
