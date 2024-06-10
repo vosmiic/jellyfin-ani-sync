@@ -71,6 +71,17 @@ async function initialLoad(common) {
                     document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Error: " + result;
                 }
             })
+            .catch((error) => {
+                Promise.resolve(error).then(async (resolvedError) => {
+                    if (typeof (resolvedError) === "string") {
+                        return resolvedError;
+                    } else {
+                        await resolvedError.text().then(error => {
+                            document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Error: " +  error;
+                        });
+                    }
+                });
+            })
     }
 
 
