@@ -81,6 +81,11 @@ async function initialLoad(common) {
                         });
                     }
                 });
+
+                // reset save file path so the user doesn't accidentally save an invalid path
+                ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+                     document.querySelector('#animeListSaveLocation').value = config.animeListSaveLocation ?? '';
+                });
             })
     }
 
