@@ -18,10 +18,12 @@ using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
+using MediaBrowser.Common.Api;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -29,6 +31,7 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
     [ApiController]
+    [Authorize(Policy = Policies.RequiresElevation)]
     [Route("[controller]")]
     public class AniSyncController : ControllerBase {
         private readonly IHttpClientFactory _httpClientFactory;
@@ -77,6 +80,9 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("testAnimeListSaveLocation")]
         public async Task<IActionResult> TestAnimeSaveLocation(string saveLocation) {
+            if (String.IsNullOrEmpty(saveLocation))
+                return BadRequest("Save location is empty");
+
             try {
                 await using (System.IO.File.Create(
                                  Path.Combine(
@@ -96,13 +102,20 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("passwordGrant")]
         public async Task<IActionResult> PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
-            if (new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId)) != null) {
-                if (provider == ApiName.Kitsu) {
-                    var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
+            try {
+                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId));
+            } catch (Exception e) {
+                return StatusCode(500, $"Could not authenticate; {e.Message}");
+            }
+
+            if (provider == ApiName.Kitsu) {
+                var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
 
                     if (userConfig != null) {
                         KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, userConfig);
                         var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
+                        if (kitsuUserConfig == null)
+                            return StatusCode(500, "Could not authenticate");
                         var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
                         if (existingKeyPair != null) {
                             existingKeyPair.Value = kitsuUserConfig.Id.ToString();
@@ -110,16 +123,14 @@ namespace jellyfin_ani_sync.Api {
                             userConfig.KeyPairs.Add(new KeyPairs { Key = "KitsuUserId", Value = kitsuUserConfig.Id.ToString() });
                         }
 
-                        Plugin.Instance.SaveConfiguration();
-                    }
+                    Plugin.Instance.SaveConfiguration();
                 }
-
-                return Ok();
             }
 
-            return BadRequest();
+            return Ok();
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("authCallback")]
         public IActionResult MalCallback(string code) {
@@ -140,7 +151,7 @@ namespace jellyfin_ani_sync.Api {
                     }
                 }
 
-                return Ok();
+                return new ObjectResult("Success! Received access token, please contact the Jellyfin administrator to test the authentication.") { StatusCode = 200 };
             } else {
                 _logger.LogError("Authenticated user ID could not be found in the configuration. Please regenerate the authentication URL and try again");
                 return StatusCode(500);
@@ -153,21 +164,26 @@ namespace jellyfin_ani_sync.Api {
         public async Task<ActionResult> GetUser(ApiName apiName, string userId) {
             UserConfig? userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
             if (userConfig == null) {
-                _logger.LogError("User not found");
-                return new StatusCodeResult(500);
+                _logger.LogError("User not found in config");
+                return StatusCode(500, "User not found in config");
             }
 
             switch (apiName) {
                 case ApiName.Mal:
                     MalApiCalls malApiCalls = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
-                    return new OkObjectResult(await malApiCalls.GetUserInformation());
+                    MalApiCalls.User? malUser = await malApiCalls.GetUserInformation();
+                    return malUser != null ? new OkObjectResult(malUser) : StatusCode(500, "Authentication failed");
                 case ApiName.AniList:
                     AniListApiCalls aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
                     AniListViewer.Viewer? user = await aniListApiCalls.GetCurrentUser();
+                    if (user == null) {
+                        return StatusCode(500, "Authentication failed");
+                    }
+
                     return new OkObjectResult(new MalApiCalls.User {
-                        Name = user?.Name
+                        Name = user.Name
                     });
                 case ApiName.Kitsu:
                     KitsuApiCalls kitsuApiCalls;
@@ -175,10 +191,14 @@ namespace jellyfin_ani_sync.Api {
                         kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
                         _logger.LogError("User could not be retrieved from API");
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "User could not be retrieved from API");
                     }
 
                     var apiCall = await kitsuApiCalls.GetUserInformation();
+                    if (apiCall == null) {
+                        return StatusCode(500, "Authentication failed");
+                    }
+
                     return new OkObjectResult(new MalApiCalls.User {
                         Name = apiCall.Name
                     });
@@ -190,17 +210,21 @@ namespace jellyfin_ani_sync.Api {
                         annictApiCalls = new AnnictApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                     } catch (ArgumentNullException) {
                         _logger.LogError("User could not be retrieved from API");
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "User could not be retrieved from API");
                     }
 
                     var annictApiCall = await annictApiCalls.GetCurrentUser();
+                    if (annictApiCall == null) {
+                        return StatusCode(500, "Authentication failed");
+                    }
+
                     return new OkObjectResult(new MalApiCalls.User {
                         Name = annictApiCall.AnnictSearchData.Viewer.username
                     });
                 case ApiName.Shikimori:
                     string? shikimoriAppName = ConfigHelper.GetShikimoriAppName(_logger);
                     if (string.IsNullOrEmpty(shikimoriAppName)) {
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "No App Name");
                     }
 
                     ShikimoriApiCalls shikimoriApiCalls = new ShikimoriApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, new Dictionary<string, string> { { "User-Agent", shikimoriAppName } }, userConfig);
@@ -212,12 +236,12 @@ namespace jellyfin_ani_sync.Api {
                         });
                     } else {
                         _logger.LogError("User could not be retrieved from API");
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "User could not be retrieved from API");
                     }
                 case ApiName.Simkl:
                     string? simklClientId = ConfigHelper.GetSimklClientId(_logger);
                     if (string.IsNullOrEmpty(simklClientId)) {
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "No Client ID");
                     }
 
                     var simklApiCalls = new SimklApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, new Dictionary<string, string> { { "simkl-api-key", simklClientId } }, userConfig);
@@ -227,7 +251,7 @@ namespace jellyfin_ani_sync.Api {
                             Name = null
                         });
                     } else {
-                        return new StatusCodeResult(500);
+                        return StatusCode(500, "Not authenticated");
                     }
             }
 
@@ -236,24 +260,36 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("parameters")]
-        public object GetFrontendParameters() {
+        public object GetFrontendParameters(ParameterInclude[]? includes) {
             Parameters toReturn = new Parameters();
-            toReturn.providerList = new List<ExpandoObject>();
-            foreach (ApiName apiName in Enum.GetValues<ApiName>()) {
-                dynamic provider = new ExpandoObject();
-                provider.Name = apiName.GetType()
-                    .GetMember(apiName.ToString())
-                    .First()
-                    .GetCustomAttribute<DisplayAttribute>()
-                    ?.GetName();
-                provider.Key = apiName;
-                toReturn.providerList.Add(provider);
+            if (includes == null || includes.Contains(ParameterInclude.ProviderList)) {
+                toReturn.providerList = new List<ExpandoObject>();
+                foreach (ApiName apiName in Enum.GetValues<ApiName>()) {
+                    dynamic provider = new ExpandoObject();
+                    provider.Name = apiName.GetType()
+                        .GetMember(apiName.ToString())
+                        .First()
+                        .GetCustomAttribute<DisplayAttribute>()
+                        ?.GetName();
+                    provider.Key = apiName;
+                    toReturn.providerList.Add(provider);
+                }
             }
 
-            toReturn.localIpAddress = Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost";
-            toReturn.localPort = _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort : _serverApplicationHost.HttpPort;
-            toReturn.https = _serverApplicationHost.ListenWithHttps;
+            if (includes == null || includes.Contains(ParameterInclude.LocalIpAddress))
+                toReturn.localIpAddress = Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost";
+            if (includes == null || includes.Contains(ParameterInclude.LocalPort))
+                toReturn.localPort = _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort : _serverApplicationHost.HttpPort;
+            if (includes == null || includes.Contains(ParameterInclude.Https))
+                toReturn.https = _serverApplicationHost.ListenWithHttps;
             return toReturn;
+        }
+
+        public enum ParameterInclude {
+            ProviderList = 0,
+            LocalIpAddress = 1,
+            LocalPort = 2,
+            Https = 3
         }
 
         private class Parameters {

@@ -57,11 +57,8 @@ namespace jellyfin_ani_sync.Api {
         public async Task<HttpResponseMessage?> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
             int timeoutSeconds = 4;
-            UserApiAuth auth;
-            try {
-                auth = UserConfig.UserApiAuth.FirstOrDefault(item => item.Name == provider);
-                if (auth == null || auth.AccessToken == null) throw new NullReferenceException();
-            } catch (NullReferenceException) {
+            UserApiAuth? auth = UserConfig.UserApiAuth?.FirstOrDefault(item => item.Name == provider);
+            if (auth == null) {
                 _logger.LogError("Could not find authentication details, please authenticate the plugin first");
                 return null;
             }
@@ -119,8 +116,8 @@ namespace jellyfin_ani_sync.Api {
                             UserApiAuth newAuth;
                             try {
                                 newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
-                            } catch (Exception) {
-                                _logger.LogError("Could not re-authenticate. Please manually re-authenticate the user via the AniSync configuration page");
+                            } catch (Exception e) {
+                                _logger.LogError($"Could not re-authenticate: {e.Message}, please manually re-authenticate the user via the AniSync configuration page");
                                 return null;
                             }
 
