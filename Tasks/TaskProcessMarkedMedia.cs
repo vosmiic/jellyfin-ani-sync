@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Interfaces;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
@@ -26,8 +26,9 @@ public class TaskProcessMarkedMedia {
     private readonly IServerApplicationHost _serverApplicationHost;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IApplicationPaths _applicationPaths;
+    private readonly IAsyncDelayer _delayer;
 
-    public TaskProcessMarkedMedia(ILoggerFactory loggerFactory, ILibraryManager libraryManager, IFileSystem fileSystem, IMemoryCache memoryCache, IHttpContextAccessor httpContextAccessor, IServerApplicationHost serverApplicationHost, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths) {
+    public TaskProcessMarkedMedia(ILoggerFactory loggerFactory, ILibraryManager libraryManager, IFileSystem fileSystem, IMemoryCache memoryCache, IHttpContextAccessor httpContextAccessor, IServerApplicationHost serverApplicationHost, IHttpClientFactory httpClientFactory, IApplicationPaths applicationPaths, IAsyncDelayer delayer) {
         _loggerFactory = loggerFactory;
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
@@ -37,6 +38,7 @@ public class TaskProcessMarkedMedia {
         _httpClientFactory = httpClientFactory;
         _applicationPaths = applicationPaths;
         _logger = loggerFactory.CreateLogger<TaskProcessMarkedMedia>();
+        _delayer = delayer;
     }
 
     public void AddToUpdateList((Guid userId, Guid? seasonId, Video baseItem) itemToAdd) {
@@ -76,7 +78,7 @@ public class TaskProcessMarkedMedia {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5)
                 });
                 
-                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths);
+                UpdateProviderStatus updateProviderStatus = new UpdateProviderStatus(_fileSystem, _libraryManager, _loggerFactory, _httpContextAccessor, _serverApplicationHost, _httpClientFactory, _applicationPaths, _memoryCache, _delayer);
                 pairedItems = itemsToUpdate.Where(items => items.seasonId == item.seasonId && items.userId == item.userId).ToList();
                 item = pairedItems.MaxBy(item => item.baseItem.IndexNumber);
                 await updateProviderStatus.Update(item.baseItem, item.userId, true);

@@ -6,32 +6,41 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
     public class AuthApiCall {
-        private ApiName _provider;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<AuthApiCall> _logger;
+        private readonly IMemoryCache _memoryCache;
+        private readonly IAsyncDelayer _delayer;
         public UserConfig UserConfig { get; set; }
 
-        public AuthApiCall(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, UserConfig userConfig) {
-            _provider = provider;
+        public AuthApiCall(IHttpClientFactory httpClientFactory,
+            IServerApplicationHost serverApplicationHost,
+            IHttpContextAccessor httpContextAccessor,
+            ILoggerFactory loggerFactory,
+            IMemoryCache memoryCache,
+            IAsyncDelayer delayer,
+            UserConfig userConfig) {
             _httpClientFactory = httpClientFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
             _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<AuthApiCall>();
+            _memoryCache = memoryCache;
+            _delayer = delayer;
             UserConfig = userConfig;
         }
 
@@ -47,14 +56,21 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
         public async Task<HttpResponseMessage?> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
+            int timeoutSeconds = 4;
             UserApiAuth? auth = UserConfig.UserApiAuth?.FirstOrDefault(item => item.Name == provider);
             if (auth == null) {
                 _logger.LogError("Could not find authentication details, please authenticate the plugin first");
                 return null;
             }
 
-            while (attempts < 2) {
-                var client = _httpClientFactory.CreateClient(NamedClient.Default);
+            var client = _httpClientFactory.CreateClient(NamedClient.Default);
+            DateTime lastCallDateTime = _memoryCache.Get<DateTime>(MemoryCacheHelper.GetLastCallDateTimeKey(provider));
+            if (lastCallDateTime != default)
+            {
+                _logger.LogWarning($"({provider}) Delaying API call to prevent 429 (too many requests)...");
+                await _delayer.Delay(DateTime.UtcNow.Subtract(lastCallDateTime));
+            }
+            while (attempts < 3) {
                 if (requestHeaders != null) {
                     foreach (KeyValuePair<string,string> requestHeader in requestHeaders) {
                         client.DefaultRequestHeaders.Add(requestHeader.Key, requestHeader.Value);
@@ -64,6 +80,7 @@ namespace jellyfin_ani_sync.Api {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
                 HttpResponseMessage responseMessage = new HttpResponseMessage();
                 try {
+                    _memoryCache.Set(MemoryCacheHelper.GetLastCallDateTimeKey(provider), DateTime.UtcNow, TimeSpan.FromSeconds(5));
                     switch (callType) {
                         case CallType.GET:
                             responseMessage = await client.GetAsync(url);
@@ -92,22 +109,31 @@ namespace jellyfin_ani_sync.Api {
                 if (responseMessage.IsSuccessStatusCode) {
                     return responseMessage;
                 } else {
-                    if (responseMessage.StatusCode == HttpStatusCode.Unauthorized) {
-                        // token has probably expired; try refreshing it
-                        UserApiAuth newAuth;
-                        try {
-                            newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
-                        } catch (Exception e) {
-                            _logger.LogError($"Could not re-authenticate: {e.Message}, please manually re-authenticate the user via the AniSync configuration page");
-                            return null;
-                        }
+                    switch (responseMessage.StatusCode)
+                    {
+                        case HttpStatusCode.Unauthorized:
+                            // token has probably expired; try refreshing it
+                            UserApiAuth newAuth;
+                            try {
+                                newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
+                            } catch (Exception e) {
+                                _logger.LogError($"Could not re-authenticate: {e.Message}, please manually re-authenticate the user via the AniSync configuration page");
+                                return null;
+                            }
 
-                        // and then make the call again, using the new auth details
-                        auth = newAuth;
-                        attempts++;
-                    } else {
-                        _logger.LogError($"Unable to complete {provider} API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
-                        return null;
+                            // and then make the call again, using the new auth details
+                            auth = newAuth;
+                            attempts++;
+                            break;
+                        case HttpStatusCode.TooManyRequests:
+                            _logger.LogWarning($"({provider}) API rate limit exceeded, retrying the API call again in {timeoutSeconds} seconds...");
+                            await _delayer.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+                            timeoutSeconds *= 2;
+                            attempts++;
+                            break;
+                        default:
+                            _logger.LogError($"Unable to complete {provider} API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
+                            return null;
                     }
                 }
             }

@@ -7,11 +7,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Annict {
@@ -20,18 +22,21 @@ namespace jellyfin_ani_sync.Api.Annict {
         private readonly ILoggerFactory _loggerFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly HttpClient _httpClient;
+        private readonly IMemoryCache _memoryCache;
+        private readonly IAsyncDelayer _delayer;
         private readonly UserConfig _userConfig;
         public static readonly int PageSize = 1000;
 
 
-        public AnnictApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig = null) {
+        public AnnictApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig = null) {
             _httpClientFactory = httpClientFactory;
             _loggerFactory = loggerFactory;
             _serverApplicationHost = serverApplicationHost;
             _httpContextAccessor = httpContextAccessor;
-            _httpClient = httpClientFactory.CreateClient(NamedClient.Default);
+            httpClientFactory.CreateClient(NamedClient.Default);
             _userConfig = userConfig;
+            _memoryCache = memoryCache;
+            _delayer = delayer;
         }
 
         /// <summary>
@@ -59,7 +64,7 @@ namespace jellyfin_ani_sync.Api.Annict {
 
             AnnictSearch.AnnictSearchMedia searchMedia = new AnnictSearch.AnnictSearchMedia();
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.Annict, variables);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 var result = JsonSerializer.Deserialize<AnnictSearch.AnnictSearchMedia>(await streamReader.ReadToEndAsync());
@@ -90,7 +95,7 @@ namespace jellyfin_ani_sync.Api.Annict {
                 { "state", status.ToString().ToUpper() },
             };
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.Annict, variables);
             return response != null;
         }
 
@@ -129,7 +134,7 @@ namespace jellyfin_ani_sync.Api.Annict {
 
             AnnictMediaList.AnnictUserMediaList result = new AnnictMediaList.AnnictUserMediaList();
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.Annict, variables);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 result = JsonSerializer.Deserialize<AnnictMediaList.AnnictUserMediaList>(await streamReader.ReadToEndAsync());
@@ -137,7 +142,7 @@ namespace jellyfin_ani_sync.Api.Annict {
             if (result != null) {
                 while (result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.HasNextPage) {
                     variables["after"] = result.AnnictSearchData.Viewer.AnnictUserMediaListLibraryEntries.PageInfo.StartCursor;
-                    var paginatedResponse = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+                    var paginatedResponse = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.Annict, variables);
                     var paginatedResult = new AnnictMediaList.AnnictUserMediaList();
                     if (paginatedResponse != null) {
                         StreamReader streamReader = new StreamReader(await paginatedResponse.Content.ReadAsStreamAsync());
@@ -183,7 +188,7 @@ namespace jellyfin_ani_sync.Api.Annict {
                 { "id", id }
             };
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, variables);
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.Annict, variables);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 var result = JsonSerializer.Deserialize<AnnictGetMedia.AnnictGetMediaRoot>(await streamReader.ReadToEndAsync());
@@ -203,7 +208,7 @@ namespace jellyfin_ani_sync.Api.Annict {
           }
         }";
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userConfig, query, ApiName.Annict, new Dictionary<string, object>());
+            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.Annict, new Dictionary<string, object>());
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 var result = JsonSerializer.Deserialize<AnnictViewer.AnnictViewerRoot>(await streamReader.ReadToEndAsync());
