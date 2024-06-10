@@ -121,6 +121,7 @@ namespace jellyfin_ani_sync.Api {
             return Ok();
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("authCallback")]
         public IActionResult MalCallback(string code) {
