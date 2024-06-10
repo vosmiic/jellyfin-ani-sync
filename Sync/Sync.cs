@@ -9,6 +9,7 @@ using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models.Mal;
 using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
@@ -20,6 +21,7 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync;
@@ -34,6 +36,8 @@ public class Sync {
     private readonly ILibraryManager _libraryManager;
     private readonly IApplicationPaths _applicationPaths;
     private readonly IUserDataManager _userDataManager;
+    private readonly IMemoryCache _memoryCache;
+    private readonly IAsyncDelayer _delayer;
     private readonly ApiName _apiName;
     private readonly SyncHelper.Status _status;
     private int _apiTimeOutLength = 2000;
@@ -46,6 +50,8 @@ public class Sync {
         ILibraryManager libraryManager,
         IApplicationPaths applicationPaths,
         IUserDataManager userDataManager,
+        IMemoryCache memoryCache,
+        IAsyncDelayer delayer,
         ApiName apiName,
         SyncHelper.Status status) {
         _httpClientFactory = httpClientFactory;
@@ -56,6 +62,8 @@ public class Sync {
         _libraryManager = libraryManager;
         _applicationPaths = applicationPaths;
         _userDataManager = userDataManager;
+        _delayer = delayer;
+        _memoryCache = memoryCache;
         _apiName = apiName;
         _status = status;
         _logger = loggerFactory.CreateLogger<Sync>();
@@ -86,11 +94,11 @@ public class Sync {
         MalApiCalls.User user = new MalApiCalls.User();
         switch (_apiName) {
             case ApiName.Mal:
-                apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
 
                 break;
             case ApiName.AniList:
-                apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
                 user = await apiCallHelpers.GetUser();
                 if (user == null || user.Id == 0) {
                     _logger.LogError("(Sync) Could not retrieve user information. Cannot proceed");
@@ -99,7 +107,7 @@ public class Sync {
 
                 break;
             case ApiName.Kitsu:
-                apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
                 user = await apiCallHelpers.GetUser();
 
                 if (user == null || user.Id == 0) {

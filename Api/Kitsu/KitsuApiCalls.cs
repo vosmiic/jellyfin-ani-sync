@@ -9,10 +9,12 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Kitsu;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Kitsu {
@@ -22,9 +24,9 @@ namespace jellyfin_ani_sync.Api.Kitsu {
         private readonly AuthApiCall _authApiCall;
         private readonly UserConfig _userConfig;
 
-        public KitsuApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, UserConfig userConfig) {
+        public KitsuApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig) {
             _logger = loggerFactory.CreateLogger<KitsuApiCalls>();
-            _authApiCall = new AuthApiCall(ApiName.Kitsu, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
+            _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
             _userConfig = userConfig;
         }
 

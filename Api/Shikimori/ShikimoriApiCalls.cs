@@ -7,14 +7,15 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Shikimori;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Shikimori;
@@ -24,7 +25,6 @@ public class ShikimoriApiCalls {
     private readonly AuthApiCall _authApiCall;
     private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
     private readonly string _apiBaseUrl = "https://shikimori.one/api";
-    private readonly int _sleepDelay = 1000;
     private readonly UserConfig? _userConfig;
     private readonly Dictionary<string, string>? _requestHeaders;
 
@@ -80,11 +80,11 @@ public class ShikimoriApiCalls {
       }
     ";
 
-    public ShikimoriApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
+    public ShikimoriApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
         _userConfig = userConfig;
         _requestHeaders = requestHeaders;
         _logger = loggerFactory.CreateLogger<ShikimoriApiCalls>();
-        _authApiCall = new AuthApiCall(ApiName.Shikimori, httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, userConfig: userConfig);
+        _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
     }
 
     public class User {
@@ -166,9 +166,6 @@ public class ShikimoriApiCalls {
             if (animes.Count < limit) {
                 break;
             }
-
-            // sleeping task so we dont hammer the API
-            await Task.Delay(_sleepDelay);
         }
         return result;
     }
@@ -257,8 +254,6 @@ public class ShikimoriApiCalls {
             if (animes.Count < limit) {
                 break;
             }
-
-            await Task.Delay(_sleepDelay);
         }
         return result;
     }
