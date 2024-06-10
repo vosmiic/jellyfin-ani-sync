@@ -141,7 +141,7 @@ namespace jellyfin_ani_sync.Api {
                     }
                 }
 
-                return Ok();
+                return new ObjectResult("Success! Received access token, please contact the Jellyfin administrator to test the authentication.") { StatusCode = 200 };
             } else {
                 _logger.LogError("Authenticated user ID could not be found in the configuration. Please regenerate the authentication URL and try again");
                 return StatusCode(500);
