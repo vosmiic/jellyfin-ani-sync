@@ -114,6 +114,8 @@ namespace jellyfin_ani_sync.Api {
                     if (userConfig != null) {
                         KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, userConfig);
                         var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
+                        if (kitsuUserConfig == null)
+                            return StatusCode(500, "Could not authenticate");
                         var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
                         if (existingKeyPair != null) {
                             existingKeyPair.Value = kitsuUserConfig.Id.ToString();
