@@ -241,7 +241,11 @@ namespace jellyfin_ani_sync {
                                 _logger.LogInformation($"({_apiName}) Found matching {animeType}: {GetAnimeTitle(anime)}");
                                 Anime matchingAnime = anime;
                                 if (_animeType == typeof(Episode)) {
+                                    var episodeOffset = aniDbId.episodeOffset ?? 0;
                                     int episodeNumber = episode.IndexNumber.Value;
+                                    if (episodeOffset < episodeNumber) {
+                                        episodeNumber -= episodeOffset;
+                                    }
                                     if (!checkMalId) {
                                         // should have already found the appropriate series/season/movie, no need to do other checks
                                         if (episode?.Season.IndexNumber is > 1) {
