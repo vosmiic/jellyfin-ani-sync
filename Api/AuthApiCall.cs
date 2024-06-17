@@ -26,6 +26,8 @@ namespace jellyfin_ani_sync.Api {
         private readonly IMemoryCache _memoryCache;
         private readonly IAsyncDelayer _delayer;
         public UserConfig UserConfig { get; set; }
+        public static int defaultTimeoutSeconds = 5;
+        public static int timeoutIncrementMultiplier = 2;
 
         public AuthApiCall(IHttpClientFactory httpClientFactory,
             IServerApplicationHost serverApplicationHost,
@@ -56,7 +58,7 @@ namespace jellyfin_ani_sync.Api {
         /// <exception cref="AuthenticationException">Could not authenticate with the API.</exception>
         public async Task<HttpResponseMessage?> AuthenticatedApiCall(ApiName provider, CallType callType, string url, FormUrlEncodedContent formUrlEncodedContent = null, StringContent stringContent = null, Dictionary<string, string>? requestHeaders = null) {
             int attempts = 0;
-            int timeoutSeconds = 4;
+            int timeoutSeconds = defaultTimeoutSeconds;
             UserApiAuth? auth = UserConfig.UserApiAuth?.FirstOrDefault(item => item.Name == provider);
             if (auth == null) {
                 _logger.LogError("Could not find authentication details, please authenticate the plugin first");
@@ -128,7 +130,7 @@ namespace jellyfin_ani_sync.Api {
                         case HttpStatusCode.TooManyRequests:
                             _logger.LogWarning($"({provider}) API rate limit exceeded, retrying the API call again in {timeoutSeconds} seconds...");
                             await _delayer.Delay(TimeSpan.FromSeconds(timeoutSeconds));
-                            timeoutSeconds *= 2;
+                            timeoutSeconds *= timeoutIncrementMultiplier;
                             attempts++;
                             break;
                         default:
