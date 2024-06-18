@@ -128,7 +128,7 @@ namespace jellyfin_ani_sync.Api {
                             attempts++;
                             break;
                         case HttpStatusCode.TooManyRequests:
-                            _logger.LogWarning($"({provider}) API rate limit exceeded, retrying the API call again in {timeoutSeconds} seconds...");
+                            _logger.LogDebug($"({provider}) API rate limit exceeded, retrying the API call again in {timeoutSeconds} seconds...");
                             await _delayer.Delay(TimeSpan.FromSeconds(timeoutSeconds));
                             timeoutSeconds *= timeoutIncrementMultiplier;
                             attempts++;
