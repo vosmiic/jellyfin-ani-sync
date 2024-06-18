@@ -134,7 +134,7 @@ namespace jellyfin_ani_sync.Api {
                             attempts++;
                             break;
                         default:
-                            _logger.LogError($"Unable to complete {provider} API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}; {responseMessage.ReasonPhrase}");
+                            _logger.LogError($"Unable to complete {provider} API call ({callType.ToString()} {url}), reason: {responseMessage.StatusCode}, content: \n{await responseMessage.Content.ReadAsStringAsync()}");
                             return null;
                     }
                 }
