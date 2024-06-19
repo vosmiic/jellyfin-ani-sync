@@ -69,7 +69,7 @@ namespace jellyfin_ani_sync.Api {
             DateTime lastCallDateTime = _memoryCache.Get<DateTime>(MemoryCacheHelper.GetLastCallDateTimeKey(provider));
             if (lastCallDateTime != default)
             {
-                _logger.LogWarning($"({provider}) Delaying API call to prevent 429 (too many requests)...");
+                _logger.LogDebug($"({provider}) Delaying API call to prevent 429 (too many requests)...");
                 await _delayer.Delay(DateTime.UtcNow.Subtract(lastCallDateTime));
             }
             while (attempts < 3) {
@@ -128,7 +128,7 @@ namespace jellyfin_ani_sync.Api {
                             attempts++;
                             break;
                         case HttpStatusCode.TooManyRequests:
-                            _logger.LogDebug($"({provider}) API rate limit exceeded, retrying the API call again in {timeoutSeconds} seconds...");
+                            _logger.LogWarning($"({provider}) API rate limit exceeded, retrying the API call again in {timeoutSeconds} seconds...");
                             await _delayer.Delay(TimeSpan.FromSeconds(timeoutSeconds));
                             timeoutSeconds *= timeoutIncrementMultiplier;
                             attempts++;
