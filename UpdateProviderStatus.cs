@@ -131,7 +131,7 @@ namespace jellyfin_ani_sync {
                         ? await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, episode, episode.IndexNumber.Value, episode.Season.IndexNumber.Value, animeListXml)
                         : await AnimeListHelpers.GetAniDbId(_logger, _loggerFactory, _httpClientFactory, _applicationPaths, movie, movie.IndexNumber.Value, 1, animeListXml);
                     if (aniDbId.aniDbId != null) {
-                        _logger.LogInformation("Retrieving provider IDs from offline database...");
+                        _logger.LogInformation($"Retrieving provider IDs from offline database for AniDb ID {aniDbId.aniDbId.Value}...");
                         _apiIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
                         if (_apiIds is null) {
                             _apiIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse {
@@ -241,7 +241,11 @@ namespace jellyfin_ani_sync {
                                 _logger.LogInformation($"({_apiName}) Found matching {animeType}: {GetAnimeTitle(anime)}");
                                 Anime matchingAnime = anime;
                                 if (_animeType == typeof(Episode)) {
+                                    var episodeOffset = aniDbId.episodeOffset ?? 0;
                                     int episodeNumber = episode.IndexNumber.Value;
+                                    if (episodeOffset < episodeNumber) {
+                                        episodeNumber -= episodeOffset;
+                                    }
                                     if (!checkMalId) {
                                         // should have already found the appropriate series/season/movie, no need to do other checks
                                         if (episode?.Season.IndexNumber is > 1) {
