@@ -1,8 +1,8 @@
 ---
 name: "Ani-Sync"
 guid: "c78f11cf-93e6-4423-8c42-d2c255b70e47"
-version: "1.4"
-targetAbi: "10.9.0.0"
+version: "3.3"
+targetAbi: "10.9.6.0"
 framework: "net8.0"
 owner: "vosmiic"
 overview: "Synchronize anime watch status"
@@ -12,8 +12,7 @@ category: "General"
 artifacts:
   - "jellyfin-ani-sync.dll"
 changelog: |1-
-  - Added "Generate Callback URL" button on the config page.
-  - Fixed the API endpoint not being populated on config page load.
-  - Added Kitsu support (beta)
-  - Added multi-cour season supprt
-  - Fixed crash when attempting to find OVA
+  - Added 429 Too Many Requests handling with backoff.
+  - Increased plugin API security
+  - Config page overhaul
+  - Improved anime detection
