@@ -6,10 +6,12 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Kitsu;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Kitsu;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -23,13 +25,17 @@ public class Kitsu {
     private Mock<IServerApplicationHost> _serverApplicationHost;
     private Mock<IHttpContextAccessor> _httpContextAccessor;
     private IHttpClientFactory _httpClientFactory;
+    private MemoryCache _memoryCache;
+    private Mock<IAsyncDelayer> _mockDelayer;
 
     private void Setup(List<Helpers.HttpCall> httpCalls) {
         _loggerFactory = new NullLoggerFactory();
         _serverApplicationHost = new Mock<IServerApplicationHost>();
         _httpContextAccessor = new Mock<IHttpContextAccessor>();
         Helpers.MockHttpCalls(httpCalls, ref _httpClientFactory);
-        _kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost.Object, _httpContextAccessor.Object, new UserConfig {
+        _memoryCache = new MemoryCache(new MemoryCacheOptions());
+        _mockDelayer = new Mock<IAsyncDelayer>();
+        _kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost.Object, _httpContextAccessor.Object, _memoryCache, _mockDelayer.Object, new UserConfig {
             UserApiAuth = new [] {
                 new UserApiAuth {
                     AccessToken = "accessToken",
@@ -201,15 +207,7 @@ public class Kitsu {
                 })
             }
         });
-        _kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost.Object, _httpContextAccessor.Object, new UserConfig {
-            UserApiAuth = new [] {
-                new UserApiAuth {
-                    AccessToken = "accessToken",
-                    Name = ApiName.Kitsu,
-                    RefreshToken = "refreshToken"
-                }
-            }
-        });
+
         var result = await _kitsuApiCalls.UpdateAnimeStatus(1,
             1,
             KitsuUpdate.Status.current,

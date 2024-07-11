@@ -5,9 +5,11 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -28,7 +30,9 @@ public class AniList {
         _serverApplicationHost = new Mock<IServerApplicationHost>();
         _httpContextAccessor = new Mock<IHttpContextAccessor>();
         Helpers.MockHttpCalls(httpCalls, ref _httpClientFactory);
-        _aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost.Object, _httpContextAccessor.Object, new UserConfig {
+        MemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
+        Mock<IAsyncDelayer> mockDelayer = new Mock<IAsyncDelayer>();
+        _aniListApiCalls = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost.Object, _httpContextAccessor.Object, memoryCache, mockDelayer.Object, new UserConfig {
             UserApiAuth = new [] {
                 new UserApiAuth {
                     AccessToken = "accessToken",
