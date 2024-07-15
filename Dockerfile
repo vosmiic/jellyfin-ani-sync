@@ -7,6 +7,6 @@ RUN dotnet publish --configuration Release --property:PublishDir=bin
 
 FROM alpine as final
 WORKDIR /app
-COPY --from=build /app/bin /app/bin
+COPY --from=build /app/jellyfin-ani-sync/bin /app/bin
 
-CMD ["cp",  "/app/bin/jellyfin-ani-sync.dll", "/out/jellyfin-ani-sync.dll"]
+CMD ["cp",  "/app/jellyfin-ani-sync/bin/jellyfin-ani-sync.dll", "/out/jellyfin-ani-sync.dll"]
