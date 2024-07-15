@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "jellyfin-ani-sync", "jellyfin-ani-sync.csproj", "{BA49DF0A-1074-48FD-8FB9-ADFC63EDBED4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "jellyfin-ani-sync", "jellyfin-ani-sync\jellyfin-ani-sync.csproj", "{BA49DF0A-1074-48FD-8FB9-ADFC63EDBED4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "jellyfin-ani-sync-unit-tests", "jellyfin-ani-sync-unit-tests\jellyfin-ani-sync-unit-tests.csproj", "{2AFE6282-E97C-4CB5-86EB-098BE314F245}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +14,9 @@ Global
 		{BA49DF0A-1074-48FD-8FB9-ADFC63EDBED4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA49DF0A-1074-48FD-8FB9-ADFC63EDBED4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BA49DF0A-1074-48FD-8FB9-ADFC63EDBED4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2AFE6282-E97C-4CB5-86EB-098BE314F245}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2AFE6282-E97C-4CB5-86EB-098BE314F245}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2AFE6282-E97C-4CB5-86EB-098BE314F245}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2AFE6282-E97C-4CB5-86EB-098BE314F245}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
