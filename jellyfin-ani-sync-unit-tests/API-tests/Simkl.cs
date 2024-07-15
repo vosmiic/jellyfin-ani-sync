@@ -25,17 +25,13 @@ public class Simkl {
     private IHttpClientFactory _httpClientFactory;
 
     public void Setup(List<Helpers.HttpCall> httpCalls) {
-        //var mockFactory = new Mock<IHttpClientFactory>();
-        //var client = new HttpClient();
-        //mockFactory.Setup(_ => _.CreateClient(It.IsAny<string>())).Returns(client);
-        //IHttpClientFactory factory = mockFactory.Object;
         Helpers.MockHttpCalls(httpCalls, ref _httpClientFactory);
         var mockLoggerFactory = new NullLoggerFactory();
         var mockServerApplicationHost = new Mock<IServerApplicationHost>();
         var mockHttpContextAccessor = new Mock<IHttpContextAccessor>();
         MemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
         Mock<IAsyncDelayer> mockDelayer = new Mock<IAsyncDelayer>();
-        _simklApiCalls = new SimklApiCalls(_httpClientFactory, mockLoggerFactory, mockServerApplicationHost.Object, mockHttpContextAccessor.Object, memoryCache, mockDelayer.Object, new Dictionary<string, string> { { "simkl-api-key", GetUserConfig.ManuallyGetProviderAuthConfig(ApiName.Simkl).ClientId } }, new UserConfig {
+        _simklApiCalls = new SimklApiCalls(_httpClientFactory, mockLoggerFactory, mockServerApplicationHost.Object, mockHttpContextAccessor.Object, memoryCache, mockDelayer.Object, new Dictionary<string, string> { { "simkl-api-key", String.Empty } }, new UserConfig {
             UserApiAuth = new []{new UserApiAuth {
                 Name = ApiName.Simkl,
                 AccessToken = String.Empty
