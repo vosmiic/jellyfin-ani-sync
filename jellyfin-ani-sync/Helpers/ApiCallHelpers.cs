@@ -55,45 +55,8 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_aniListApiCalls != null) {
                 List<AniListSearch.Media> animeList = await _aniListApiCalls.SearchAnime(query);
-                List<Anime> convertedList = new List<Anime>();
-                if (animeList != null) {
-                    foreach (AniListSearch.Media media in animeList) {
-                        if (!updateNsfw && media.IsAdult) continue; // Skip NSFW anime if the user doesn't want to update them
-                        var synonyms = new List<string> {
-                            { media.Title.Romaji },
-                            { media.Title.UserPreferred }
-                        };
-                        synonyms.AddRange(media.Synonyms);
-                        var anime = new Anime {
-                            Id = media.Id,
-                            Title = media.Title.English,
-                            AlternativeTitles = new AlternativeTitles {
-                                En = media.Title.English,
-                                Ja = media.Title.Native,
-                                Synonyms = synonyms
-                            },
-                            NumEpisodes = media.Episodes ?? 0,
-                        };
 
-                        switch (media.Status) {
-                            case AniListSearch.AiringStatus.FINISHED:
-                                anime.Status = AiringStatus.finished_airing;
-                                break;
-                            case AniListSearch.AiringStatus.RELEASING:
-                                anime.Status = AiringStatus.currently_airing;
-                                break;
-                            case AniListSearch.AiringStatus.NOT_YET_RELEASED:
-                            case AniListSearch.AiringStatus.CANCELLED:
-                            case AniListSearch.AiringStatus.HIATUS:
-                                anime.Status = AiringStatus.not_yet_aired;
-                                break;
-                        }
-
-                        convertedList.Add(anime);
-                    }
-                }
-
-                return convertedList;
+                return AniListSearchAnimeConvertedList(animeList, updateNsfw);
             }
 
             if (_kitsuApiCalls != null) {
@@ -134,6 +97,48 @@ namespace jellyfin_ani_sync.Helpers {
             }
 
             return null;
+        }
+
+        internal List<Anime> AniListSearchAnimeConvertedList(List<AniListSearch.Media> animeList, bool updateNsfw) {
+            List<Anime> convertedList = new List<Anime>();
+            if (animeList != null) {
+                foreach (AniListSearch.Media media in animeList) {
+                    if (!updateNsfw && media.IsAdult) continue; // Skip NSFW anime if the user doesn't want to update them
+                    var synonyms = new List<string> {
+                        { media.Title.Romaji },
+                        { media.Title.UserPreferred }
+                    };
+                    synonyms.AddRange(media.Synonyms);
+                    var anime = new Anime {
+                        Id = media.Id,
+                        Title = media.Title.English,
+                        AlternativeTitles = new AlternativeTitles {
+                            En = media.Title.English,
+                            Ja = media.Title.Native,
+                            Synonyms = synonyms
+                        },
+                        NumEpisodes = media.Episodes ?? 0,
+                    };
+
+                    switch (media.Status) {
+                        case AniListSearch.AiringStatus.FINISHED:
+                            anime.Status = AiringStatus.finished_airing;
+                            break;
+                        case AniListSearch.AiringStatus.RELEASING:
+                            anime.Status = AiringStatus.currently_airing;
+                            break;
+                        case AniListSearch.AiringStatus.NOT_YET_RELEASED:
+                        case AniListSearch.AiringStatus.CANCELLED:
+                        case AniListSearch.AiringStatus.HIATUS:
+                            anime.Status = AiringStatus.not_yet_aired;
+                            break;
+                    }
+
+                    convertedList.Add(anime);
+                }
+            }
+
+            return convertedList;
         }
 
         public async Task<Anime> GetAnime(int id, string? alternativeId = null, bool getRelated = false) {

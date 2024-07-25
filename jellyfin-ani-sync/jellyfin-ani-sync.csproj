@@ -38,4 +38,11 @@
         <Compile Remove="builds\**"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>jellyfin-ani-sync-unit-tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+
 </Project>
