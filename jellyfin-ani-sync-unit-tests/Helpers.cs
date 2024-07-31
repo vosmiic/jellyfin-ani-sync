@@ -41,10 +41,30 @@ public class Helpers {
 
             return Task.FromResult(new HttpResponseMessage());
         });
-            var client = new HttpClient(clientHandlerStub);
-            mockFactory.Setup(_ => _.CreateClient(It.IsAny<string>())).Returns(client);
-            _httpClientFactory = mockFactory.Object;
-        }
+        var client = new HttpClient(clientHandlerStub);
+        mockFactory.Setup(_ => _.CreateClient(It.IsAny<string>())).Returns(client);
+        _httpClientFactory = mockFactory.Object;
+    }
+    
+    public static void MockHttpCalls(List<HttpCall> calls, ref HttpClient httpClient) {
+        var clientHandlerStub = new DelegatingHandlerStub((request, _) => {
+            request.SetConfiguration(new HttpConfiguration());
+            foreach (HttpCall httpCall in calls.OrderByDescending(call => call.RequestMethod != null).ThenByDescending(call => call.RequestUrlMatch != null)) {
+                if (httpCall.RequestMethod != null && request.Method != httpCall.RequestMethod) {
+                    continue;
+                }
+
+                if (httpCall.RequestUrlMatch != null && request.RequestUri != null && !httpCall.RequestUrlMatch(request.RequestUri.GetLeftPart(UriPartial.Path).ToString())) {
+                    continue;
+                }
+
+                return Task.FromResult(new HttpResponseMessage(httpCall.ResponseCode) { RequestMessage = request, Content = new StringContent(httpCall.ResponseContent) });
+            }
+
+            return Task.FromResult(new HttpResponseMessage());
+        });
+        httpClient = new HttpClient(clientHandlerStub);
+    }
 
     public class HttpCall {
         /// <summary>
