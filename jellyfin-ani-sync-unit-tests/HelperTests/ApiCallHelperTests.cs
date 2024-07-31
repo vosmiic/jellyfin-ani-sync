@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 using NUnit.Framework;
 
@@ -29,6 +30,26 @@ public class ApiCallHelperTests {
         }
     }
 
+    [Test]
+    public void KitsuSearchAnimeConvertedListTest() {
+        List<KitsuSearch.KitsuAnime> mediaList = new List<KitsuSearch.KitsuAnime>();
+        for (int i = 0; i < 10; i++) {
+            mediaList.Add(GetKitsuAnime(true));
+        }
+
+        List<Anime> animeList = ApiCallHelpers.KitsuSearchAnimeConvertedList(mediaList);
+        Assert.AreEqual(10, animeList.Count);
+        // Assert that the anime list contains the expected anime objects
+        for (int i = 0; i < animeList.Count; i++) {
+            Assert.AreEqual(mediaList[i].Id, animeList[i].Id);
+            Assert.AreEqual(mediaList[i].Attributes.EpisodeCount, animeList[i].NumEpisodes);
+            Assert.AreEqual(mediaList[i].Attributes.Titles.English, animeList[i].Title);
+            Assert.AreEqual(mediaList[i].Attributes.Titles.English, animeList[i].AlternativeTitles.En);
+            Assert.AreEqual(mediaList[i].Attributes.Titles.Japanese, animeList[i].AlternativeTitles.Ja);
+            Assert.AreEqual(new List<string> { mediaList[i].Attributes.Slug, mediaList[i].Attributes.CanonicalTitle, "Synonym1", "Synonym2" }, animeList[i].AlternativeTitles.Synonyms);
+        }
+    }
+    
     private AniListSearch.Media GetAniListMedia(bool createRelations) {
         Random random = new Random();
         AniListSearch.MediaConnection mediaConnection = new AniListSearch.MediaConnection();
@@ -66,6 +87,33 @@ public class ApiCallHelperTests {
             Synonyms = new List<string> { "Synonym1", "Synonym2" },
             Status = (AniListSearch.AiringStatus)random.Next(0, 4),
             SiteUrl = "https://example.com"
+        };
+    }
+    
+    private KitsuSearch.KitsuAnime GetKitsuAnime(bool createRelations) {
+        Random random = new Random();
+        KitsuSearch.MediaRelationships mediaRelationships = new KitsuSearch.MediaRelationships();
+        if (createRelations) {
+            mediaRelationships.Data = new List<KitsuSearch.KitsuAnime>();
+            for (int i = 0; i < random.Next(0, 5); i++) {
+                KitsuSearch.KitsuAnime anime = GetKitsuAnime(false);
+                anime.RelationType = (KitsuMediaRelationship.RelationType?)random.Next(0, 12);
+                mediaRelationships.Data.Add(anime);
+            }
+        }
+        KitsuSearch.Relationships relationships = new KitsuSearch.Relationships 
+        {
+            MediaRelationships = mediaRelationships
+        };
+        return new KitsuSearch.KitsuAnime {
+            Id = random.Next(1, 100),
+            Attributes = new KitsuSearch.Attributes {
+                EpisodeCount = random.Next(1, 200),
+                CanonicalTitle = "Title",
+                Titles = new KitsuSearch.Titles { English = "Title", EnJp = "Title", Japanese = "Title" },
+                AbbreviatedTitles = new List<string> { "Synonym1", "Synonym2" },
+            },
+            Relationships = relationships
         };
     }
 }

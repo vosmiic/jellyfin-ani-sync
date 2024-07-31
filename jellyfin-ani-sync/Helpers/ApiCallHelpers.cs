@@ -61,12 +61,7 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_kitsuApiCalls != null) {
                 List<KitsuSearch.KitsuAnime> animeList = await _kitsuApiCalls.SearchAnime(query);
-                List<Anime> convertedList = new List<Anime>();
-                if (animeList != null) {
-                    foreach (KitsuSearch.KitsuAnime kitsuAnime in animeList) {
-                        convertedList.Add(ClassConversions.ConvertKitsuAnime(kitsuAnime));
-                    }
-                }
+                var convertedList = KitsuSearchAnimeConvertedList(animeList);
 
                 return convertedList;
             }
@@ -97,6 +92,17 @@ namespace jellyfin_ani_sync.Helpers {
             }
 
             return null;
+        }
+
+        internal static List<Anime> KitsuSearchAnimeConvertedList(List<KitsuSearch.KitsuAnime> animeList) {
+            List<Anime> convertedList = new List<Anime>();
+            if (animeList != null) {
+                foreach (KitsuSearch.KitsuAnime kitsuAnime in animeList) {
+                    convertedList.Add(ClassConversions.ConvertKitsuAnime(kitsuAnime));
+                }
+            }
+
+            return convertedList;
         }
 
         internal List<Anime> AniListSearchAnimeConvertedList(List<AniListSearch.Media> animeList, bool updateNsfw) {
@@ -149,55 +155,8 @@ namespace jellyfin_ani_sync.Helpers {
             if (_aniListApiCalls != null) {
                 AniListSearch.Media anime = await _aniListApiCalls.GetAnime(id);
                 if (anime == null) return null;
-                Anime convertedAnime = ClassConversions.ConvertAniListAnime(anime);
 
-                if (anime.MediaListEntry != null) {
-                    convertedAnime.MyListStatus.RewatchCount = anime.MediaListEntry.RepeatCount;
-
-                    switch (anime.MediaListEntry.MediaListStatus) {
-                        case AniListSearch.MediaListStatus.Current:
-                            convertedAnime.MyListStatus.Status = Status.Plan_to_watch;
-                            break;
-                        case AniListSearch.MediaListStatus.Completed:
-                            convertedAnime.MyListStatus.Status = Status.Completed;
-                            break;
-                        case AniListSearch.MediaListStatus.Repeating:
-                            convertedAnime.MyListStatus.Status = Status.Rewatching;
-                            break;
-                        case AniListSearch.MediaListStatus.Dropped:
-                            convertedAnime.MyListStatus.Status = Status.Dropped;
-                            break;
-                        case AniListSearch.MediaListStatus.Paused:
-                            convertedAnime.MyListStatus.Status = Status.On_hold;
-                            break;
-                        case AniListSearch.MediaListStatus.Planning:
-                            convertedAnime.MyListStatus.Status = Status.Plan_to_watch;
-                            break;
-                    }
-                }
-
-                convertedAnime.RelatedAnime = new List<RelatedAnime>();
-                foreach (AniListSearch.MediaEdge relation in anime.Relations.Media) {
-                    RelatedAnime relatedAnime = new RelatedAnime {
-                        Anime = ClassConversions.ConvertAniListAnime(relation.Media)
-                    };
-
-                    switch (relation.RelationType) {
-                        case AniListSearch.MediaRelation.Sequel:
-                            relatedAnime.RelationType = RelationType.Sequel;
-                            break;
-                        case AniListSearch.MediaRelation.Side_Story:
-                            relatedAnime.RelationType = RelationType.Side_Story;
-                            break;
-                        case AniListSearch.MediaRelation.Alternative:
-                            relatedAnime.RelationType = RelationType.Alternative_Setting;
-                            break;
-                    }
-
-                    convertedAnime.RelatedAnime.Add(relatedAnime);
-                }
-
-                return convertedAnime;
+                return ClassConversions.ConvertAniListAnime(anime);
             }
 
             if (_kitsuApiCalls != null) {

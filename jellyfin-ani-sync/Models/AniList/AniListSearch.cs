@@ -74,7 +74,7 @@ namespace jellyfin_ani_sync.Models {
 
             [JsonPropertyName("mediaListEntry")] public MediaListEntry? MediaListEntry { get; set; }
 
-            [JsonPropertyName("relations")] public MediaConnection Relations { get; set; }
+            [JsonPropertyName("relations")] public MediaConnection? Relations { get; set; }
 
             [JsonConverter(typeof(JsonStringEnumConverter))]
             [JsonPropertyName("status")]
