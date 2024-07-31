@@ -61,21 +61,14 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_kitsuApiCalls != null) {
                 List<KitsuSearch.KitsuAnime> animeList = await _kitsuApiCalls.SearchAnime(query);
-                var convertedList = KitsuSearchAnimeConvertedList(animeList);
 
-                return convertedList;
+                return KitsuSearchAnimeConvertedList(animeList);
             }
 
             if (_annictApiCalls != null) {
                 List<AnnictSearch.AnnictAnime> animeList = await _annictApiCalls.SearchAnime(query);
-                List<Anime> convertedList = new List<Anime>();
-                if (animeList != null) {
-                    foreach (AnnictSearch.AnnictAnime annictAnime in animeList) {
-                        convertedList.Add(ClassConversions.ConvertAnnictAnime(annictAnime));
-                    }
-                }
-
-                return convertedList;
+                
+                return AnnictSearchAnimeConvertedList(animeList);
             }
 
             if (_shikimoriApiCalls != null) {
@@ -92,6 +85,17 @@ namespace jellyfin_ani_sync.Helpers {
             }
 
             return null;
+        }
+
+        internal static List<Anime> AnnictSearchAnimeConvertedList(List<AnnictSearch.AnnictAnime> animeList) {
+            List<Anime> convertedList = new List<Anime>();
+            if (animeList != null) {
+                foreach (AnnictSearch.AnnictAnime annictAnime in animeList) {
+                    convertedList.Add(ClassConversions.ConvertAnnictAnime(annictAnime));
+                }
+            }
+
+            return convertedList;
         }
 
         internal static List<Anime> KitsuSearchAnimeConvertedList(List<KitsuSearch.KitsuAnime> animeList) {

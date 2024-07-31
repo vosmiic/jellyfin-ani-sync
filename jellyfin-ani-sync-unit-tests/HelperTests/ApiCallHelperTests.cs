@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 using NUnit.Framework;
@@ -47,6 +48,24 @@ public class ApiCallHelperTests {
             Assert.AreEqual(mediaList[i].Attributes.Titles.English, animeList[i].AlternativeTitles.En);
             Assert.AreEqual(mediaList[i].Attributes.Titles.Japanese, animeList[i].AlternativeTitles.Ja);
             Assert.AreEqual(new List<string> { mediaList[i].Attributes.Slug, mediaList[i].Attributes.CanonicalTitle, "Synonym1", "Synonym2" }, animeList[i].AlternativeTitles.Synonyms);
+        }
+    }
+
+    [Test]
+    public void AnnictSearchAnimeConvertedListTest() {
+        List<AnnictSearch.AnnictAnime> mediaList = new List<AnnictSearch.AnnictAnime>();
+        for (int i = 0; i < 10; i++) {
+            mediaList.Add(GetAnnictAnime());
+        }
+        
+        List<Anime> animeList = ApiCallHelpers.AnnictSearchAnimeConvertedList(mediaList);
+        Assert.AreEqual(10, animeList.Count);
+// Assert that the anime list contains the expected anime objects
+        for (int i = 0; i < animeList.Count; i++) {
+            Assert.AreEqual(mediaList[i].Id, animeList[i].AlternativeId);
+            Assert.AreEqual(mediaList[i].TitleEn, animeList[i].Title);
+            Assert.AreEqual(mediaList[i].MalAnimeId, animeList[i].Id.ToString());
+            Assert.AreEqual(mediaList[i].NumberOfEpisodes, animeList[i].NumEpisodes);
         }
     }
     
@@ -114,6 +133,18 @@ public class ApiCallHelperTests {
                 AbbreviatedTitles = new List<string> { "Synonym1", "Synonym2" },
             },
             Relationships = relationships
+        };
+    }
+    
+    private AnnictSearch.AnnictAnime GetAnnictAnime() {
+        Random random = new Random();
+
+        return new AnnictSearch.AnnictAnime {
+            Id = random.Next(1, 100).ToString(),
+            TitleEn = "Title",
+            MalAnimeId = random.Next(1, 10000).ToString(),
+            ViewerStatusState = (AnnictSearch.AnnictMediaStatus)random.Next(0, 6),
+            NumberOfEpisodes = random.Next(1, 100),
         };
     }
 }
