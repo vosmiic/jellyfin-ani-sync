@@ -73,18 +73,23 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (_shikimoriApiCalls != null) {
                 List<ShikimoriAnime> animeList = await _shikimoriApiCalls.SearchAnime(query);
-                List<Anime> convertedList = new List<Anime>();
-                if (animeList != null) {
-                    foreach (ShikimoriAnime shikimoriAnime in animeList) {
-                        if (!updateNsfw && shikimoriAnime.IsCensored == true) continue;
-                        convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
-                    }
-                }
 
-                return convertedList;
+                return ShikimoriSearchAnimeConvertedList(animeList, updateNsfw);
             }
 
             return null;
+        }
+
+        internal static List<Anime> ShikimoriSearchAnimeConvertedList(List<ShikimoriAnime> animeList, bool updateNsfw) {
+            List<Anime> convertedList = new List<Anime>();
+            if (animeList != null) {
+                foreach (ShikimoriAnime shikimoriAnime in animeList) {
+                    if (!updateNsfw && shikimoriAnime.IsCensored == true) continue;
+                    convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
+                }
+            }
+
+            return convertedList;
         }
 
         internal static List<Anime> AnnictSearchAnimeConvertedList(List<AnnictSearch.AnnictAnime> animeList) {
@@ -241,38 +246,8 @@ namespace jellyfin_ani_sync.Helpers {
             if (_shikimoriApiCalls != null && alternativeId != null) {
                 var anime = await _shikimoriApiCalls.GetAnime(alternativeId, getRelated);
                 if (anime == null) return null;
-                Anime convertedAnime = ClassConversions.ConvertShikimoriAnime(anime);
 
-                if (anime.Related != null) {
-                    convertedAnime.RelatedAnime = new List<RelatedAnime>();
-                    foreach (ShikimoriRelated shikimoriRelated in anime.Related.Where(related => related.Anime != null)) {
-                        RelationType? convertedAnimeRelationType = null;
-                        switch (shikimoriRelated.RelationEnum) {
-                            case ShikimoriRelation.Sequel:
-                                convertedAnimeRelationType = RelationType.Sequel;
-                                break;
-                            case ShikimoriRelation.Prequel:
-                                convertedAnimeRelationType = RelationType.Prequel;
-                                break;
-                            case ShikimoriRelation.Sidestory:
-                                convertedAnimeRelationType = RelationType.Side_Story;
-                                break;
-                            case ShikimoriRelation.Alternativeversion:
-                                convertedAnimeRelationType = RelationType.Alternative_Version;
-                                break;
-                        }
-
-                        RelatedAnime relatedAnime = new RelatedAnime {
-                            Anime = ClassConversions.ConvertShikimoriAnime(shikimoriRelated.Anime),
-                        };
-                        if (convertedAnimeRelationType != null) {
-                            relatedAnime.RelationType = convertedAnimeRelationType.Value;
-                        }
-                        convertedAnime.RelatedAnime.Add(relatedAnime);
-                    }
-                }
-
-                return convertedAnime;
+                return ClassConversions.ConvertShikimoriAnime(anime);
             }
 
             return null;

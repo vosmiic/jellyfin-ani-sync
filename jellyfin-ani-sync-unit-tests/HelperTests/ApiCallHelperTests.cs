@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
+using jellyfin_ani_sync.Models.Shikimori;
 using NUnit.Framework;
 
 namespace jellyfin_ani_sync_unit_tests.HelperTests;
@@ -67,6 +69,63 @@ public class ApiCallHelperTests {
             Assert.AreEqual(mediaList[i].MalAnimeId, animeList[i].Id.ToString());
             Assert.AreEqual(mediaList[i].NumberOfEpisodes, animeList[i].NumEpisodes);
         }
+    }
+
+    [Test]
+    public void ShikimoriSearchAnimeConvertedListTest() {
+        List<ShikimoriAnime> mediaList = new List<ShikimoriAnime>();
+        for (int i = 0; i < 10; i++) {
+            mediaList.Add(GetShikimoriAnime(true));
+        }
+        
+        List<Anime> animeList = ApiCallHelpers.ShikimoriSearchAnimeConvertedList(mediaList, true);
+        Assert.AreEqual(10, animeList.Count);
+        // Assert that the anime list contains the expected anime objects
+        for (int i = 0; i < animeList.Count; i++) {
+            Assert.AreEqual(mediaList[i].MalId, animeList[i].Id.ToString());
+            Assert.AreEqual(mediaList[i].Episodes, animeList[i].NumEpisodes);
+            Assert.AreEqual(mediaList[i].Name, animeList[i].Title);
+            Assert.AreEqual(mediaList[i].Synonyms.Append(mediaList[i].Russian).ToList(), animeList[i].AlternativeTitles.Synonyms);
+            Assert.AreEqual(mediaList[i].English, animeList[i].AlternativeTitles.En);
+            Assert.AreEqual(mediaList[i].Japanese, animeList[i].AlternativeTitles.Ja);
+            Assert.IsNotNull(mediaList[i].UserRate);
+            Assert.AreEqual(mediaList[i].UserRate.Episodes, animeList[i].MyListStatus.NumEpisodesWatched);
+            Assert.AreEqual(mediaList[i].UserRate.Status == ShikimoriUserRate.StatusEnum.rewatching, animeList[i].MyListStatus.IsRewatching);
+            Assert.AreEqual(mediaList[i].UserRate.Rewatches, animeList[i].MyListStatus.RewatchCount);
+            Assert.IsNotNull(mediaList[i].Related);
+            Assert.AreEqual(mediaList[i].Related.Count, animeList[i].RelatedAnime.Count);
+        }
+    }    
+    private ShikimoriAnime GetShikimoriAnime(bool createRelations) {
+        Random random = new Random();
+
+        List<ShikimoriRelated> relatedAnime = new List<ShikimoriRelated>();
+        if (createRelations) {
+            for (int i = 0; i < random.Next(0, 5); i++) {
+                relatedAnime.Add(new ShikimoriRelated {
+                    Anime = GetShikimoriAnime(false),
+                    Relation = ((ShikimoriRelation)random.Next(0, 4)).ToString(),
+                });
+            }
+        }
+
+        return new ShikimoriAnime {
+            Id = random.Next(1, 100).ToString(),
+            MalId = random.Next(1, 100).ToString(),
+            Episodes = random.Next(1, 100),
+            IsCensored = random.Next(0, 1) == 0,
+            UserRate = new ShikimoriUserRate {
+                Status = (ShikimoriUserRate.StatusEnum)random.Next(0, 6),
+                Episodes = random.Next(0, 100),
+                Rewatches = random.Next(0, 10),
+            },
+            Related = relatedAnime,
+            Name = "Title",
+            Synonyms = new List<string> { "Synonym1", "Synonym2" },
+            English = "Title",
+            Russian = "Title",
+            Japanese = "Title"
+        };
     }
     
     private AniListSearch.Media GetAniListMedia(bool createRelations) {

@@ -187,6 +187,35 @@ namespace jellyfin_ani_sync.Helpers {
                         break;
                 }
             }
+            
+            if (shikimoriAnime.Related != null) {
+                anime.RelatedAnime = new List<RelatedAnime>();
+                foreach (ShikimoriRelated shikimoriRelated in shikimoriAnime.Related.Where(related => related.Anime != null)) {
+                    RelationType? convertedAnimeRelationType = null;
+                    switch (shikimoriRelated.RelationEnum) {
+                        case ShikimoriRelation.Sequel:
+                            convertedAnimeRelationType = RelationType.Sequel;
+                            break;
+                        case ShikimoriRelation.Prequel:
+                            convertedAnimeRelationType = RelationType.Prequel;
+                            break;
+                        case ShikimoriRelation.Sidestory:
+                            convertedAnimeRelationType = RelationType.Side_Story;
+                            break;
+                        case ShikimoriRelation.Alternativeversion:
+                            convertedAnimeRelationType = RelationType.Alternative_Version;
+                            break;
+                    }
+
+                    RelatedAnime relatedAnime = new RelatedAnime {
+                        Anime = ConvertShikimoriAnime(shikimoriRelated.Anime),
+                    };
+                    if (convertedAnimeRelationType != null) {
+                        relatedAnime.RelationType = convertedAnimeRelationType.Value;
+                    }
+                    anime.RelatedAnime.Add(relatedAnime);
+                }
+            }
 
             return anime;
         }
