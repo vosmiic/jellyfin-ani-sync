@@ -12,6 +12,13 @@ using NUnit.Framework;
 namespace jellyfin_ani_sync_unit_tests.HelperTests;
 
 public class ApiCallHelperTests {
+    private List<int> uniqueIdList;
+
+    [SetUp]
+    public void Setup() {
+        uniqueIdList = new List<int>();
+    }
+    
     [Test]
     public void AniListSearchAnimeConvertedListTest() {
         List<AniListSearch.Media> mediaList = new List<AniListSearch.Media>();
@@ -59,7 +66,7 @@ public class ApiCallHelperTests {
         for (int i = 0; i < 10; i++) {
             mediaList.Add(GetAnnictAnime());
         }
-        
+
         List<Anime> animeList = ApiCallHelpers.AnnictSearchAnimeConvertedList(mediaList);
         Assert.AreEqual(10, animeList.Count);
 // Assert that the anime list contains the expected anime objects
@@ -77,7 +84,7 @@ public class ApiCallHelperTests {
         for (int i = 0; i < 10; i++) {
             mediaList.Add(GetShikimoriAnime(true));
         }
-        
+
         List<Anime> animeList = ApiCallHelpers.ShikimoriSearchAnimeConvertedList(mediaList, true);
         Assert.AreEqual(10, animeList.Count);
         // Assert that the anime list contains the expected anime objects
@@ -95,7 +102,55 @@ public class ApiCallHelperTests {
             Assert.IsNotNull(mediaList[i].Related);
             Assert.AreEqual(mediaList[i].Related.Count, animeList[i].RelatedAnime.Count);
         }
-    }    
+    }
+
+    [Test]
+    public void KitsuConfirmRelatedAnimeExists() {
+        List<KitsuSearch.KitsuAnime> mediaList = new List<KitsuSearch.KitsuAnime>();
+        List<int> idList = new List<int>();
+        for (int i = 0; i < 10; i++) {
+            mediaList.Add(GetKitsuAnime(true));
+        }
+
+        List<Anime> animeList = ApiCallHelpers.KitsuSearchAnimeConvertedList(mediaList);
+        Assert.AreEqual(10, animeList.Count);
+        // Assert that the anime list contains the expected anime objects
+        foreach (var anime in animeList) {
+            Assert.IsNotEmpty(anime.RelatedAnime);
+            foreach (RelatedAnime relatedAnime in anime.RelatedAnime) {
+                var matchingRelated = mediaList.First(item => item.Id == anime.Id).RelatedAnime.First(item => item.Id == relatedAnime.Anime.Id);
+                switch (matchingRelated.RelationType) {
+                    case KitsuMediaRelationship.RelationType.sequel:
+                        Assert.IsTrue(relatedAnime.RelationType == RelationType.Sequel);
+                        break;
+                    case KitsuMediaRelationship.RelationType.side_story:
+                    case KitsuMediaRelationship.RelationType.full_story:
+                    case KitsuMediaRelationship.RelationType.parent_story:
+                        Assert.IsTrue(relatedAnime.RelationType == RelationType.Side_Story);
+                        break;
+                    case KitsuMediaRelationship.RelationType.alternative_setting:
+                    case KitsuMediaRelationship.RelationType.alternative_version:
+                        Assert.IsTrue(relatedAnime.RelationType == RelationType.Alternative_Setting);
+                        break;
+                    case KitsuMediaRelationship.RelationType.spinoff:
+                    case KitsuMediaRelationship.RelationType.adaptation:
+                        Assert.IsTrue(relatedAnime.RelationType == RelationType.Spin_Off);
+                        break;
+                    default:
+                        Assert.IsTrue(relatedAnime.RelationType == RelationType.Other);
+                        break;
+                }
+                
+                Assert.AreEqual(matchingRelated.Id, relatedAnime.Anime.Id);
+                Assert.AreEqual(matchingRelated.Attributes.EpisodeCount, relatedAnime.Anime.NumEpisodes);
+                Assert.AreEqual(matchingRelated.Attributes.Titles.English, relatedAnime.Anime.Title);
+                Assert.AreEqual(matchingRelated.Attributes.Titles.English, relatedAnime.Anime.AlternativeTitles.En);
+                Assert.AreEqual(matchingRelated.Attributes.Titles.Japanese, relatedAnime.Anime.AlternativeTitles.Ja);
+                Assert.AreEqual(new List<string> { matchingRelated.Attributes.Slug, matchingRelated.Attributes.CanonicalTitle, "Synonym1", "Synonym2" }, relatedAnime.Anime.AlternativeTitles.Synonyms);
+            }
+        }
+    }
+    
     private ShikimoriAnime GetShikimoriAnime(bool createRelations) {
         Random random = new Random();
 
@@ -127,7 +182,7 @@ public class ApiCallHelperTests {
             Japanese = "Title"
         };
     }
-    
+
     private AniListSearch.Media GetAniListMedia(bool createRelations) {
         Random random = new Random();
         AniListSearch.MediaConnection mediaConnection = new AniListSearch.MediaConnection();
@@ -167,7 +222,7 @@ public class ApiCallHelperTests {
             SiteUrl = "https://example.com"
         };
     }
-    
+
     private KitsuSearch.KitsuAnime GetKitsuAnime(bool createRelations) {
         Random random = new Random();
         KitsuSearch.MediaRelationships mediaRelationships = new KitsuSearch.MediaRelationships();
@@ -179,22 +234,23 @@ public class ApiCallHelperTests {
                 mediaRelationships.Data.Add(anime);
             }
         }
-        KitsuSearch.Relationships relationships = new KitsuSearch.Relationships 
-        {
+
+        KitsuSearch.Relationships relationships = new KitsuSearch.Relationships {
             MediaRelationships = mediaRelationships
         };
         return new KitsuSearch.KitsuAnime {
-            Id = random.Next(1, 100),
+            Id = GetUniqueRandomNumber(random, 1, 100),
             Attributes = new KitsuSearch.Attributes {
                 EpisodeCount = random.Next(1, 200),
                 CanonicalTitle = "Title",
                 Titles = new KitsuSearch.Titles { English = "Title", EnJp = "Title", Japanese = "Title" },
                 AbbreviatedTitles = new List<string> { "Synonym1", "Synonym2" },
             },
-            Relationships = relationships
+            Relationships = relationships,
+            RelatedAnime = mediaRelationships.Data
         };
     }
-    
+
     private AnnictSearch.AnnictAnime GetAnnictAnime() {
         Random random = new Random();
 
@@ -205,5 +261,15 @@ public class ApiCallHelperTests {
             ViewerStatusState = (AnnictSearch.AnnictMediaStatus)random.Next(0, 6),
             NumberOfEpisodes = random.Next(1, 100),
         };
+    }
+
+    private int GetUniqueRandomNumber(Random random, int start, int end) {
+        while (true) {
+            int randomInt = random.Next(start, end);
+
+            if (!uniqueIdList.Contains(randomInt)) {
+                return randomInt;
+            }
+        }
     }
 }
