@@ -1,13 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using jellyfin_ani_sync.Api.Kitsu;
+using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
 using jellyfin_ani_sync.Models.Mal;
 using jellyfin_ani_sync.Models.Shikimori;
+using MediaBrowser.Controller;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
+using ILoggerFactory = Microsoft.Extensions.Logging.ILoggerFactory;
 
 namespace jellyfin_ani_sync_unit_tests.HelperTests;
 
@@ -149,6 +162,60 @@ public class ApiCallHelperTests {
                 Assert.AreEqual(new List<string> { matchingRelated.Attributes.Slug, matchingRelated.Attributes.CanonicalTitle, "Synonym1", "Synonym2" }, relatedAnime.Anime.AlternativeTitles.Synonyms);
             }
         }
+    }
+
+    [TestCase(1, true, 1, KitsuUpdate.Status.completed, 1, true, 1, Status.Completed)]
+    [TestCase(null, null, null, KitsuUpdate.Status.dropped, 0, false, 0, Status.Dropped)]
+    [TestCase(10, false, 10, KitsuUpdate.Status.on_hold, 10, false, 10, Status.On_hold)]
+    [TestCase(5, null, 5, KitsuUpdate.Status.current, 5, false, 5, Status.Watching)]
+    [TestCase(5, true, null, KitsuUpdate.Status.planned, 5, true, 0, Status.Plan_to_watch)]
+    public async Task KitsuGetConvertedUserListTest(int progress, bool reconsuming, int reconsumeCount, KitsuUpdate.Status status, int expectedProgress, bool expectedReconsuming, int expectedReconsumeCount, Status expectedStatus) {
+        IHttpClientFactory httpClientFactory = null;
+        ILoggerFactory loggerFactory = new NullLoggerFactory();
+        Mock<IServerApplicationHost> serverApplicationHost = new Mock<IServerApplicationHost>();
+        Mock<IHttpContextAccessor> httpContextAccessor = new Mock<IHttpContextAccessor>();
+        MemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
+        Mock<IAsyncDelayer> mockDelayer = new Mock<IAsyncDelayer>();
+        int animeId = 1;
+        Helpers.MockHttpCalls(new List<Helpers.HttpCall> {
+            new () {
+                RequestMethod = HttpMethod.Get,
+                RequestUrlMatch = url => url.EndsWith("library-entries"),
+                ResponseCode = HttpStatusCode.OK,
+                ResponseContent = JsonSerializer.Serialize(new KitsuUpdate.KitsuLibraryEntryListRoot {
+                    Data = new List<KitsuUpdate.KitsuLibraryEntry> {
+                        new () {
+                            Id = animeId,
+                            Attributes = new KitsuUpdate.Attributes {
+                                Progress = progress,
+                                Reconsuming = reconsuming,
+                                ReconsumeCount = reconsumeCount,
+                                Status = status
+                            }
+                        }
+                    }
+                })
+            }
+        }, ref httpClientFactory);
+        
+        KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(httpClientFactory, loggerFactory, serverApplicationHost.Object, httpContextAccessor.Object, memoryCache, mockDelayer.Object, new UserConfig {
+            UserApiAuth = new [] {
+                new UserApiAuth {
+                    AccessToken = "accessToken",
+                    Name = ApiName.Kitsu,
+                    RefreshToken = "refreshToken"
+                }
+            },
+            KeyPairs = new List<KeyPairs> { new()  { Key = "KitsuUserId", Value = "1" }}
+        });
+        
+        ApiCallHelpers apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: kitsuApiCalls);
+        MyListStatus convertedResult = await apiCallHelpers.GetConvertedKitsuUserList(animeId);
+        
+        Assert.IsTrue(convertedResult.NumEpisodesWatched == expectedProgress);
+        Assert.IsTrue(convertedResult.IsRewatching == expectedReconsuming);
+        Assert.IsTrue(convertedResult.RewatchCount == expectedReconsumeCount);
+        Assert.IsTrue(convertedResult.Status == expectedStatus);
     }
     
     private ShikimoriAnime GetShikimoriAnime(bool createRelations) {
