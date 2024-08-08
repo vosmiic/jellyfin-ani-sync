@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "862b6ad44f6ee9214b12ee981dc894e7",
+        "changelog": "1. Fixing Anilist timeout issues 2. Frontend fixes 3. Fix episode offset issues 4. Update Jellyfin packages",
+        "targetAbi": "10.9.9.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.4/10.9.9.-.ani-sync_3.4.0.0",
+        "timestamp": "2024-08-08 00:00:00",
+        "version": "3.4.0.0"
+      },
+      {
         "checksum": "91d4f8731da1317c669c2194061fb9f9",
         "changelog": "1. Updated plugin to support Jellyfin version 10.9. 2. Fixed AniList related bugs 3. Fixed Shikimori related bugs 4. Fixed issue with library checks",
         "targetAbi": "10.9.0.0",
