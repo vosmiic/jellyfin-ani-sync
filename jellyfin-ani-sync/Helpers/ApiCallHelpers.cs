@@ -16,7 +16,7 @@ using jellyfin_ani_sync.Models.Shikimori;
 using jellyfin_ani_sync.Models.Simkl;
 
 namespace jellyfin_ani_sync.Helpers {
-    public class ApiCallHelpers {
+    public class ApiCallHelpers : IApiCallHelpers {
         private MalApiCalls _malApiCalls;
         private AniListApiCalls _aniListApiCalls;
         private KitsuApiCalls _kitsuApiCalls;
