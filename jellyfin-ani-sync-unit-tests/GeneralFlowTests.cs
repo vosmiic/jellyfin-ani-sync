@@ -168,7 +168,7 @@ public class GeneralFlowTests {
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
     }
-    
+
     /// <summary>
     /// Update while rewatching and complete at the same time (user watches the last episode of a series they have already seen).
     /// </summary>
@@ -198,7 +198,7 @@ public class GeneralFlowTests {
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Exactly(updateMethodTimesCalled));
     }
-    
+
     /// <summary>
     /// Update in-progress rewatch.
     /// </summary>
@@ -229,4 +229,35 @@ public class GeneralFlowTests {
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
     }
+
+    /// <summary>
+    /// Update in-progress first episode rewatch.
+    /// </summary>
+    [Test]
+    public async Task UpdateAnimeReWatchingFirstEpisode() {
+        int episodesWatched = 1;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = episodesWatched + 1,
+            MyListStatus = new MyListStatus {
+                NumEpisodesWatched = 0
+            }
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
+            It.IsAny<Status>(), It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
+
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(It.IsAny<int>(), It.IsAny<int>(),
+            Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.Is<DateTime>(startDate => startDate >= DateTime.Now - TimeSpan.FromSeconds(30) && startDate < DateTime.Now + TimeSpan.FromSeconds(30)), // give range in case test takes some time for some reason
+            It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
+    }
+    
+    
 }
