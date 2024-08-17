@@ -620,7 +620,7 @@ namespace jellyfin_ani_sync {
                                     isShow: _animeType == typeof(Episode));
                             }
                         } else {
-                            if (detectedAnime.MyListStatus.IsRewatching) {
+                            if (detectedAnime.MyListStatus.IsRewatching && ApiName == ApiName.Mal) {
                                 // MAL likes to mark re-watching shows as completed, instead of watching. I guess technically both are correct
                                 _logger.LogInformation($"({ApiName}) User is re-watching {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}), set as completed but update re-watch progress");
                                 response = await ApiCallHelpers.UpdateAnime(detectedAnime.Id,
