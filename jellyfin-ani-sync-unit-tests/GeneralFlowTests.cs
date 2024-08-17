@@ -204,7 +204,7 @@ public class GeneralFlowTests {
     /// </summary>
     [TestCase(ApiName.Mal)]
     [TestCase(ApiName.AniList)]
-    public async Task UpdateAnimeReWatching(ApiName apiName) {
+    public async Task UpdateAnimeReWatchingInProgress(ApiName apiName) {
         int episodesWatched = 10;
         Anime detectedAnime = new Anime {
             Id = 1,
@@ -258,6 +258,34 @@ public class GeneralFlowTests {
             It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
     }
-    
-    
+
+    /// <summary>
+    /// Update new rewatch.
+    /// </summary>
+    [TestCase(ApiName.Mal, 1)]
+    [TestCase(ApiName.AniList, 2)]
+    public async Task UpdateAnimeNewReWatching(ApiName apiName, int expectedMethodCallCount) {
+        int episodesWatched = 2;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = episodesWatched + 2,
+            MyListStatus = new MyListStatus {
+                NumEpisodesWatched = episodesWatched + 1
+            }
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
+            It.IsAny<Status>(), It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
+
+        _updateProviderStatus.ApiName = apiName;
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched, setRewatching: true);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(It.IsAny<int>(), It.IsAny<int>(),
+            Status.Completed, true, It.IsAny<int?>(), It.IsAny<DateTime?>(),
+            It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Exactly(expectedMethodCallCount));
+    }
 }
