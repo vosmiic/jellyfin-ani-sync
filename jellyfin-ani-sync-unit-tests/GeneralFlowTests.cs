@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using jellyfin_ani_sync;
+using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models.Mal;
@@ -166,5 +167,35 @@ public class GeneralFlowTests {
             Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
+    }
+    
+    /// <summary>
+    /// Update while rewatching and complete at the same time (user watches the last episode of a series they have already seen).
+    /// </summary>
+    [TestCase(ApiName.Mal, 2)]
+    [TestCase(ApiName.AniList, 1)]
+    public async Task UpdateAnimeWithReWatchCompleted(ApiName apiName, int updateMethodTimesCalled) {
+        int episodesWatched = 10;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = episodesWatched,
+            MyListStatus = new MyListStatus {
+                NumEpisodesWatched = episodesWatched
+            }
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
+            Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
+
+        _updateProviderStatus.ApiName = apiName;
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched, setRewatching: true);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(It.IsAny<int>(), It.IsAny<int>(),
+            Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Exactly(updateMethodTimesCalled));
     }
 }
