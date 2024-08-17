@@ -31,8 +31,8 @@ public class GeneralFlowTests {
     private Mock<IApiCallHelpers> _mockApiCallHelpers { get; set; }
     private UpdateProviderStatus _updateProviderStatus { get; set; }
 
-    [OneTimeSetUp]
-    public void OneTimeSetUp() {
+    [SetUp]
+    public void SetUp() {
         _mockFileSystem = new Mock<IFileSystem>();
         _mockLibraryManager = new Mock<ILibraryManager>();
         _LoggerFactory = new NullLoggerFactory();
@@ -41,10 +41,6 @@ public class GeneralFlowTests {
         _mockHttpClientFactory = new Mock<IHttpClientFactory>();
         _mockApplicationPaths = new Mock<IApplicationPaths>();
         _mockApiCallHelpers = new Mock<IApiCallHelpers>();
-    }
-
-    [SetUp]
-    public void SetUp() {
         _memoryCache = new MemoryCache(new MemoryCacheOptions());
         _mockAsyncDelayer = new Mock<IAsyncDelayer>();
         _updateProviderStatus = new UpdateProviderStatus(_mockFileSystem.Object,
@@ -54,6 +50,9 @@ public class GeneralFlowTests {
         _updateProviderStatus.ApiCallHelpers = _mockApiCallHelpers.Object;
     }
 
+    /// <summary>
+    /// Mark an anime that doesn't exist in the user list as complete.
+    /// </summary>
     [Test]
     public async Task UpdateAnimeWithoutExistingStatusAndFinished() {
         int episodesWatched = 10;
@@ -62,15 +61,108 @@ public class GeneralFlowTests {
             Title = "title",
             NumEpisodes = episodesWatched
         };
-        
+
         _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
             Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
-        
+
         await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched);
-        
+
         _mockApiCallHelpers.Verify(s => s.UpdateAnime(1, episodesWatched,
+            Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests updating an anime not present in the users list.
+    /// </summary>
+    [Test]
+    public async Task UpdateAnimeWithoutExistingStatusAndInProgress() {
+        int episodesWatched = 10;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = episodesWatched + 1
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
+            Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
+
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(1, episodesWatched,
+            Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
+    }
+
+
+    /// <summary>
+    /// Checks if we handle a null response from the API.
+    /// </summary>
+    [Test]
+    public async Task UpdateAnimeNullResponseHandling() {
+        int episodesWatched = 10;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = episodesWatched + 1
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
+            Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult<UpdateAnimeStatusResponse>(null));
+
+        Assert.DoesNotThrowAsync(async () => await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched));
+    }
+
+    /// <summary>
+    /// Tests the case of watching an episode you have already watched; expected should be to skip the update process.
+    /// </summary>
+    [Test]
+    public async Task UpdateAnimeWithAlreadyWatched() {
+        int episodesWatched = 10;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            MyListStatus = new MyListStatus {
+                NumEpisodesWatched = episodesWatched + 1
+            }
+        };
+
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(It.IsAny<int>(), It.IsAny<int>(),
+            It.IsAny<Status>(), It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Update with a single episode (movie/ova).
+    /// </summary>
+    [Test]
+    public async Task UpdateAnimeWithSingleEpisode() {
+        int episodesWatched = 1;
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = episodesWatched
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, episodesWatched,
+            Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
+
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(It.IsAny<int>(), It.IsAny<int>(),
             Status.Completed, It.IsAny<bool?>(), It.IsAny<int?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
