@@ -723,23 +723,23 @@ namespace jellyfin_ani_sync {
         /// <summary>
         /// Get further anime seasons. Jellyfin uses numbered seasons whereas MAL uses entirely different entities.
         /// </summary>
-        /// <param name="animeId"></param>
-        /// <param name="seasonNumber"></param>
-        /// <returns></returns>
-        private async Task<Anime> GetDifferentSeasonAnime(int animeId, int seasonNumber, string? alternativeId = null) {
+        /// <param name="animeId">ID of the anime to get the different season of.</param>
+        /// <param name="seasonNumber">Index of the season to get.</param>
+        /// <returns>The different seasons anime or null if unable to retrieve the relations.</returns>
+        internal async Task<Anime?> GetDifferentSeasonAnime(int animeId, int seasonNumber, string? alternativeId = null) {
             _logger.LogInformation($"({ApiName}) Attempting to get season 1...");
-            Anime initialSeason = await ApiCallHelpers.GetAnime(animeId, getRelated: true, alternativeId: alternativeId);
+            Anime retrievedSeason = await ApiCallHelpers.GetAnime(animeId, getRelated: true, alternativeId: alternativeId);
 
-            if (initialSeason != null) {
+            if (retrievedSeason != null) {
                 int i = 1;
                 while (i != seasonNumber) {
-                    RelatedAnime initialSeasonRelatedAnime = initialSeason.RelatedAnime.FirstOrDefault(item => item.RelationType == RelationType.Sequel);
+                    RelatedAnime? initialSeasonRelatedAnime = retrievedSeason.RelatedAnime?.FirstOrDefault(item => item.RelationType == RelationType.Sequel);
                     if (initialSeasonRelatedAnime != null) {
                         _logger.LogInformation($"({ApiName}) Attempting to get season {i + 1}...");
                         Anime nextSeason = await ApiCallHelpers.GetAnime(initialSeasonRelatedAnime.Anime.Id, getRelated: true, alternativeId: initialSeasonRelatedAnime.Anime.AlternativeId);
 
                         if (nextSeason != null) {
-                            initialSeason = nextSeason;
+                            retrievedSeason = nextSeason;
                         }
                     } else {
                         _logger.LogInformation($"({ApiName}) Could not find any related anime sequel");
@@ -749,7 +749,7 @@ namespace jellyfin_ani_sync {
                     i++;
                 }
 
-                return initialSeason;
+                return retrievedSeason;
             }
 
             return null;
