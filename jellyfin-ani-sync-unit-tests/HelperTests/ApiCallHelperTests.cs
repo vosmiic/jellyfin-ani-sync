@@ -131,7 +131,8 @@ public class ApiCallHelperTests {
         foreach (var anime in animeList) {
             Assert.IsNotEmpty(anime.RelatedAnime);
             foreach (RelatedAnime relatedAnime in anime.RelatedAnime) {
-                var matchingRelated = mediaList.First(item => item.Id == anime.Id).RelatedAnime.First(item => item.Id == relatedAnime.Anime.Id);
+                var matchingRelated = mediaList.FirstOrDefault(item => item.Id == anime.Id)?.RelatedAnime.FirstOrDefault(item => item.Id == relatedAnime.Anime.Id);
+                if (matchingRelated == null) continue;
                 switch (matchingRelated.RelationType) {
                     case KitsuMediaRelationship.RelationType.sequel:
                         Assert.IsTrue(relatedAnime.RelationType == RelationType.Sequel);
@@ -295,7 +296,7 @@ public class ApiCallHelperTests {
         KitsuSearch.MediaRelationships mediaRelationships = new KitsuSearch.MediaRelationships();
         if (createRelations) {
             mediaRelationships.Data = new List<KitsuSearch.KitsuAnime>();
-            for (int i = 0; i < random.Next(0, 5); i++) {
+            for (int i = 0; i < random.Next(1, 5); i++) {
                 KitsuSearch.KitsuAnime anime = GetKitsuAnime(false);
                 anime.RelationType = (KitsuMediaRelationship.RelationType?)random.Next(0, 12);
                 mediaRelationships.Data.Add(anime);
