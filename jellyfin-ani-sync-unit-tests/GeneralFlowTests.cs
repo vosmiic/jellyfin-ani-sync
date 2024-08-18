@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using jellyfin_ani_sync;
@@ -287,5 +288,64 @@ public class GeneralFlowTests {
             Status.Completed, true, It.IsAny<int?>(), It.IsAny<DateTime?>(),
             It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Exactly(expectedMethodCallCount));
+    }
+
+    /// <summary>
+    /// Correctly get the requested season by number.
+    /// </summary>
+    [Test]
+    public async Task RetrieveSpecificSeason() {
+        int animeId = 1;
+        int secondSeasonAnimeId = 2;
+        int thirdSeasonAnimeId = 3;
+        int seasonNumber = 3;
+
+        _mockApiCallHelpers.Setup(s => s.GetAnime(animeId, It.IsAny<string>(), true)).Returns(Task.FromResult(new Anime {
+            RelatedAnime = new List<RelatedAnime> {
+                new RelatedAnime {
+                    Anime = new Anime {
+                        Id = secondSeasonAnimeId
+                    },
+                    RelationType = RelationType.Sequel
+                }
+            }
+        }));
+        
+        _mockApiCallHelpers.Setup(s => s.GetAnime(secondSeasonAnimeId, It.IsAny<string>(), true)).Returns(Task.FromResult(new Anime {
+            RelatedAnime = new List<RelatedAnime> {
+                new RelatedAnime {
+                    Anime = new Anime {
+                        Id = thirdSeasonAnimeId
+                    },
+                    RelationType = RelationType.Sequel
+                }
+            }
+        }));
+        
+        _mockApiCallHelpers.Setup(s => s.GetAnime(thirdSeasonAnimeId, It.IsAny<string>(), true)).Returns(Task.FromResult(new Anime {
+            Id = thirdSeasonAnimeId
+        }));
+
+        Anime? result = await _updateProviderStatus.GetDifferentSeasonAnime(animeId, seasonNumber);
+        
+        Assert.IsNotNull(result);
+        Assert.AreEqual(thirdSeasonAnimeId, result.Id);
+    }
+    
+    /// <summary>
+    /// Correctly fail to get the requested season by number because of no related anime available. Make sure it isn't throwing.
+    /// </summary>
+    [Test]
+    public async Task FailToGetSpecificSeasonDueToNoRelated() {
+        int animeId = 1;
+        int seasonNumber = 3;
+
+        _mockApiCallHelpers.Setup(s => s.GetAnime(animeId, It.IsAny<string>(), true)).Returns(Task.FromResult(new Anime {
+            Id = animeId
+        }));
+
+        Anime? result = await _updateProviderStatus.GetDifferentSeasonAnime(animeId, seasonNumber);
+        
+        Assert.IsNull(result);
     }
 }
