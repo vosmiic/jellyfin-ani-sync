@@ -137,7 +137,7 @@ public class SimklApiCalls {
             return JsonSerializer.Deserialize<SimklExtendedMedia>(await streamReader.ReadToEndAsync());
         } catch (Exception e) {
             _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
-            throw;
+            return null;
         }
     }
 
@@ -188,7 +188,7 @@ public class SimklApiCalls {
             }
         } catch (Exception e) {
             _logger.LogError($"Could not deserialize anime list, reason: {e.Message}");
-            throw;
+            return null;
         }
 
         return null;
