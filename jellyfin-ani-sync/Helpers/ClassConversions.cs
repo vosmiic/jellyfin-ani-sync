@@ -32,6 +32,53 @@ namespace jellyfin_ani_sync.Helpers {
                 };
             }
 
+            if (aniListAnime.MediaListEntry != null) {
+                anime.MyListStatus.RewatchCount = aniListAnime.MediaListEntry.RepeatCount;
+
+                switch (aniListAnime.MediaListEntry.MediaListStatus) {
+                    case AniListSearch.MediaListStatus.Current:
+                        anime.MyListStatus.Status = Status.Plan_to_watch;
+                        break;
+                    case AniListSearch.MediaListStatus.Completed:
+                        anime.MyListStatus.Status = Status.Completed;
+                        break;
+                    case AniListSearch.MediaListStatus.Repeating:
+                        anime.MyListStatus.Status = Status.Rewatching;
+                        break;
+                    case AniListSearch.MediaListStatus.Dropped:
+                        anime.MyListStatus.Status = Status.Dropped;
+                        break;
+                    case AniListSearch.MediaListStatus.Paused:
+                        anime.MyListStatus.Status = Status.On_hold;
+                        break;
+                    case AniListSearch.MediaListStatus.Planning:
+                        anime.MyListStatus.Status = Status.Plan_to_watch;
+                        break;
+                }
+            }
+
+            anime.RelatedAnime = new List<RelatedAnime>();
+            if (aniListAnime.Relations != null)
+                foreach (AniListSearch.MediaEdge relation in aniListAnime.Relations.Media) {
+                    RelatedAnime relatedAnime = new RelatedAnime {
+                        Anime = ConvertAniListAnime(relation.Media)
+                    };
+
+                    switch (relation.RelationType) {
+                        case AniListSearch.MediaRelation.Sequel:
+                            relatedAnime.RelationType = RelationType.Sequel;
+                            break;
+                        case AniListSearch.MediaRelation.Side_Story:
+                            relatedAnime.RelationType = RelationType.Side_Story;
+                            break;
+                        case AniListSearch.MediaRelation.Alternative:
+                            relatedAnime.RelationType = RelationType.Alternative_Setting;
+                            break;
+                    }
+
+                    anime.RelatedAnime.Add(relatedAnime);
+                }
+
             return anime;
         }
 
@@ -39,6 +86,7 @@ namespace jellyfin_ani_sync.Helpers {
             Anime anime = new Anime {
                 Id = kitsuAnime.Id,
                 Title = kitsuAnime.Attributes.Titles.English,
+                NumEpisodes = kitsuAnime.Attributes.EpisodeCount ?? 0,
                 AlternativeTitles = new AlternativeTitles {
                     En = kitsuAnime.Attributes.Titles.EnJp,
                     Ja = kitsuAnime.Attributes.Titles.Japanese,
@@ -54,6 +102,42 @@ namespace jellyfin_ani_sync.Helpers {
             }
 
             anime.AlternativeTitles.Synonyms.AddRange(kitsuAnime.Attributes.AbbreviatedTitles);
+
+            if (kitsuAnime.RelatedAnime != null && kitsuAnime.RelatedAnime.Count > 0) {
+                foreach (KitsuSearch.KitsuAnime relatedAnime in kitsuAnime.RelatedAnime) {
+                    RelatedAnime convertedRelatedAnime = new RelatedAnime {
+                        Anime = ClassConversions.ConvertKitsuAnime(relatedAnime)
+                    };
+
+                    switch (relatedAnime.RelationType) {
+                        case KitsuMediaRelationship.RelationType.sequel:
+                            convertedRelatedAnime.RelationType = RelationType.Sequel;
+                            break;
+                        case KitsuMediaRelationship.RelationType.side_story:
+                        case KitsuMediaRelationship.RelationType.full_story:
+                        case KitsuMediaRelationship.RelationType.parent_story:
+                            convertedRelatedAnime.RelationType = RelationType.Side_Story;
+                            break;
+                        case KitsuMediaRelationship.RelationType.alternative_setting:
+                        case KitsuMediaRelationship.RelationType.alternative_version:
+                            convertedRelatedAnime.RelationType = RelationType.Alternative_Setting;
+                            break;
+                        case KitsuMediaRelationship.RelationType.spinoff:
+                        case KitsuMediaRelationship.RelationType.adaptation:
+                            convertedRelatedAnime.RelationType = RelationType.Spin_Off;
+                            break;
+                        default:
+                            convertedRelatedAnime.RelationType = RelationType.Other;
+                            break;
+                    }
+
+                    if (anime.RelatedAnime == null) {
+                        anime.RelatedAnime = new List<RelatedAnime> { convertedRelatedAnime };
+                    } else {
+                        anime.RelatedAnime.Add(convertedRelatedAnime);
+                    }
+                }
+            }
 
             return anime;
         }
@@ -140,6 +224,36 @@ namespace jellyfin_ani_sync.Helpers {
                 }
             }
 
+            if (shikimoriAnime.Related != null) {
+                anime.RelatedAnime = new List<RelatedAnime>();
+                foreach (ShikimoriRelated shikimoriRelated in shikimoriAnime.Related.Where(related => related.Anime != null)) {
+                    RelationType? convertedAnimeRelationType = null;
+                    switch (shikimoriRelated.RelationEnum) {
+                        case ShikimoriRelation.Sequel:
+                            convertedAnimeRelationType = RelationType.Sequel;
+                            break;
+                        case ShikimoriRelation.Prequel:
+                            convertedAnimeRelationType = RelationType.Prequel;
+                            break;
+                        case ShikimoriRelation.Sidestory:
+                            convertedAnimeRelationType = RelationType.Side_Story;
+                            break;
+                        case ShikimoriRelation.Alternativeversion:
+                            convertedAnimeRelationType = RelationType.Alternative_Version;
+                            break;
+                    }
+
+                    RelatedAnime relatedAnime = new RelatedAnime {
+                        Anime = ConvertShikimoriAnime(shikimoriRelated.Anime),
+                    };
+                    if (convertedAnimeRelationType != null) {
+                        relatedAnime.RelationType = convertedAnimeRelationType.Value;
+                    }
+
+                    anime.RelatedAnime.Add(relatedAnime);
+                }
+            }
+
             return anime;
         }
 
@@ -155,7 +269,7 @@ namespace jellyfin_ani_sync.Helpers {
             if (simklExtendedMedia.EnTitle != null) {
                 anime.AlternativeTitles.En = simklExtendedMedia.EnTitle;
             }
-            
+
             if (simklExtendedMedia.TotalEpisodes != null) {
                 anime.NumEpisodes = simklExtendedMedia.TotalEpisodes.Value;
             }
@@ -166,7 +280,7 @@ namespace jellyfin_ani_sync.Helpers {
                     IsRewatching = false, // simkl does not support rewatching at the moment
                     RewatchCount = 0
                 };
-                    
+
                 switch (simklUserEntry.Status) {
                     case SimklStatus.watching:
                         anime.MyListStatus.Status = Status.Watching;
