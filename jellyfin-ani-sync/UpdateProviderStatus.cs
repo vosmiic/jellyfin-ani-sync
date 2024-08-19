@@ -468,9 +468,12 @@ namespace jellyfin_ani_sync {
 
             _logger.LogInformation("User does not have plan to watch only ticked");
 
-            if (ApiName != ApiName.Annict)
+            if (ApiName != ApiName.Annict) {
                 // check if rewatch completed is checked
-                await CheckIfRewatchCompleted(detectedAnime, episodeNumber, overrideCheckRewatch);
+                if (await CheckIfRewatchCompleted(detectedAnime, episodeNumber, overrideCheckRewatch)) {
+                    return;
+                }
+            }
 
             // everything else
             if (detectedAnime.MyListStatus != null) {
@@ -514,28 +517,34 @@ namespace jellyfin_ani_sync {
             }
         }
 
-        private async Task CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber, bool? overrideCheckRewatch) {
+        private async Task<bool> CheckIfRewatchCompleted(Anime detectedAnime, int indexNumber, bool? overrideCheckRewatch) {
             if (overrideCheckRewatch == null ||
                 overrideCheckRewatch.Value ||
                 detectedAnime.MyListStatus is { Status: Status.Completed } ||
                 detectedAnime.MyListStatus is { Status: Status.Rewatching } && detectedAnime.MyListStatus.NumEpisodesWatched < indexNumber) {
                 if (ApiName == ApiName.Simkl) {
                     _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, but {ApiName} does not support re-watching. Skipping");
-                    return;
+                    return true;
                 }
                 if (_userConfig.RewatchCompleted) {
                     if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Completed) {
                         _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on completed list, setting as re-watching");
                         await UpdateAnimeStatus(detectedAnime, indexNumber, true, detectedAnime.MyListStatus.RewatchCount, true);
+                        return true;
                     }
                 } else {
                     _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on Completed list, but user does not want to automatically set as rewatching. Skipping");
+                    return true;
                 }
             } else if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.NumEpisodesWatched >= indexNumber) {
                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but provider reports episode already watched. Skipping");
+                return true;
             } else if (_userConfig.PlanToWatchOnly) {
                 _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found, but not on completed or plan to watch list. Skipping");
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
