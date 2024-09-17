@@ -299,6 +299,7 @@ namespace jellyfin_ani_sync.Api {
             public List<ExpandoObject> providerList { get; set; }
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("apiUrlTest")]
         public string ApiUrlTest() {
