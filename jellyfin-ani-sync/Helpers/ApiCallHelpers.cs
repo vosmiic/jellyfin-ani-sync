@@ -275,6 +275,9 @@ namespace jellyfin_ani_sync.Helpers {
                     case Status.Plan_to_watch:
                         anilistStatus = AniListSearch.MediaListStatus.Planning;
                         break;
+                    case Status.Rewatching:
+                        anilistStatus = AniListSearch.MediaListStatus.Repeating;
+                        break;
                     default:
                         anilistStatus = AniListSearch.MediaListStatus.Current;
                         break;

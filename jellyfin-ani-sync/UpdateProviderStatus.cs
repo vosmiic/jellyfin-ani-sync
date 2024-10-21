@@ -644,7 +644,7 @@ namespace jellyfin_ani_sync {
                                     // don't set start date after first episode
                                     response = await ApiCallHelpers.UpdateAnime(detectedAnime.Id,
                                         episodeNumber.Value,
-                                        Status.Watching,
+                                        detectedAnime.MyListStatus.IsRewatching && ApiName == ApiName.AniList ? Status.Rewatching : Status.Watching,
                                         alternativeId: detectedAnime.AlternativeId,
                                         ids: _apiIds,
                                         isShow: _animeType == typeof(Episode));
