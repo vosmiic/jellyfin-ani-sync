@@ -12,7 +12,7 @@
         "changelog": "1. Fixing Anilist timeout issues 2. Frontend fixes 3. Fix episode offset issues 4. Update Jellyfin packages",
         "targetAbi": "10.9.9.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.4/10.9.9.-.ani-sync_3.4.0.0.zip",
-        "timestamp": "2024-08-08 00:00:00",
+        "timestamp": "2024-08-08T00:00:00Z",
         "version": "3.4.0.0"
       },
       {
@@ -20,7 +20,7 @@
         "changelog": "1. Updated plugin to support Jellyfin version 10.9. 2. Fixed AniList related bugs 3. Fixed Shikimori related bugs 4. Fixed issue with library checks",
         "targetAbi": "10.9.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.2/10.9.0.-.ani-sync_3.2.0.0.zip",
-        "timestamp": "2024-05-13 00:00:00",
+        "timestamp": "2024-05-13T00:00:00Z",
         "version": "3.2.0.0"
       },
       {
@@ -28,7 +28,7 @@
         "changelog": "1. Fixing issues around marking seasons/episodes as watched. 2. Redirect user on successful auth 3. Shikimori support 4. Anime detection changes",
         "targetAbi": "10.8.13.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.0/10.8.13.-.ani-sync_3.0.0.0.zip",
-        "timestamp": "2024-02-21 00:00:00",
+        "timestamp": "2024-02-21T00:00:00Z",
         "version": "3.0.0.0"
       },
       {
@@ -36,7 +36,7 @@
         "changelog": "1. Fixed issue where completing a rewatch did not correctly update the MAL rewatch status.",
         "targetAbi": "10.8.10.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.9/10.8.10.-.ani-sync_2.9.0.0.zip",
-        "timestamp": "2023-05-17 00:00:00",
+        "timestamp": "2023-05-17T00:00:00Z",
         "version": "2.9.0.0"
       },
       {
@@ -44,7 +44,7 @@
         "changelog": "1. Fixed issue where special characters in provider auth password caused bad request. 2. Fixed issue where hitting into fatal addon issue caused the entire Jellyfin app to crash.",
         "targetAbi": "10.8.9.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.8/10.8.9.-.ani-sync_2.8.0.0.zip",
-        "timestamp": "2023-04-10 00:00:00",
+        "timestamp": "2023-04-10T00:00:00Z",
         "version": "2.8.0.0"
       },
       {
@@ -52,7 +52,7 @@
         "changelog": "1. Fixed issue where the user could not save their Annict details if it was the only authenticated API",
         "targetAbi": "10.8.8.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.7.1/10.8.8.-.ani-sync_2.7.1.0.zip",
-        "timestamp": "2023-01-11 00:00:00",
+        "timestamp": "2023-01-11T00:00:00Z",
         "version": "2.7.1.0"
       },
       {
@@ -60,7 +60,7 @@
         "changelog": "1. Added Annict support",
         "targetAbi": "10.8.8.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.7/10.8.8.-.ani-sync_2.7.0.0.zip",
-        "timestamp": "2023-01-09 00:00:00",
+        "timestamp": "2023-01-09T00:00:00Z",
         "version": "2.7.0.0"
       },
       {
@@ -68,7 +68,7 @@
         "changelog": "1. Fixed issue where the plugin would cause Jellyfin to crash when watching live media",
         "targetAbi": "10.8.8.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.6/10.8.8.-.ani-sync_2.6.0.0.zip",
-        "timestamp": "2023-01-01 00:00:00",
+        "timestamp": "2023-01-01T00:00:00Z",
         "version": "2.6.0.0"
       },
       {
@@ -76,7 +76,7 @@
         "changelog": "1. Fixed cases where anime-list returned 'a' for the defaulttvdbseason number",
         "targetAbi": "10.8.8.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.5/10.8.8.-.ani-sync_2.5.0.0.zip",
-        "timestamp": "2022-12-13 00:00:00",
+        "timestamp": "2022-12-13T00:00:00Z",
         "version": "2.5.0.0"
       },
       {
@@ -84,7 +84,7 @@
         "changelog": "1. Fixed crash on providers IDs not found (thanks Pecomare)",
         "targetAbi": "10.8.5.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.4/10.8.5.-.ani-sync_2.4.0.0.zip",
-        "timestamp": "2022-11-23 00:00:00",
+        "timestamp": "2022-11-23T00:00:00Z",
         "version": "2.4.0.0"
       },
       {
@@ -92,7 +92,7 @@
         "changelog": "1. Search for Anibd id within Season 2. Updated libraries to latest version",
         "targetAbi": "10.8.5.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.3/10.8.5.-.ani-sync_2.3.0.0.zip",
-        "timestamp": "2022-08-10 00:00:00",
+        "timestamp": "2022-08-10T00:00:00Z",
         "version": "2.3.0.0"
       },
       {
@@ -100,7 +100,7 @@
         "changelog": "1. Fixed issues with index numbers related to manual sync \n 2. Fixed issues with users libraries not being properly queried when using manual sync",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.2.1/10.8.0.-.ani-sync_2.2.1.0.zip",
-        "timestamp": "2022-08-03 00:00:00",
+        "timestamp": "2022-08-03T00:00:00Z",
         "version": "2.2.1.0"
       },
       {
@@ -108,7 +108,7 @@
         "changelog": "1. Added manual sync functionality \n 2. Fixed anime list pathing issues on Windows builds \n 3. Fixed a few bugs",
         "targetAbi": "10.8.1.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.2/10.8.0.-.ani-sync_2.2.0.0.zip",
-        "timestamp": "2022-07-21 00:00:00",
+        "timestamp": "2022-07-21T00:00:00Z",
         "version": "2.2.0.0"
       },
       {
@@ -116,7 +116,7 @@
         "changelog": "1. Fixed parameters not showing in the config page by updating the Jellyfin packages",
         "targetAbi": "10.8.1.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.1.1/10.8.1.-.ani-sync_2.1.1.0.zip",
-        "timestamp": "2022-06-27 00:00:00",
+        "timestamp": "2022-06-27T00:00:00Z",
         "version": "2.1.1.0"
       },
       {
@@ -124,7 +124,7 @@
         "changelog": "A few QOL improvements. \n 1. Log fixes \n 2. Update progress of providers when user ticks the anime as watched via the UI \n 3. Fixed OVA detection with new anime detection update. \n 4. Added default anime list save location",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.1/10.8.0.-.ani-sync_2.1.0.0.zip",
-        "timestamp": "2022-06-16 21:30:00",
+        "timestamp": "2022-06-16T21:30:00Z",
         "version": "2.1.0.0"
       },
       {
@@ -132,7 +132,7 @@
         "changelog": "A few QOL improvements. \n 1. Log fixes \n 2. Update progress of providers when user ticks the anime as watched via the UI \n 3. Fixed OVA detection with new anime detection update. \n 4. Added default anime list save location",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.1/10.7.7.-.ani-sync_2.1.0.0.zip",
-        "timestamp": "2022-06-16 21:30:00",
+        "timestamp": "2022-06-16T21:30:00Z",
         "version": "2.1.0.0"
       },
       {
@@ -140,7 +140,7 @@
         "changelog": "Hotfix for recent v2 release. Larger update out soon. \n 1. Fixed incorrect season detection when using AniList metadata provider \n 2. Fixed anime save location test error on Windows \n 3. Fixed multiple logging errors.",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.0.1/10.8.0.-.ani-sync_2.0.1.0.zip",
-        "timestamp": "2022-06-11 14:00:00",
+        "timestamp": "2022-06-11T14:00:00Z",
         "version": "2.0.1.0"
       },
       {
@@ -148,7 +148,7 @@
         "changelog": "Hotfix for recent v2 release. Larger update out soon. \n 1. Fixed incorrect season detection when using AniList metadata provider \n 2. Fixed anime save location test error on Windows \n 3. Fixed multiple logging errors.",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2.0.1/10.7.7.-.ani-sync_2.0.1.0.zip",
-        "timestamp": "2022-06-11 14:00:00",
+        "timestamp": "2022-06-11T14:00:00Z",
         "version": "2.0.1.0"
       },
       {
@@ -156,7 +156,7 @@
         "changelog": "1. Use outside sources to massively improve anime detection - please check your config for a new option to enable these features (this also comes with a new job in the scheduler).\n 2. Further improve anime detection by comparing the title to more synonyms (thanks Pecomare for this). \n 3. Fixed null error when anime could not be found. \n 4. Fixed anime movies not being correctly processed. \n 5. Fixed issues with servers using a non-default base URL.",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2/10.8.0.-.ani-sync_2.0.0.0.zip",
-        "timestamp": "2022-06-09 21:00:00",
+        "timestamp": "2022-06-09T21:00:00Z",
         "version": "2.0.0.0"
       },
       {
@@ -164,7 +164,7 @@
         "changelog": "1. Use outside sources to massively improve anime detection - please check your config for a new option to enable these features (this also comes with a new job in the scheduler).\n 2. Further improve anime detection by comparing the title to more synonyms (thanks Pecomare for this). \n 3. Fixed null error when anime could not be found. \n 4. Fixed anime movies not being correctly processed. \n 5. Fixed issues with servers using a non-default base URL.",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v2/10.7.7.-.ani-sync_2.0.0.0.zip",
-        "timestamp": "2022-06-09 21:00:00",
+        "timestamp": "2022-06-09T21:00:00Z",
         "version": "2.0.0.0"
       },
       {
@@ -172,7 +172,7 @@
         "changelog": "1. Fixed currently airing shows not being updated \n 2. Fixed null reference error causing Jellyfin to crash when API authentication error occurs",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.6/10.8.0.-.ani-sync_1.6.0.0.zip",
-        "timestamp": "2022-04-18 13:00:00",
+        "timestamp": "2022-04-18T13:00:00Z",
         "version": "1.6.0.0"
       },
       {
@@ -180,7 +180,7 @@
         "changelog": "1. Fixed currently airing shows not being updated \n 2. Fixed null reference error causing Jellyfin to crash when API authentication error occurs",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.6/10.7.7.-.ani-sync_1.6.0.0.zip",
-        "timestamp": "2022-04-18 13:00:00",
+        "timestamp": "2022-04-18T13:00:00Z",
         "version": "1.6.0.0"
       },
       {
@@ -188,7 +188,7 @@
         "changelog": "1. Checking Japanese title as well as English title when searching for anime via the provider API",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.5/10.8.0.-.ani-sync_1.5.0.0.zip",
-        "timestamp": "2022-04-06 16:07:00",
+        "timestamp": "2022-04-06T16:07:00Z",
         "version": "1.5.0.0"
       },
       {
@@ -196,7 +196,7 @@
         "changelog": "1. Checking Japanese title as well as English title when searching for anime via the provider API",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.5/10.7.7.-.ani-sync_1.5.0.0.zip",
-        "timestamp": "2022-04-06 16:07:00",
+        "timestamp": "2022-04-06T16:07:00Z",
         "version": "1.5.0.0"
       },
       {
@@ -204,7 +204,7 @@
         "changelog": "1. Added 'Generate Callback URL' button on the config page. \n 2. Fixed the API endpoint not being populated on config page load. \n 3. Added Kitsu support (beta) \n 4. Added multi-cour season support \n 5. Fixed crash when attempting to find OVA",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.4/10.8.0.-.ani-sync_1.4.0.0.zip",
-        "timestamp": "2022-03-28 12:22:00",
+        "timestamp": "2022-03-28T12:22:00Z",
         "version": "1.4.0.0"
       },
       {
@@ -212,7 +212,7 @@
         "changelog": "1. Added 'Generate Callback URL' button on the config page. \n 2. Fixed the API endpoint not being populated on config page load. \n 3. Added Kitsu support (beta) \n 4. Added multi-cour season support \n 5. Fixed crash when attempting to find OVA",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.4/10.7.7.-.ani-sync_1.4.0.0.zip",
-        "timestamp": "2022-03-28 12:22:00",
+        "timestamp": "2022-03-28T12:22:00Z",
         "version": "1.4.0.0"
       },
       {
@@ -220,7 +220,7 @@
         "changelog": "1. Added AniList provider support",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.3/10.8.0.-.ani-sync_1.3.0.0.zip",
-        "timestamp": "2022-03-13 17:00:00",
+        "timestamp": "2022-03-13T17:00:00Z",
         "version": "1.3.0.0"
       },
       {
@@ -228,7 +228,7 @@
         "changelog": "1. Added AniList provider support.",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.3/10.7.7.-.ani-sync_1.3.0.0.zip",
-        "timestamp": "2022-03-13 17:00:00",
+        "timestamp": "2022-03-13T17:00:00Z",
         "version": "1.3.0.0"
       },
       {
@@ -236,7 +236,7 @@
         "changelog": "1. Added OVA/special support \n 2. Restored symbols to query when searching for anime",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.2/10.8.0.-.ani-sync_1.2.0.0.zip",
-        "timestamp": "2022-02-26 17:00:00",
+        "timestamp": "2022-02-26T17:00:00Z",
         "version": "1.2.0.0"
       },
       {
@@ -244,7 +244,7 @@
         "changelog": "1. Added OVA/special support \n 2. Restored symbols to query when searching for anime",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.2/10.7.7.-.ani-sync_1.2.0.0.zip",
-        "timestamp": "2022-02-26 17:00:00",
+        "timestamp": "2022-02-26T17:00:00Z",
         "version": "1.2.0.0"
       },
       {
@@ -252,7 +252,7 @@
         "changelog": "Hotfix - Fixing anime with a name longer than 64 characters causing crashes",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.1/10.8.0.-.ani-sync_1.1.0.0.zip",
-        "timestamp": "2022-02-24 21:40:38",
+        "timestamp": "2022-02-24T21:40:38Z",
         "version": "1.1.0.0"
       },
       {
@@ -260,7 +260,7 @@
         "changelog": "Hotfix - Fixing anime with a name longer than 64 characters causing crashes",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1.1/10.7.7.-.ani-sync_1.1.0.0.zip",
-        "timestamp": "2022-02-24 21:40:38",
+        "timestamp": "2022-02-24T21:40:38Z",
         "version": "1.1.0.0"
       },
       {
@@ -268,7 +268,7 @@
         "changelog": "Initial release",
         "targetAbi": "10.8.0.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1/10.8.0.-.ani-sync_1.0.0.0.zip",
-        "timestamp": "2022-02-21 21:09:38",
+        "timestamp": "2022-02-21T21:09:38Z",
         "version": "1.0.0.0"
       },
       {
@@ -276,7 +276,7 @@
         "changelog": "Initial release",
         "targetAbi": "10.7.7.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v1/10.7.7.-.ani-sync_1.0.0.0.zip",
-        "timestamp": "2022-02-21 21:09:38",
+        "timestamp": "2022-02-21T21:09:38Z",
         "version": "1.0.0.0"
       }
     ]
