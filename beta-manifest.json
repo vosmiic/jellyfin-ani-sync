@@ -12,7 +12,7 @@
         "changelog": "1. Fixing callback URL test response. 2. Updating Jellyfin packages.",
         "targetAbi": "10.9.11.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.5b/10.9.11.-.ani-sync_3.5.0.0.zip",
-        "timestamp": "2024-09-17 00:00:00",
+        "timestamp": "2024-09-17T00:00:00Z",
         "version": "3.5.0.0"
       },
       {
@@ -20,21 +20,21 @@
         "changelog": "1. Added 429 Too Many Requests handling with backoff. 2. Increased plugin API security. 3. Config page overhaul. 4. Improved anime detection.",
         "targetAbi": "10.9.6.0",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.3b/10.9.6.-.ani-sync_3.3.0.0.zip",
-        "timestamp": "2024-06-19 00:00:00",
+        "timestamp": "2024-06-19T00:00:00Z",
         "version": "3.3.0.0"
       },
       {
         "checksum": "9963f7ecc72513fceaab735348a89ffd",
         "changelog": "1. Fixed AniList related bugs. 2. Fixed Shikimori related bugs. 3. Fixed issue with library checks.",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.1b/10.8.13.-.ani-sync_3.1.0.0.zip",
-        "timestamp": "2024-04-15 00:00:00",
+        "timestamp": "2024-04-15T00:00:00Z",
         "version": "3.1.0.0"
       },
       {
         "checksum": "37781c18e8150bd932e7760529980696",
         "changelog": "1. Fixing issues around marking seasons/episodes as watched. 2. Redirect user on successful auth 3. Shikimori support 4. Anime detection changes",
         "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.0b/10.8.13.-.ani-sync_3.0.0.0b.zip",
-        "timestamp": "2024-01-16 00:00:00",
+        "timestamp": "2024-01-16T00:00:00Z",
         "version": "3.0.0.0"
       }
     ]
