@@ -143,6 +143,11 @@ public class Sync {
     /// <param name="convertedWatchList">List of metadata IDs of shows.</param>
     private async Task GetCurrentLibrary(string userId, List<SyncAnimeMetadata> convertedWatchList) {
         var userLibrary = SyncHelper.GetUsersJellyfinLibrary(Guid.Parse(userId), _userManager, _libraryManager);
+        var user = _userManager.GetUserById(Guid.Parse(userId));
+        if (user == null) {
+            _logger.LogError($"(Sync) User with ID of {userId} not found");
+            return;
+        }
         foreach (BaseItem baseItem in userLibrary) {
             if (baseItem is Series series) {
                 (AnimeOfflineDatabaseHelpers.Source? source, int? providerId) = SyncHelper.GetSeriesProviderId(series);
@@ -159,9 +164,6 @@ public class Sync {
 
                     foreach ((Season season, DateTime? completedAt, int episodesWatched) seasonsTuple in seasonsToMarkAsPlayed) {
                         if (seasonsTuple.season != null) {
-                            var user = _userManager.GetUserById(Guid.Parse(userId));
-                            List<UserItemData> userItemDataCollection = new List<UserItemData>();
-
                             var seasonEpisodes = seasonsTuple.season.Children.Where(episode => episode is Episode && episode.IndexNumber != null);
                             if (seasonsTuple.episodesWatched != -1) {
                                 seasonEpisodes = seasonEpisodes.Where(episode => episode.IndexNumber != null && episode.IndexNumber <= seasonsTuple.episodesWatched);
@@ -172,18 +174,15 @@ public class Sync {
                                     _logger.LogInformation($"(Sync) Setting {episode.Series.Name} season {episode.Season.IndexNumber} episode {episode.IndexNumber} for user {userId} as played...");
 
                                     if (seasonsTuple.completedAt != null) {
-                                        userItemDataCollection.Add(SetUserData(user, episode, seasonsTuple.completedAt));
+                                        _userDataManager.SaveUserData(user, seasonChild, SetUserData(user, episode, seasonsTuple.completedAt), UserDataSaveReason.UpdateUserData, CancellationToken.None);
                                     } else {
-                                        userItemDataCollection.Add(SetUserData(user, episode, DateTime.UtcNow));
+                                        _userDataManager.SaveUserData(user, seasonChild, SetUserData(user, episode, DateTime.UtcNow), UserDataSaveReason.UpdateUserData, CancellationToken.None);
                                     }
                                 }
                             }
 
                             // this could fail because show has ovas, hard to detect. todo warn users
-                            userItemDataCollection.Add(SetUserData(user, seasonsTuple.season, seasonsTuple.completedAt));
-
-
-                            _userDataManager.SaveAllUserData(user.Id, userItemDataCollection.ToArray(), CancellationToken.None);
+                            _userDataManager.SaveUserData(user, seasonsTuple.season, SetUserData(user, seasonsTuple.season, seasonsTuple.completedAt), UserDataSaveReason.UpdateUserData, CancellationToken.None);
                             _logger.LogInformation("(Sync) Saved");
                         }
                     }
