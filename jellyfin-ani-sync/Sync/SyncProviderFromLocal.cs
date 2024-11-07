@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
+using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
@@ -79,42 +80,47 @@ public class SyncProviderFromLocal {
                             _logger.LogError($"(Sync) Could not sync item; error: {e.Message}");
                             continue;
                         }
+
                         _logger.LogInformation("(Sync) Waiting 2 seconds before continuing...");
                         Thread.Sleep(2000);
                     } else {
                         _logger.LogError("(Sync) Could not get users Jellyfin data for this season");
                     }
                 }
+            } else {
+                _logger.LogError($"(Sync) User with ID of {_userId} not found");
             }
         }
     }
 
     private List<Episode> GetMaxEpisodeAndCompletedTime(Series series) {
         List<Episode> returnDictionary = new List<Episode>();
-        
+
         _logger.LogInformation($"(Sync) Getting {series.Name} seasons latest watched episode");
         var seasons = series.Children.OfType<Season>().Select(baseItem => baseItem).ToList();
         _logger.LogInformation($"(Sync) Series {series.Name} contains {seasons.Count} seasons");
+        User user = _userManager.GetUserById(_userId);
+        if (user == null) return null;
         foreach (Season season in seasons) {
             _logger.LogInformation($"(Sync) Getting user data for {season.Name} of {series.Name}...");
             if (season.IndexNumber == null) {
                 _logger.LogError($"(Sync) Season index number is null. Skipping...");
                 continue;
             }
-            
-            var query = new InternalItemsQuery(_userManager.GetUserById(_userId)) {
+
+            var query = new InternalItemsQuery(user) {
                 MediaTypes = [ MediaType.Video ],
                 ParentId = season.ParentId,
                 ParentIndexNumber = season.IndexNumber,
                 Recursive = true
             };
-            
+
             var itemList = _libraryManager.GetItemList(query);
 
             List<Episode> episodes = itemList.OfType<Episode>().Select(baseItem => baseItem).ToList();
 
             _logger.LogInformation($"(Sync) Season contains {episodes.Count} episodes");
-            var episodesWatched = episodes.Where(item => _userDataManager.GetUserData(_userId, item).Played).ToList();
+            var episodesWatched = episodes.Where(item => _userDataManager.GetUserData(user, item).Played).ToList();
             _logger.LogInformation($"(Sync) User has watched {episodesWatched.Count} out of {episodes.Count} episodes of this season");
             Episode highestEpisodeWatched;
             if (episodesWatched.Any()) {
@@ -124,9 +130,10 @@ public class SyncProviderFromLocal {
                 _logger.LogInformation($"(Sync) User has not watched any episodes of this season, skipping...");
                 continue;
             }
-            returnDictionary.Add(highestEpisodeWatched/*, _userDataManager.GetUserData(_userId, highestEpisodeWatched).LastPlayedDate ?? DateTime.UtcNow*/);
+
+            returnDictionary.Add(highestEpisodeWatched);
         }
-        
+
         _logger.LogInformation($"(Sync) Found {returnDictionary.Count} seasons that contain user data");
         return returnDictionary;
     }
