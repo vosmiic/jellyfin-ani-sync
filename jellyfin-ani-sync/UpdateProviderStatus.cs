@@ -710,6 +710,8 @@ namespace jellyfin_ani_sync {
                             Status.Completed,
                             alternativeId: detectedAnime.AlternativeId,
                             ids: _apiIds,
+                            startDate: DateTime.Now,
+                            endDate: DateTime.Now,
                             isShow: _animeType == typeof(Episode));
                     } else {
                         // not on last episodes so must still be watching
@@ -719,6 +721,7 @@ namespace jellyfin_ani_sync {
                             Status.Watching,
                             alternativeId: detectedAnime.AlternativeId,
                             ids: _apiIds,
+                            startDate: episodeNumber == 1 ? DateTime.Now : null,
                             isShow: _animeType == typeof(Episode));
                     }
                 }
