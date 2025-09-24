@@ -132,7 +132,8 @@ async function initialLoad(common) {
         } else {
             var url = ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + encodeURIComponent(clientId) +
                 "&clientSecret=" + encodeURIComponent(clientSecret) +
-                "&url=" + encodeURIComponent((document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")));
+                "&url=" + encodeURIComponent((document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")) + 
+                "&user=" + document.querySelector('#selectUser').value);
             await ApiClient.ajax({
                 type: "GET",
                 url
