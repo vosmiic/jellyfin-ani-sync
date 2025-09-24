@@ -359,7 +359,7 @@ async function initialLoad(common) {
         }
     }
 
-    function saveUserConfig(common, saveTempAuth) {
+    function saveUserConfig(common) {
         ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
             var userId = document.querySelector('#selectUser').value;
 
@@ -405,11 +405,6 @@ async function initialLoad(common) {
                         "AccessToken": document.querySelector('#clientId').value.toString()
                     })
                 }
-            }
-
-            if (saveTempAuth) {
-                config.currentlyAuthenticatingUser = userId;
-                config.currentlyAuthenticatingProvider = document.querySelector('#selectProvider').value;
             }
 
             ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {

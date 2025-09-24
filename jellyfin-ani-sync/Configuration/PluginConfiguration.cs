@@ -8,9 +8,6 @@ namespace jellyfin_ani_sync.Configuration {
     /// Plugin configuration.
     /// </summary>
     public class PluginConfiguration : BasePluginConfiguration {
-        public PluginConfiguration() {
-            currentlyAuthenticatingUser = Guid.Empty;
-        }
 
         /// <summary>
         /// Custom user configuration details.
@@ -31,16 +28,6 @@ namespace jellyfin_ani_sync.Configuration {
         /// The URL to redirect the user to on successful authentication.
         /// </summary>
         public string callbackRedirectUrl { get; set; }
-
-        /// <summary>
-        /// ID of the user that is currently authenticating. Used during the API provider callback.
-        /// </summary>
-        public Guid currentlyAuthenticatingUser { get; set; }
-        
-        /// <summary>
-        /// Name of the provider that is currently being authenticated. Used during the API provider callback.
-        /// </summary>
-        public ApiName currentlyAuthenticatingProvider { get; set; }
         
         /// <summary>
         /// Save location of the anime list.
