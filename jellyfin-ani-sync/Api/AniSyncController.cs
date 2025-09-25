@@ -73,8 +73,8 @@ namespace jellyfin_ani_sync.Api {
 
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
-        public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url) {
-            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl();
+        public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url, Guid user) {
+            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl(user);
         }
 
         [HttpGet]
@@ -103,7 +103,7 @@ namespace jellyfin_ani_sync.Api {
         [Route("passwordGrant")]
         public async Task<IActionResult> PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
             try {
-                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId));
+                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId));
             } catch (Exception e) {
                 return StatusCode(500, $"Could not authenticate; {e.Message}");
             }
@@ -111,17 +111,17 @@ namespace jellyfin_ani_sync.Api {
             if (provider == ApiName.Kitsu) {
                 var userConfig = Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId));
 
-                    if (userConfig != null) {
-                        KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, userConfig);
-                        var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
-                        if (kitsuUserConfig == null)
-                            return StatusCode(500, "Could not authenticate");
-                        var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
-                        if (existingKeyPair != null) {
-                            existingKeyPair.Value = kitsuUserConfig.Id.ToString();
-                        } else {
-                            userConfig.KeyPairs.Add(new KeyPairs { Key = "KitsuUserId", Value = kitsuUserConfig.Id.ToString() });
-                        }
+                if (userConfig != null) {
+                    KitsuApiCalls kitsuApiCalls = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, userConfig);
+                    var kitsuUserConfig = await kitsuApiCalls.GetUserInformation();
+                    if (kitsuUserConfig == null)
+                        return StatusCode(500, "Could not authenticate");
+                    var existingKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId");
+                    if (existingKeyPair != null) {
+                        existingKeyPair.Value = kitsuUserConfig.Id.ToString();
+                    } else {
+                        userConfig.KeyPairs.Add(new KeyPairs { Key = "KitsuUserId", Value = kitsuUserConfig.Id.ToString() });
+                    }
 
                     Plugin.Instance.SaveConfiguration();
                 }
@@ -133,29 +133,23 @@ namespace jellyfin_ani_sync.Api {
         [AllowAnonymous]
         [HttpGet]
         [Route("authCallback")]
-        public IActionResult MalCallback(string code) {
-            Guid userId = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser;
-            ApiName provider = Plugin.Instance.PluginConfiguration.currentlyAuthenticatingProvider;
-            if (userId != null && provider != null) {
-                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(userId, code);
-                Plugin.Instance.PluginConfiguration.currentlyAuthenticatingUser = Guid.Empty;
-                Plugin.Instance.SaveConfiguration();
-                if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
-                    string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
-                        .Replace("{{LocalPort}}", _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort.ToString() : _serverApplicationHost.HttpPort.ToString());
+        public IActionResult AuthCallback(string code, string? state) {
+            if (state == null) return BadRequest("State is empty");
+            StoredState? storedState = MemoryCacheHelper.ConsumeState(_memoryCache, state);
+            if (storedState == null) return BadRequest("User not found or link already used/expired, try again");
+            new ApiAuthentication(storedState.ApiName, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(storedState.UserId, code);
+            if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
+                string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
+                    .Replace("{{LocalPort}}", _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort.ToString() : _serverApplicationHost.HttpPort.ToString());
 
-                    if (Uri.TryCreate(replacedCallbackRedirectUrl, UriKind.Absolute, out _)) {
-                        return Redirect(replacedCallbackRedirectUrl);
-                    } else {
-                        _logger.LogWarning($"Invalid redirect URL ({replacedCallbackRedirectUrl}), skipping redirect.");
-                    }
+                if (Uri.TryCreate(replacedCallbackRedirectUrl, UriKind.Absolute, out _)) {
+                    return Redirect(replacedCallbackRedirectUrl);
+                } else {
+                    _logger.LogWarning($"Invalid redirect URL ({replacedCallbackRedirectUrl}), skipping redirect.");
                 }
-
-                return new ObjectResult("Success! Received access token, please contact the Jellyfin administrator to test the authentication.") { StatusCode = 200 };
-            } else {
-                _logger.LogError("Authenticated user ID could not be found in the configuration. Please regenerate the authentication URL and try again");
-                return StatusCode(500);
             }
+
+            return new ObjectResult("Success! Received access token, please contact the Jellyfin administrator to test the authentication.") { StatusCode = 200 };
         }
 
         [HttpGet]

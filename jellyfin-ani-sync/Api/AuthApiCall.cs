@@ -117,7 +117,7 @@ namespace jellyfin_ani_sync.Api {
                             // token has probably expired; try refreshing it
                             UserApiAuth newAuth;
                             try {
-                                newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
+                                newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                             } catch (Exception e) {
                                 _logger.LogError($"Could not re-authenticate: {e.Message}, please manually re-authenticate the user via the AniSync configuration page");
                                 return null;

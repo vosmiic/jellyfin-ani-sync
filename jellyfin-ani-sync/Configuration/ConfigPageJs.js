@@ -132,7 +132,8 @@ async function initialLoad(common) {
         } else {
             var url = ApiClient.getUrl("/AniSync/buildAuthorizeRequestUrl?provider=" + document.querySelector('#selectProvider').value + "&clientId=" + encodeURIComponent(clientId) +
                 "&clientSecret=" + encodeURIComponent(clientSecret) +
-                "&url=" + encodeURIComponent((document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")));
+                "&url=" + encodeURIComponent((document.querySelector('#apiUrl').value ? document.querySelector('#apiUrl').value : "local")) + 
+                "&user=" + document.querySelector('#selectUser').value);
             await ApiClient.ajax({
                 type: "GET",
                 url
@@ -277,6 +278,7 @@ async function initialLoad(common) {
                 page.querySelector('#simklUpdateAll').checked = config.simklUpdateAll;
             if (config.updateNsfw)
                 page.querySelector('#UpdateNsfw').checked = config.updateNsfw;
+            page.querySelector('#linkTimeExpire').value = config.authenticationLinkExpireTimeMinutes && config.authenticationLinkExpireTimeMinutes !== 0 ? config.authenticationLinkExpireTimeMinutes : 1440;
 
             page.querySelector('#clientSecretLabel').style.display = "block";
             page.querySelector('#clientSecret').style.display = "block";
@@ -358,7 +360,7 @@ async function initialLoad(common) {
         }
     }
 
-    function saveUserConfig(common, saveTempAuth) {
+    function saveUserConfig(common) {
         ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
             var userId = document.querySelector('#selectUser').value;
 
@@ -383,6 +385,7 @@ async function initialLoad(common) {
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;
             config.simklUpdateAll = document.querySelector('#simklUpdateAll').checked;
             config.updateNsfw = document.querySelector('#UpdateNsfw').checked;
+            config.authenticationLinkExpireTimeMinutes = document.querySelector('#linkTimeExpire').value;
 
             userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                 return element.getAttribute('id');
@@ -404,11 +407,6 @@ async function initialLoad(common) {
                         "AccessToken": document.querySelector('#clientId').value.toString()
                     })
                 }
-            }
-
-            if (saveTempAuth) {
-                config.currentlyAuthenticatingUser = userId;
-                config.currentlyAuthenticatingProvider = document.querySelector('#selectProvider').value;
             }
 
             ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {

@@ -121,6 +121,13 @@
                     Test Authentication
                 </button>
                 <span id="getUserResponse"></span>
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocussed" for="linkTimeExpire">Authentication Link Expiry</label>
+                    <input id="linkTimeExpire" name="" type="text" is="emby-input" />
+                    <div class="fieldDescription">
+                        How long before the generated authorization link expires in minutes. Note: the link can still be visited after expiring, but the authentication details will not be saved.
+                    </div>
+                </div>
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label class="emby-checkbox-label">
                         <input id="PlanToWatchOnly" name="PlanToWatchOnly" type="checkbox" is="emby-checkbox"/>

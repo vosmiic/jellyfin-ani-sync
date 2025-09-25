@@ -13,6 +13,7 @@ using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
@@ -23,9 +24,10 @@ namespace jellyfin_ani_sync.Api {
         private readonly string _authApiUrl;
         private readonly string _redirectUrl;
         private readonly ProviderApiAuth _providerApiAuth;
+        private readonly IMemoryCache  _memoryCache;
         private readonly string _codeChallenge = "eZBLUX_JPk4~el62z_k3Q4fV5CzCYHoTz4iLKvwJ~9QTsTJNlzwveKCSYCSiSOa5zAm5Zt~cfyVM~3BuO4kQ0iYwCxPoeN0SOmBYR_C.QgnzyYE4KY-xIe4Vy1bf7_B4";
 
-        public ApiAuthentication(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
+        public ApiAuthentication(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, IMemoryCache memoryCache, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
             _provider = provider;
 
             switch (provider) {
@@ -49,6 +51,7 @@ namespace jellyfin_ani_sync.Api {
             }
 
             _httpClientFactory = httpClientFactory;
+            _memoryCache = memoryCache;
             _logger = loggerFactory.CreateLogger<ApiAuthentication>();
             if (overrideProviderApiAuth != null) {
                 _providerApiAuth = overrideProviderApiAuth;
@@ -72,14 +75,15 @@ namespace jellyfin_ani_sync.Api {
             }
         }
 
-        public string BuildAuthorizeRequestUrl() {
+        public string BuildAuthorizeRequestUrl(Guid userId) {
+            string state = MemoryCacheHelper.GenerateState(_memoryCache, userId, _provider);
             switch (_provider) {
                 case ApiName.Mal:
-                    return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&code_challenge={_codeChallenge}&redirect_uri={_redirectUrl}";
+                    return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&code_challenge={_codeChallenge}&redirect_uri={_redirectUrl}&state={state}";
                 case ApiName.AniList:
                 case ApiName.Shikimori:
                 case ApiName.Simkl:
-                    return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&redirect_uri={_redirectUrl}";
+                    return $"{_authApiUrl}/authorize?response_type=code&client_id={_providerApiAuth.ClientId}&redirect_uri={_redirectUrl}&state={state}";
                 default:
                     throw new ArgumentOutOfRangeException();
             }
