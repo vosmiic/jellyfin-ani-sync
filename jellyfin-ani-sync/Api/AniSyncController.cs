@@ -134,9 +134,9 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("authCallback")]
         public IActionResult AuthCallback(string code, string? state) {
-            if (state == null) return BadRequest("State is empty"); // todo handle this
+            if (state == null) return BadRequest("State is empty");
             StoredState? storedState = MemoryCacheHelper.ConsumeState(_memoryCache, state);
-            if (storedState == null) return BadRequest("User not found or link already used, try again");
+            if (storedState == null) return BadRequest("User not found or link already used/expired, try again");
             new ApiAuthentication(storedState.ApiName, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(storedState.UserId, code);
             if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
                 string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
