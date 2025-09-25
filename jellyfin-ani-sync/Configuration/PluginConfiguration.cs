@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Model.Plugins;
 
@@ -53,5 +51,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// True to update NSFW anime.
         /// </summary>
         public bool updateNsfw { get; set; }
+
+        /// <summary>
+        /// How long the memory cache holds onto users authentication details in minutes.
+        /// </summary>
+        public long authenticationLinkExpireTimeMinutes { get; set; }
     }
 }

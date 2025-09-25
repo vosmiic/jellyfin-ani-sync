@@ -14,7 +14,7 @@ public class MemoryCacheHelper
         memoryCache.Set(key, new StoredState {
             ApiName = provider,
             UserId = userId
-        }, DateTimeOffset.Now.AddDays(1));
+        }, DateTimeOffset.Now.AddMinutes(Plugin.Instance?.Configuration.authenticationLinkExpireTimeMinutes ?? 1440));
         return key;
     }
 
