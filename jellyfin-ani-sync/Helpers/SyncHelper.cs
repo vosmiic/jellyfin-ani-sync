@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
@@ -15,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace jellyfin_ani_sync.Helpers;
 
 public class SyncHelper {
-    public static List<BaseItem> GetUsersJellyfinLibrary(Guid userId, IUserManager userManager, ILibraryManager libraryManager) {
+    public static IReadOnlyList<BaseItem> GetUsersJellyfinLibrary(Guid userId, IUserManager userManager, ILibraryManager libraryManager) {
         var query = new InternalItemsQuery(userManager.GetUserById(userId)) {
             IncludeItemTypes = new[] {
                 BaseItemKind.Movie,

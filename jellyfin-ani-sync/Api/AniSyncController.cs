@@ -305,7 +305,7 @@ namespace jellyfin_ani_sync.Api {
         public Task Sync(ApiName provider, string userId, SyncHelper.Status status, SyncAction syncAction) {
             switch (syncAction) {
                 case SyncAction.UpdateProvider:
-                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _userDataManager, _fileSystem, _memoryCache, _delayer, userId);
+                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _fileSystem, _memoryCache, _delayer, userId);
                     return syncProviderFromLocal.SyncFromLocal();
                 case SyncAction.UpdateJellyfin:
                     Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, _memoryCache, _delayer, provider, status);
