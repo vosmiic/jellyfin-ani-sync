@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "365160ba5a45f2f987665eb6b005f58c",
+        "changelog": "1. Updated plugin for compatability with Jellyfin version 10.11 2. Provider authentication is more stable",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v3.8/10.11.0.-.ani-sync_3.8.0.0.zip",
+        "timestamp": "2025-10-29T00:00:00Z",
+        "version": "3.8.0.0"
+      },
+      {
         "checksum": "9fad2410c7f95144529a4fa6cc5cdabf",
         "changelog": "1. Fixed test auth URL 2. Fixed AniList rewatches being marked as watching instead of rewatching 3. Updating Jellyfin packages which fixed a manual sync issue",
         "targetAbi": "10.10.3.0",
