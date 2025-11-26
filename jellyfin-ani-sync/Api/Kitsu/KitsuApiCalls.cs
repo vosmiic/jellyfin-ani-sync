@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Kitsu {
     public class KitsuApiCalls {
-        private readonly string ApiUrl = "https://kitsu.io/api/edge";
+        private readonly string ApiUrl = "https://kitsu.app/api/edge";
         private readonly ILogger<KitsuApiCalls> _logger;
         private readonly AuthApiCall _authApiCall;
         private readonly UserConfig _userConfig;
