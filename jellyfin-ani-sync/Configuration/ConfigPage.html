@@ -40,6 +40,11 @@
                     <div id="callbackRedirectUrlDescription" class="fieldDescription"></div>
                 </div>
                 <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="armServerBaseUrlInput">Custom ARM server base URL</label>
+                    <input id="armServerBaseUrlInput" type="text" is="emby-input"/>
+                    <div id="armServerBaseUrlInputDescription" class="fieldDescription">Enter your custom ARM server base URL. This should be the base URL only, e.g. "http://localhost:3000". Will fall back to using the publicly hosted service if unable to parse the URL correctly.</div>
+                </div>
+                <div class="inputContainer">
                     <label class="inputLabel inputLabelUnfocused" for="animeListSaveLocation">Anime List Save
                         Location</label>
                     <input id="animeListSaveLocation" name="animeListSaveLocation" type="text" is="emby-input"/>

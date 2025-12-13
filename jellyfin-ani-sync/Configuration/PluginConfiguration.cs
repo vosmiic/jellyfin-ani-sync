@@ -56,5 +56,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// How long the memory cache holds onto users authentication details in minutes.
         /// </summary>
         public long authenticationLinkExpireTimeMinutes { get; set; }
+        
+        /// <summary>
+        /// Custom ARM server base URL.
+        /// </summary>
+        public string armServerBaseUrl { get; set; }
     }
 }
