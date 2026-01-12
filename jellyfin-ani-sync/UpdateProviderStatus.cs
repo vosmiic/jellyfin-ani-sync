@@ -111,7 +111,7 @@ namespace jellyfin_ani_sync {
                           movie.ProviderIds.ContainsKey("AniList") &&
                           int.TryParse(movie.ProviderIds["AniList"], out retrievedAniListId)) {
                     _logger.LogInformation("AniList ID found. Retrieving provider IDs from offline database...");
-                    _apiIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), retrievedAniListId, AnimeOfflineDatabaseHelpers.Source.Anilist);
+                    _apiIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), _logger, retrievedAniListId, AnimeOfflineDatabaseHelpers.Source.Anilist);
                     if (_apiIds is null) {
                         _apiIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse {
                             Anilist = retrievedAniListId
@@ -132,7 +132,7 @@ namespace jellyfin_ani_sync {
                         : await AnimeListHelpers.GetAniDbId(_logger, movie, movie.IndexNumber.Value, 1, animeListXml);
                     if (aniDbId.aniDbId != null) {
                         _logger.LogInformation($"Retrieving provider IDs from offline database for AniDb ID {aniDbId.aniDbId.Value}...");
-                        _apiIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
+                        _apiIds = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(_httpClientFactory.CreateClient(NamedClient.Default), _logger, aniDbId.aniDbId.Value, AnimeOfflineDatabaseHelpers.Source.Anidb);
                         if (_apiIds is null) {
                             _apiIds = new AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse {
                                 AniDb = aniDbId.aniDbId

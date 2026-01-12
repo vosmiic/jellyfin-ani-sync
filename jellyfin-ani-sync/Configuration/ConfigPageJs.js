@@ -314,6 +314,8 @@ async function initialLoad(common) {
 
             if (config.callbackUrl)
                 page.querySelector('#apiUrl').value = config.callbackUrl;
+            if (config.armServerBaseUrl)
+                page.querySelector('#armServerBaseUrlInput').value = config.armServerBaseUrl;
             Dashboard.hideLoadingMsg();
         });
     }
@@ -386,6 +388,7 @@ async function initialLoad(common) {
             config.simklUpdateAll = document.querySelector('#simklUpdateAll').checked;
             config.updateNsfw = document.querySelector('#UpdateNsfw').checked;
             config.authenticationLinkExpireTimeMinutes = document.querySelector('#linkTimeExpire').value;
+            config.armServerBaseUrl = document.querySelector('#armServerBaseUrlInput').value;
 
             userConfig.LibraryToCheck = Array.prototype.map.call(document.querySelectorAll('.library:checked'), element => {
                 return element.getAttribute('id');

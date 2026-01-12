@@ -100,7 +100,7 @@ public class SyncHelper {
         IHttpClientFactory httpClientFactory,
         IApplicationPaths applicationPaths,
         List<int> seasonFilter = null) {
-        var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(httpClientFactory.CreateClient(NamedClient.Default), providerId, source);
+        var id = await AnimeOfflineDatabaseHelpers.GetProviderIdsFromMetadataProvider(httpClientFactory.CreateClient(NamedClient.Default), logger, providerId, source);
         if (id is { AniDb: { } }) {
             AnimeListHelpers.AnimeListXml animeListXml = await AnimeListHelpers.GetAnimeListFileContents(logger, loggerFactory, httpClientFactory, applicationPaths);
             var seasons = AnimeListHelpers.ListAllSeasonOfAniDbSeries(id.AniDb.Value, animeListXml);
