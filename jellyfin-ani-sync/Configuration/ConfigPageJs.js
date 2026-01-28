@@ -45,6 +45,19 @@ async function initialLoad(common) {
             return false;
         });
 
+    const toggleButton = document.getElementById('toggleUserSection');
+    const userSection = document.getElementById('userSection');
+
+    toggleButton.addEventListener('click', () => {
+        if (userSection.style.display === 'none') {
+            userSection.style.display = 'block';
+            toggleButton.textContent = 'Hide user section';
+        } else {
+            userSection.style.display = 'none';
+            toggleButton.textContent = 'Manual connect a user';
+        }
+    });
+
     page.querySelector('#testAnimeListSaveLocation').onclick = await runTestAnimeListSaveLocation;
     page.querySelector('#generateCallbackUrlButton').onclick = generateCallbackUrl;
     page.querySelector('#authorizeDevice').onclick = (async () => await onAuthorizeButtonClick(common));
