@@ -1,0 +1,156 @@
+<div id="TemplateConfigPage" data-role="page" class="page type-interior">
+    <div data-role="content">
+        <div class="content-primary">
+            <h1>AniSync Configuration</h1>
+            <form id="TemplateConfigForm">
+                <div class="checkboxContainer">
+                    <label class="emby-checkbox-label">
+                        <input id="PlanToWatchOnly" name="PlanToWatchOnly" type="checkbox" is="emby-checkbox"/>
+                        <span>Only change anime in Plan To Watch?</span>
+                    </label>
+                </div>
+                <div class="checkboxContainer">
+                    <label class="emby-checkbox-label">
+                        <input id="RewatchCompleted" name="RewatchCompleted" type="checkbox" is="emby-checkbox"/>
+                        <span>Automatically set completed shows as rewatching?</span>
+                    </label>
+                </div>
+                <div class="selectContainer">
+                    <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
+                </div>
+                <div>
+                    <h3 class="checkboxListLabel">Libraries to check:</h3>
+                    <div id="libraries" class="paperList checkboxList checkboxList-paperList">
+                    </div>
+                    <div class="fieldDescription">The libraries to monitor anime for. Any non-checked
+                        libraries will not be monitored unlesss it is left empty in which case <b>ALL libraries will be checked.</b>
+                    </div>
+                </div>
+                <button is="emby-button" type="button" id="authorizeDevice" class="raised block">Generate Authentication</button>
+                <a id="authorizeLink"></a>
+                <span id="authorizeLinkGenerationNotification"></span>
+                <button is="emby-button" type="button" id="testAuthentication" class="raised block">Test Authentication</button>
+                <span id="getUserResponse"></span>
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button"><span>Save</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+
+var currentUserId = null;
+
+async function initialLoad(common) {
+    const page = document;
+    Dashboard.showLoadingMsg();
+
+    currentUserId = await ApiClient.getCurrentUserId();
+
+    await setParameters(common, page);
+
+    Dashboard.hideLoadingMsg();
+
+    page.querySelector('#selectProvider').addEventListener('change', () => {
+        page.querySelector('#authorizeLink').innerHTML = '';
+        page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
+    });
+
+    page.querySelector('#TemplateConfigForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        await saveUserConfig();
+    });
+
+    page.querySelector('#authorizeDevice').onclick = async () => {
+        await saveUserConfig();
+        const provider = page.querySelector('#selectProvider').value;
+        const url = ApiClient.getUrl(`/AniSync/buildAuthorizeRequestUrlUser?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+        try {
+            const response = await ApiClient.ajax({ type: "GET", url });
+            const json = await response.json();
+            page.querySelector('#authorizeLink').innerHTML = `<a href="${json}" target="_blank">Click here to authorize</a>`;
+            page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
+        } catch (err) {
+            page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Error generating authorize link';
+        }
+    };
+
+    page.querySelector('#testAuthentication').onclick = async () => {
+        const provider = page.querySelector('#selectProvider').value;
+        page.querySelector('#getUserResponse').innerHTML = "Testing authentication...";
+        try {
+            const url = ApiClient.getUrl(`/AniSync/userUser?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+            const response = await ApiClient.ajax({ type: "GET", url });
+            if (response.ok) {
+                const json = await response.json();
+                page.querySelector('#getUserResponse').innerHTML = json.name ? `Authenticated ${json.name}` : "Authenticated";
+            } else {
+                page.querySelector('#getUserResponse').innerHTML = "Authentication failed";
+            }
+        } catch (err) {
+            page.querySelector('#getUserResponse').innerHTML = "Authentication error";
+        }
+    };
+
+    async function setParameters(common, page) {
+        try {
+            const url = ApiClient.getUrl("/AniSync/parametersUser");
+            const response = await ApiClient.ajax({ type: 'GET', url });
+            const json = await response.json();
+            common.setProviderSelection(page, json.providerList, '#selectProvider');
+            await loadUserConfiguration(json.libraries);
+        } catch {}
+    }
+
+    async function loadUserConfiguration(libraries) {
+        try {
+            Dashboard.showLoadingMsg();
+            const url = ApiClient.getUrl(`/AniSync/configurationUser?user=${encodeURIComponent(currentUserId)}`);
+            const response = await ApiClient.ajax({ type: "GET", url });
+            let userConfig = response.ok ? await response.json() : {};
+
+            if (!userConfig.LibraryToCheck) userConfig.LibraryToCheck = [];
+            let libraryToCheck = userConfig.LibraryToCheck || [];
+            page.querySelector('#PlanToWatchOnly').checked = userConfig.PlanToWatchOnly ?? true;
+            page.querySelector('#RewatchCompleted').checked = userConfig.RewatchCompleted ?? true;
+            Dashboard.hideLoadingMsg();
+
+            var html = '';
+            html += '<div data-role="controlgroup">';
+            for (var x = 0; x < libraries.length; x++) {
+                html += '<label><input ';
+                if (libraryToCheck.includes(libraries[x].ItemId)) {
+                    html += 'checked="true" ';
+                }
+                html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + libraries[x].ItemId + '" name="' + libraries[x].Name + '"/><span>' + libraries[x].Name + '</span></label>';
+            }
+            html += '</div>';
+            document.querySelector('#libraries').innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function saveUserConfig() {
+        const provider = page.querySelector('#selectProvider').value;
+        const LibraryToCheck = Array.from(page.querySelectorAll('.library:checked')).map(el => el.id);
+        const PlanToWatchOnly = page.querySelector('#PlanToWatchOnly').checked;
+        const RewatchCompleted = page.querySelector('#RewatchCompleted').checked;
+
+        const body = { LibraryToCheck, PlanToWatchOnly, RewatchCompleted, provider };
+        try {
+            const url = ApiClient.getUrl(`/AniSync/configurationUser?user=${encodeURIComponent(currentUserId)}`);
+            await ApiClient.ajax({ type: "PUT", url, data: JSON.stringify(body), contentType: "application/json" });
+            Dashboard.alert("Configuration saved");
+        } catch (err) {
+            Dashboard.alert("Failed to save configuration");
+        }
+    }
+}
+
+var generalFunctionsUrl = ApiClient.getUrl("web/ConfigurationPage", { name: "AniSync_CommonJs" });
+import(generalFunctionsUrl).then(async generalFunctions => await initialLoad(generalFunctions));
+</script>
