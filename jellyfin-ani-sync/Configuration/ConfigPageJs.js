@@ -281,6 +281,8 @@ async function initialLoad(common) {
             page.querySelector('#clientSecret').value = provider.ClientSecret;
             if (config.animeListSaveLocation)
                 page.querySelector('#animeListSaveLocation').value = config.animeListSaveLocation;
+            if (config.enableUserPages)
+                page.querySelector('#enableUserPages').checked = config.enableUserPages;
             if (config.watchedTickboxUpdatesProvider)
                 page.querySelector('#watchedTickboxUpdatesProvider').checked = config.watchedTickboxUpdatesProvider;
             if (config.callbackRedirectUrl)
@@ -395,6 +397,7 @@ async function initialLoad(common) {
             }
             setProviderApiAuthConfig(config);
             config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
+            config.enableUserPages = document.querySelector('#enableUserPages').checked;
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;

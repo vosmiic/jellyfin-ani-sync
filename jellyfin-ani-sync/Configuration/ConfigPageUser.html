@@ -119,12 +119,15 @@ async function initialLoad(common) {
 
             var html = '';
             html += '<div data-role="controlgroup">';
+            if (libraries.length === 0) {
+                html += '<p>No libraries found!</p>'
+            }
             for (var x = 0; x < libraries.length; x++) {
                 html += '<label><input ';
-                if (libraryToCheck.includes(libraries[x].ItemId)) {
+                if (libraryToCheck.includes(libraries[x].Id)) {
                     html += 'checked="true" ';
                 }
-                html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + libraries[x].ItemId + '" name="' + libraries[x].Name + '"/><span>' + libraries[x].Name + '</span></label>';
+                html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + libraries[x].Id + '" name="' + libraries[x].Name + '"/><span>' + libraries[x].Name + '</span></label>';
             }
             html += '</div>';
             document.querySelector('#libraries').innerHTML = html;

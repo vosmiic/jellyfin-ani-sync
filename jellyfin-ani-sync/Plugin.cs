@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.Loader;
 using jellyfin_ani_sync.Configuration;
@@ -21,7 +20,8 @@ namespace jellyfin_ani_sync {
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages {
         public Plugin(IApplicationPaths applicationPaths, IServerConfigurationManager serverConfigurationManager, IXmlSerializer xmlSerializer) : base(applicationPaths, xmlSerializer) {
             Instance = this;
-            CheckPluginPages(applicationPaths, serverConfigurationManager);
+            if (PluginConfiguration.enableUserPages)
+                CheckPluginPages(applicationPaths, serverConfigurationManager);
         }
 
         public override string Name => "Ani-Sync";

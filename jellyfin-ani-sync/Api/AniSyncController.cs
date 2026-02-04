@@ -7,10 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Extensions;
 using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Annict;
 using jellyfin_ani_sync.Api.Kitsu;
@@ -33,8 +31,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using System.Security;
-using Jellyfin.Data;
+using Jellyfin.Database.Implementations.Entities;
 
 namespace jellyfin_ani_sync.Api {
     [ApiController]
@@ -243,8 +240,224 @@ namespace jellyfin_ani_sync.Api {
         [Authorize(Policy = Policies.RequiresElevation)]
         [HttpGet]
         [Route("parameters")]
-        public object GetFrontendParameters(ParameterInclude[]? includes, bool onlyConfiguredProviders = false)
+        public IActionResult FrontendParameters(ParameterInclude[]? includes, bool onlyConfiguredProviders = false)
         {
+            return Ok(GetFrontendParameters(includes, onlyConfiguredProviders, false));
+        }
+
+        [Authorize(Policy = Policies.RequiresElevation)]
+        [HttpPost]
+        [Route("sync")]
+        public Task Sync(ApiName provider, string userId, SyncHelper.Status status, SyncAction syncAction) {
+            switch (syncAction) {
+                case SyncAction.UpdateProvider:
+                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _fileSystem, _memoryCache, _delayer, userId);
+                    return syncProviderFromLocal.SyncFromLocal();
+                case SyncAction.UpdateJellyfin:
+                    Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, _memoryCache, _delayer, provider, status);
+                    return sync.SyncFromProvider(userId);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        // The following endpoints are user-specific versions of the above endpoints (do not require elevated access)
+
+        #region User Endpoints
+        
+        [Authorize]
+        [HttpGet]
+        [Route("buildAuthorizeRequestUrlUser")]
+        public ActionResult BuildAuthorizeRequestUrlUser(ApiName provider, Guid user) {
+            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (jellyfinUser == null) return Forbid();
+
+            var providerApiAuth = Plugin.Instance?.PluginConfiguration.ProviderApiAuth?
+                .FirstOrDefault(providerApiAuth => providerApiAuth.Name == provider);
+
+            if (providerApiAuth == null) {
+                _logger.LogError($"User {jellyfinUser.Id} failed to build authorize request URL: Provider not configured.");
+                return Forbid();
+            }
+
+            var clientId = providerApiAuth.ClientId;
+            var clientSecret = providerApiAuth.ClientSecret;
+
+            string url = !string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackUrl) ? Plugin.Instance.PluginConfiguration.callbackUrl : "local";
+
+            return Ok(BuildAuthorizeRequestUrl(provider, clientId, clientSecret, url, jellyfinUser.Id));
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("passwordGrantUser")]
+        public async Task<IActionResult> PasswordGrantAuthenticationUser(ApiName provider, [FromQuery] Guid user, string username, string password) {
+            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (jellyfinUser == null) return Forbid();
+            
+            return await PasswordGrantAuthentication(provider, jellyfinUser.Id.ToString(), username, password);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("userUser")]
+        public async Task<ActionResult> GetUserUser(ApiName apiName, Guid user) {
+            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (jellyfinUser == null) return Forbid();
+
+            return await GetUser(apiName, jellyfinUser.Id.ToString());
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("configurationUser")]
+        public ActionResult GetConfigurationUser(Guid user) {
+            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (jellyfinUser == null) return Forbid();
+
+            var userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(userConfig => userConfig.UserId == jellyfinUser.Id);
+            if (userConfig == null) {
+                _logger.LogTrace("User not found in config, first time?");
+                return Ok(new {});
+            }
+
+            return Ok(userConfig);
+        }
+
+        [Authorize]
+        [HttpPut]
+        [Route("configurationUser")]
+        public ActionResult UpdateConfigurationUser(
+            [FromQuery] Guid user,
+            [FromBody] UserEditableConfig dto)
+        {
+            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (jellyfinUser == null)
+                return Forbid();
+
+            var plugin = Plugin.Instance;
+            if (plugin?.PluginConfiguration == null)
+                return StatusCode(500, "Plugin configuration not loaded");
+
+            var config = plugin.PluginConfiguration;
+            config.UserConfig ??= Array.Empty<UserConfig>();
+
+            var userConfig = config.UserConfig
+                .FirstOrDefault(x => x.UserId == jellyfinUser.Id);
+
+            HashSet<Guid> libraryIds = [];
+            foreach (var library in dto.LibraryToCheck) {
+                if (Guid.TryParse(library, out var libraryId)) {
+                    libraryIds.Add(libraryId);
+                }
+            }
+
+            if (!UserHelper.UserHasAccessToLibraries( _libraryManager, libraryIds, jellyfinUser)) {
+                _logger.LogError($"User {jellyfinUser.Id} does not have access to requested libraries ({String.Join(", ", dto.LibraryToCheck)})");
+                return Forbid();
+            }
+
+            if (userConfig == null)
+            {
+                userConfig = new UserConfig {
+                    UserId = jellyfinUser.Id,
+                    PlanToWatchOnly = dto.PlanToWatchOnly,
+                    RewatchCompleted = dto.RewatchCompleted,
+                    LibraryToCheck = dto.LibraryToCheck
+                };
+
+                config.UserConfig = config.UserConfig
+                    .Append(userConfig)
+                    .ToArray();
+            }
+            else
+            {
+                userConfig.PlanToWatchOnly = dto.PlanToWatchOnly;
+                userConfig.RewatchCompleted = dto.RewatchCompleted;
+                userConfig.LibraryToCheck = dto.LibraryToCheck;
+            }
+
+            plugin.SaveConfiguration();
+
+            return Ok(userConfig);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("parametersUser")]
+        public object GetFrontendParametersUser(ParameterInclude[]? includes) {
+            return GetFrontendParameters(includes, true, true);
+        }
+
+        [Authorize]
+        [HttpGet("{viewName}")]
+        public ActionResult GetView([FromRoute] string viewName)
+        {
+            if (Plugin.Instance == null)
+            {
+                return BadRequest("No plugin instance found");
+            }
+
+            IEnumerable<PluginPageInfo> pages = Plugin.Instance.GetViews();
+
+            if (pages == null)
+            {
+                return NotFound("Pages is null or empty");
+            }
+
+            PluginPageInfo? view = pages.FirstOrDefault(pageInfo => pageInfo?.Name == viewName, null);
+
+            if (view == null)
+            {
+                return NotFound("No matching view found");
+            }
+
+            Stream? stream = Plugin.Instance.GetType().Assembly.GetManifestResourceStream(view.EmbeddedResourcePath);
+
+            if (stream == null)
+            {
+                _logger.LogError("Failed to get resource {Resource}", view.EmbeddedResourcePath);
+                return NotFound();
+            }
+
+            return File(stream, MimeTypes.GetMimeType(view.EmbeddedResourcePath));
+        }
+        
+        #endregion
+
+
+        // The following endpoint are allowed to be accessed anonymously (do not require any authentication)
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("authCallback")]
+        public IActionResult AuthCallback(string code, string? state) {
+            if (state == null) return BadRequest("State is empty");
+            StoredState? storedState = MemoryCacheHelper.ConsumeState(_memoryCache, state);
+            if (storedState == null) return BadRequest("User not found or link already used/expired, try again");
+            new ApiAuthentication(storedState.ApiName, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(storedState.UserId, code);
+            if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
+                string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
+                    .Replace("{{LocalPort}}", _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort.ToString() : _serverApplicationHost.HttpPort.ToString());
+
+                if (Uri.TryCreate(replacedCallbackRedirectUrl, UriKind.Absolute, out _)) {
+                    return Redirect(replacedCallbackRedirectUrl);
+                } else {
+                    _logger.LogWarning($"Invalid redirect URL ({replacedCallbackRedirectUrl}), skipping redirect.");
+                }
+            }
+
+            return new ObjectResult("Success! Received access token! You can test your authentication in AniSync Configuration!") { StatusCode = 200 };
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("apiUrlTest")]
+        public string ApiUrlTest() {
+            return "This is the correct URL.";
+        }
+
+        private Parameters GetFrontendParameters(ParameterInclude[]? includes, bool onlyConfiguredProviders, bool onlyLibrariesUserHasAccessTo) {
             Parameters toReturn = new Parameters();
 
             if (includes == null || includes.Contains(ParameterInclude.ProviderList))
@@ -287,219 +500,26 @@ namespace jellyfin_ani_sync.Api {
 
             if (includes == null || includes.Contains(ParameterInclude.Libraries))
             {
-                var libraries = _libraryManager.GetVirtualFolders();
+                Dictionary<Guid, string> libraries = new Dictionary<Guid, string>();
+                if (onlyLibrariesUserHasAccessTo) {
+                    User? jellyfinUser = UserHelper.GetUser(_userManager, User, null);
+                    if (jellyfinUser != null) {
+                        libraries = UserHelper.GetLibrariesUserHasAccessTo(_libraryManager, jellyfinUser);
+                    }
+                } else {
+                    libraries = _libraryManager.GetVirtualFolders().ToDictionary(virtualFolderInfo => Guid.Parse(virtualFolderInfo.ItemId), virtualFolderInfo => virtualFolderInfo.Name);
+                }
                 toReturn.libraries = new List<ExpandoObject>();
                 foreach (var library in libraries)
                 {
                     dynamic lib = new ExpandoObject();
-                    lib.Name = library.Name;
-                    lib.Id = library.ItemId;
+                    lib.Name = library.Value;
+                    lib.Id = library.Key;
                     toReturn.libraries.Add(lib);
                 }
             }
 
             return toReturn;
-        }
-
-        [Authorize(Policy = Policies.RequiresElevation)]
-        [HttpPost]
-        [Route("sync")]
-        public Task Sync(ApiName provider, string userId, SyncHelper.Status status, SyncAction syncAction) {
-            switch (syncAction) {
-                case SyncAction.UpdateProvider:
-                    SyncProviderFromLocal syncProviderFromLocal = new SyncProviderFromLocal(_userManager, _libraryManager, _loggerFactory, _httpClientFactory, _applicationPaths, _fileSystem, _memoryCache, _delayer, userId);
-                    return syncProviderFromLocal.SyncFromLocal();
-                case SyncAction.UpdateJellyfin:
-                    Sync sync = new Sync(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _userManager, _libraryManager, _applicationPaths, _userDataManager, _memoryCache, _delayer, provider, status);
-                    return sync.SyncFromProvider(userId);
-            }
-
-            return Task.CompletedTask;
-        }
-
-        // The following endpoints are user-specific versions of the above endpoints (do not require elevated access)
-
-        [Authorize]
-        [HttpGet]
-        [Route("buildAuthorizeRequestUrlUser")]
-        public ActionResult BuildAuthorizeRequestUrlUser(ApiName provider, Guid user) {
-            var userId = UserHelper.GetUserId(User, user);
-            if (userId == null) return Forbid();
-
-            var _providerApiAuth = Plugin.Instance?.PluginConfiguration.ProviderApiAuth?
-                .FirstOrDefault(item => item.Name == provider);
-
-            if (_providerApiAuth == null) return StatusCode(500, "Provider API Auth not found");
-
-            var clientId = _providerApiAuth.ClientId;
-            var clientSecret = _providerApiAuth.ClientSecret;
-
-            var url = $"{Request.Scheme}://{Request.Host}";
-
-            if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackUrl)) {
-                url = Plugin.Instance?.PluginConfiguration.callbackUrl;
-            }
-
-            return Ok(BuildAuthorizeRequestUrl(provider, clientId, clientSecret, url, userId.Value));
-        }
-
-        [Authorize]
-        [HttpGet]
-        [Route("passwordGrantUser")]
-        public async Task<IActionResult> PasswordGrantAuthenticationUser(ApiName provider, [FromQuery] Guid user, string username, string password) {
-            var userId = UserHelper.GetUserId(User, user);
-            if (userId == null) return Forbid();
-            
-            return await PasswordGrantAuthentication(provider, userId.Value.ToString(), username, password);
-        }
-
-        [Authorize]
-        [HttpGet]
-        [Route("userUser")]
-        public async Task<ActionResult> GetUserUser(ApiName apiName, Guid user) {
-            var userId = UserHelper.GetUserId(User, user);
-            if (userId == null) return Forbid();
-
-            return await GetUser(apiName, userId.Value.ToString());
-        }
-
-        [Authorize]
-        [HttpGet]
-        [Route("configurationUser")]
-        public async Task<ActionResult> GetConfigurationUser(Guid user) {
-            var userId = UserHelper.GetUserId(User, user);
-            if (userId == null) return Forbid();
-
-            var userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == userId);
-            if (userConfig == null) {
-                _logger.LogTrace("User not found in config, first time?");
-                return Ok(new {});
-            }
-
-            return Ok(userConfig);
-        }
-
-        [Authorize]
-        [HttpPut]
-        [Route("configurationUser")]
-        public ActionResult UpdateConfigurationUser(
-            [FromQuery] Guid user,
-            [FromBody] UserConfig dto)
-        {
-            var userId = UserHelper.GetUserId(User, user);
-            if (userId == null)
-                return Forbid();
-
-            var plugin = Plugin.Instance;
-            if (plugin?.PluginConfiguration == null)
-                return StatusCode(500, "Plugin configuration not loaded");
-
-            var config = plugin.PluginConfiguration;
-            config.UserConfig ??= Array.Empty<UserConfig>();
-
-            var userConfig = config.UserConfig
-                .FirstOrDefault(x => x.UserId == userId.Value);
-
-            if (userConfig == null)
-            {
-                userConfig = new UserConfig {
-                    UserId = userId.Value,
-                    PlanToWatchOnly = dto.PlanToWatchOnly,
-                    RewatchCompleted = dto.RewatchCompleted,
-                    UserApiAuth = dto.UserApiAuth,
-                    KeyPairs = dto.KeyPairs,
-                    LibraryToCheck = dto.LibraryToCheck
-                };
-
-                config.UserConfig = config.UserConfig
-                    .Append(userConfig)
-                    .ToArray();
-            }
-            else
-            {
-                userConfig.PlanToWatchOnly = dto.PlanToWatchOnly;
-                userConfig.RewatchCompleted = dto.RewatchCompleted;
-                userConfig.UserApiAuth = dto.UserApiAuth;
-                userConfig.KeyPairs = dto.KeyPairs;
-                userConfig.LibraryToCheck = dto.LibraryToCheck;
-            }
-
-            plugin.SaveConfiguration();
-
-            return Ok(userConfig);
-        }
-
-        [Authorize]
-        [HttpGet]
-        [Route("parametersUser")]
-        public object GetFrontendParametersUser(ParameterInclude[]? includes) {
-            return GetFrontendParameters(includes, true);
-        }
-
-        [Authorize]
-        [HttpGet("{viewName}")]
-        public ActionResult GetView([FromRoute] string viewName)
-        {
-            if (Plugin.Instance == null)
-            {
-                return BadRequest("No plugin instance found");
-            }
-
-            IEnumerable<PluginPageInfo> pages = Plugin.Instance.GetViews();
-
-            if (pages == null)
-            {
-                return NotFound("Pages is null or empty");
-            }
-
-            PluginPageInfo? view = pages.FirstOrDefault(pageInfo => pageInfo?.Name == viewName, null);
-
-            if (view == null)
-            {
-                return NotFound("No matching view found");
-            }
-
-            Stream? stream = Plugin.Instance.GetType().Assembly.GetManifestResourceStream(view.EmbeddedResourcePath);
-
-            if (stream == null)
-            {
-                _logger.LogError("Failed to get resource {Resource}", view.EmbeddedResourcePath);
-                return NotFound();
-            }
-
-            return File(stream, MimeTypes.GetMimeType(view.EmbeddedResourcePath));
-        }
-
-
-        // The following endpoint are allowed to be accessed anonymously (do not require any authentication)
-
-        [AllowAnonymous]
-        [HttpGet]
-        [Route("authCallback")]
-        public IActionResult AuthCallback(string code, string? state) {
-            if (state == null) return BadRequest("State is empty");
-            StoredState? storedState = MemoryCacheHelper.ConsumeState(_memoryCache, state);
-            if (storedState == null) return BadRequest("User not found or link already used/expired, try again");
-            new ApiAuthentication(storedState.ApiName, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(storedState.UserId, code);
-            if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
-                string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
-                    .Replace("{{LocalPort}}", _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort.ToString() : _serverApplicationHost.HttpPort.ToString());
-
-                if (Uri.TryCreate(replacedCallbackRedirectUrl, UriKind.Absolute, out _)) {
-                    return Redirect(replacedCallbackRedirectUrl);
-                } else {
-                    _logger.LogWarning($"Invalid redirect URL ({replacedCallbackRedirectUrl}), skipping redirect.");
-                }
-            }
-
-            return new ObjectResult("Success! Received access token! You can test your authentication in AniSync Configuration!") { StatusCode = 200 };
-        }
-
-        [AllowAnonymous]
-        [HttpGet]
-        [Route("apiUrlTest")]
-        public string ApiUrlTest() {
-            return "This is the correct URL.";
         }
     }
 }
