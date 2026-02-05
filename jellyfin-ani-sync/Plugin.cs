@@ -22,6 +22,8 @@ namespace jellyfin_ani_sync {
             Instance = this;
             if (PluginConfiguration.enableUserPages)
                 CheckPluginPages(applicationPaths, serverConfigurationManager);
+            else
+                RemovePluginPages(applicationPaths);
         }
 
         public override string Name => "Ani-Sync";
@@ -86,6 +88,35 @@ namespace jellyfin_ani_sync {
         
                 File.WriteAllText(pluginPagesConfig, config.ToString(Formatting.Indented));
             }
+        }
+
+        public void RemovePluginPages(IApplicationPaths applicationPaths)
+        {
+            string pluginPagesConfig = Path.Combine(applicationPaths.PluginConfigurationsPath, "Jellyfin.Plugin.PluginPages", "config.json");
+            if (!File.Exists(pluginPagesConfig))
+            {
+                return;
+            }
+
+            JObject config = JObject.Parse(File.ReadAllText(pluginPagesConfig));
+            if (!config.ContainsKey("pages"))
+            {
+                return;
+            }
+
+            JArray pages = config.Value<JArray>("pages")!;
+            List<JToken> toRemove = pages.Where(x => x.Value<string>("Id") == typeof(Plugin).Namespace).ToList();
+            if (toRemove.Count == 0)
+            {
+                return;
+            }
+
+            foreach (JToken entry in toRemove)
+            {
+                pages.Remove(entry);
+            }
+
+            File.WriteAllText(pluginPagesConfig, config.ToString(Formatting.Indented));
         }
 
         public IEnumerable<PluginPageInfo> GetPages() {

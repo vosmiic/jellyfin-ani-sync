@@ -16,6 +16,7 @@ using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Enums;
@@ -72,6 +73,11 @@ namespace jellyfin_ani_sync.Api {
             _logger = loggerFactory.CreateLogger<AniSyncController>();
             _memoryCache = memoryCache;
             _delayer = new Delayer();
+        }
+
+        private bool UserPagesEnabled()
+        {
+            return Plugin.Instance?.PluginConfiguration.enableUserPages == true;
         }
 
         [Authorize(Policy = Policies.RequiresElevation)]
@@ -269,7 +275,8 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("buildAuthorizeRequestUrlUser")]
         public ActionResult BuildAuthorizeRequestUrlUser(ApiName provider, Guid user) {
-            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (!UserPagesEnabled()) return NotFound();
+            var jellyfinUser = _userManager.GetUser(User, user);
             if (jellyfinUser == null) return Forbid();
 
             var providerApiAuth = Plugin.Instance?.PluginConfiguration.ProviderApiAuth?
@@ -292,7 +299,8 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("passwordGrantUser")]
         public async Task<IActionResult> PasswordGrantAuthenticationUser(ApiName provider, [FromQuery] Guid user, string username, string password) {
-            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (!UserPagesEnabled()) return NotFound();
+            var jellyfinUser = _userManager.GetUser(User, user);
             if (jellyfinUser == null) return Forbid();
             
             return await PasswordGrantAuthentication(provider, jellyfinUser.Id.ToString(), username, password);
@@ -302,7 +310,8 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("userUser")]
         public async Task<ActionResult> GetUserUser(ApiName apiName, Guid user) {
-            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (!UserPagesEnabled()) return NotFound();
+            var jellyfinUser = _userManager.GetUser(User, user);
             if (jellyfinUser == null) return Forbid();
 
             return await GetUser(apiName, jellyfinUser.Id.ToString());
@@ -312,7 +321,8 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("configurationUser")]
         public ActionResult GetConfigurationUser(Guid user) {
-            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (!UserPagesEnabled()) return NotFound();
+            var jellyfinUser = _userManager.GetUser(User, user);
             if (jellyfinUser == null) return Forbid();
 
             var userConfig = Plugin.Instance?.PluginConfiguration.UserConfig.FirstOrDefault(userConfig => userConfig.UserId == jellyfinUser.Id);
@@ -331,7 +341,8 @@ namespace jellyfin_ani_sync.Api {
             [FromQuery] Guid user,
             [FromBody] UserEditableConfig dto)
         {
-            var jellyfinUser = UserHelper.GetUser(_userManager, User, user);
+            if (!UserPagesEnabled()) return NotFound();
+            var jellyfinUser = _userManager.GetUser(User, user);
             if (jellyfinUser == null)
                 return Forbid();
 
@@ -352,7 +363,7 @@ namespace jellyfin_ani_sync.Api {
                 }
             }
 
-            if (!UserHelper.UserHasAccessToLibraries( _libraryManager, libraryIds, jellyfinUser)) {
+            if (!_libraryManager.UserHasAccessToLibraries(libraryIds, jellyfinUser)) {
                 _logger.LogError($"User {jellyfinUser.Id} does not have access to requested libraries ({String.Join(", ", dto.LibraryToCheck)})");
                 return Forbid();
             }
@@ -386,6 +397,7 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("parametersUser")]
         public object GetFrontendParametersUser(ParameterInclude[]? includes) {
+            if (!UserPagesEnabled()) return NotFound();
             return GetFrontendParameters(includes, true, true);
         }
 
@@ -397,6 +409,8 @@ namespace jellyfin_ani_sync.Api {
             {
                 return BadRequest("No plugin instance found");
             }
+
+            if (!UserPagesEnabled()) return NotFound();
 
             IEnumerable<PluginPageInfo> pages = Plugin.Instance.GetViews();
 
@@ -447,7 +461,7 @@ namespace jellyfin_ani_sync.Api {
                 }
             }
 
-            return new ObjectResult("Success! Received access token! You can test your authentication in AniSync Configuration!") { StatusCode = 200 };
+            return new ObjectResult("Success! Received access token! You can test your authentication in Ani-Sync Configuration!") { StatusCode = 200 };
         }
 
         [AllowAnonymous]
@@ -502,9 +516,9 @@ namespace jellyfin_ani_sync.Api {
             {
                 Dictionary<Guid, string> libraries = new Dictionary<Guid, string>();
                 if (onlyLibrariesUserHasAccessTo) {
-                    User? jellyfinUser = UserHelper.GetUser(_userManager, User, null);
+                    User? jellyfinUser = _userManager.GetUser(User, null);
                     if (jellyfinUser != null) {
-                        libraries = UserHelper.GetLibrariesUserHasAccessTo(_libraryManager, jellyfinUser);
+                        libraries = _libraryManager.GetLibrariesUserHasAccessTo(jellyfinUser);
                     }
                 } else {
                     libraries = _libraryManager.GetVirtualFolders().ToDictionary(virtualFolderInfo => Guid.Parse(virtualFolderInfo.ItemId), virtualFolderInfo => virtualFolderInfo.Name);
