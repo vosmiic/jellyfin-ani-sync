@@ -61,5 +61,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// Custom ARM server base URL.
         /// </summary>
         public string armServerBaseUrl { get; set; }
+        
+        /// <summary>
+        /// True to enable user authentication pages.
+        /// </summary>
+        public bool enableUserPages { get; set; }
     }
 }

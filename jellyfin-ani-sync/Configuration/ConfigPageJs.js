@@ -45,6 +45,19 @@ async function initialLoad(common) {
             return false;
         });
 
+    const toggleButton = document.getElementById('toggleUserSection');
+    const userSection = document.getElementById('userSection');
+
+    toggleButton.addEventListener('click', () => {
+        if (userSection.style.display === 'none') {
+            userSection.style.display = 'block';
+            toggleButton.textContent = 'Hide user section';
+        } else {
+            userSection.style.display = 'none';
+            toggleButton.textContent = 'Manual connect a user';
+        }
+    });
+
     page.querySelector('#testAnimeListSaveLocation').onclick = await runTestAnimeListSaveLocation;
     page.querySelector('#generateCallbackUrlButton').onclick = generateCallbackUrl;
     page.querySelector('#authorizeDevice').onclick = (async () => await onAuthorizeButtonClick(common));
@@ -268,6 +281,8 @@ async function initialLoad(common) {
             page.querySelector('#clientSecret').value = provider.ClientSecret;
             if (config.animeListSaveLocation)
                 page.querySelector('#animeListSaveLocation').value = config.animeListSaveLocation;
+            if (config.enableUserPages)
+                page.querySelector('#enableUserPages').checked = config.enableUserPages;
             if (config.watchedTickboxUpdatesProvider)
                 page.querySelector('#watchedTickboxUpdatesProvider').checked = config.watchedTickboxUpdatesProvider;
             if (config.callbackRedirectUrl)
@@ -382,6 +397,7 @@ async function initialLoad(common) {
             }
             setProviderApiAuthConfig(config);
             config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
+            config.enableUserPages = document.querySelector('#enableUserPages').checked;
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;
