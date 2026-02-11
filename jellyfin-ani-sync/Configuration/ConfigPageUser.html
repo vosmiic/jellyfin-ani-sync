@@ -18,6 +18,20 @@
                 <div class="selectContainer">
                     <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
                 </div>
+                <div style="display: none" id="passwordGrant">
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="username">Username</label>
+                        <input id="username" name="username" type="text" is="emby-input"/>
+                        <span id="usernameError"></span>
+                        <div id="usernameDescription" class="fieldDescription">The username used to login to the provider application.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="password">Password</label>
+                        <input id="password" name="password" type="password" is="emby-input"/>
+                        <span id="passwordError"></span>
+                        <div id="passwordDescription" class="fieldDescription">The password used to login to the provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b></div>
+                    </div>
+                </div>
                 <div>
                     <h3 class="checkboxListLabel">Libraries to check:</h3>
                     <div id="libraries" class="paperList checkboxList checkboxList-paperList">
@@ -53,9 +67,15 @@ async function initialLoad(common) {
 
     Dashboard.hideLoadingMsg();
 
-    page.querySelector('#selectProvider').addEventListener('change', () => {
+    page.querySelector('#selectProvider').addEventListener('change', (e) => {
         page.querySelector('#authorizeLink').innerHTML = '';
         page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
+
+        if (e.target.value === "Kitsu") {
+            setKitsuAsSelectedProvider();
+        } else {
+            document.querySelector('#passwordGrant').style.display = 'none';
+        }
     });
 
     page.querySelector('#TemplateConfigForm').addEventListener('submit', async e => {
@@ -65,15 +85,30 @@ async function initialLoad(common) {
 
     page.querySelector('#authorizeDevice').onclick = async () => {
         await saveUserConfig();
+        page.querySelector('#authorizeLinkGenerationNotification').innerHTML = "";
         const provider = page.querySelector('#selectProvider').value;
-        const url = ApiClient.getUrl(`/AniSync/buildAuthorizeRequestUrlUser?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
-        try {
-            const response = await ApiClient.ajax({ type: "GET", url });
-            const json = await response.json();
-            page.querySelector('#authorizeLink').innerHTML = `<a href="${json}" target="_blank">Click here to authorize</a>`;
-            page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
-        } catch (err) {
-            page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Error generating authorize link';
+        const isKitsu = provider === "Kitsu";
+        const url = isKitsu ?
+            ApiClient.getUrl(`/AniSync/passwordGrantUser?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}&username=${document.querySelector('#username').value}&password=${document.querySelector('#password').value}`) :
+            ApiClient.getUrl(`/AniSync/buildAuthorizeRequestUrlUser?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+        const response = await ApiClient.ajax({ type: "GET", url });
+        if (isKitsu) {
+            if (response.ok) {
+                page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Authentication successful.';
+            } else {
+                page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Authentication failed.';
+            }
+        } else if (response.ok) {
+            await response.json()
+                .then((json) => {
+                    page.querySelector('#authorizeLink').innerHTML = `<a href="${json}" target="_blank">Click here to authorize</a>`;
+                    page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
+                })
+                .catch(() => {
+                page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Error generating authorize link.';
+            });
+        } else {
+            page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Error generating authorize link.';
         }
     };
 
@@ -100,6 +135,10 @@ async function initialLoad(common) {
             const response = await ApiClient.ajax({ type: 'GET', url });
             const json = await response.json();
             common.setProviderSelection(page, json.providerList, '#selectProvider');
+            if (json.providerList.length === 1) {
+                // only kitsu
+                setKitsuAsSelectedProvider();
+            }
             await loadUserConfiguration(json.libraries);
         } catch {}
     }
@@ -151,6 +190,11 @@ async function initialLoad(common) {
         } catch (err) {
             Dashboard.alert("Failed to save configuration");
         }
+    }
+
+    function setKitsuAsSelectedProvider() {
+        document.querySelector('#passwordGrant').style.display = "block";
+        document.querySelector('#authorizeDevice').innerHTML = "Authenticate";
     }
 }
 

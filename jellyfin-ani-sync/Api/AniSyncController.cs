@@ -482,6 +482,12 @@ namespace jellyfin_ani_sync.Api {
                     .Select(x => x.Name)
                     .ToHashSet();
 
+                if (configured != null) {
+                    configured.Add(ApiName.Kitsu);
+                } else {
+                    configured = [ApiName.Kitsu];
+                }
+
                 toReturn.providerList = new List<ExpandoObject>();
 
                 foreach (ApiName apiName in Enum.GetValues<ApiName>())
