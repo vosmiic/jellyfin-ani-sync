@@ -45,6 +45,8 @@
                 <span id="authorizeLinkGenerationNotification"></span>
                 <button is="emby-button" type="button" id="testAuthentication" class="raised block">Test Authentication</button>
                 <span id="getUserResponse"></span>
+                <button is="emby-button" type="button" id="deauthenticate" class="raised block">Deauthenticate</button>
+                <span id="deauthenticateResponse"></span>
                 <div>
                     <button is="emby-button" type="submit" class="raised button-submit block emby-button"><span>Save</span></button>
                 </div>
@@ -128,6 +130,18 @@ async function initialLoad(common) {
             page.querySelector('#getUserResponse').innerHTML = "Authentication error";
         }
     };
+
+    page.querySelector('#deauthenticate').onclick = async () => {
+        page.querySelector('#deauthenticateResponse').innerHTML = "";
+        const provider = page.querySelector('#selectProvider').value;
+        const url = ApiClient.getUrl(`/AniSync/deauthenticateUser?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+        const response = await ApiClient.ajax({ type: "GET", url });
+        if (response.ok) {
+            page.querySelector('#deauthenticateResponse').innerHTML = "Deauthentication successful";
+        } else {
+            page.querySelector('#deauthenticateResponse').innerHTML = "Could not deauthenticate user";
+        }
+    }
 
     async function setParameters(common, page) {
         try {

@@ -267,6 +267,12 @@ namespace jellyfin_ani_sync.Api {
             return Task.CompletedTask;
         }
 
+        [Authorize(Policy = Policies.RequiresElevation)]
+        [HttpGet]
+        [Route("deauthenticate")]
+        public IActionResult Deauthenticate([FromQuery] Guid user, [FromQuery] ApiName apiName) =>
+            DeauthenticateProvidedUser(user, apiName);
+
         // The following endpoints are user-specific versions of the above endpoints (do not require elevated access)
 
         #region User Endpoints
@@ -399,6 +405,14 @@ namespace jellyfin_ani_sync.Api {
         public object GetFrontendParametersUser(ParameterInclude[]? includes) {
             if (!UserPagesEnabled()) return NotFound();
             return GetFrontendParameters(includes, true, true);
+        }
+
+        [Authorize]
+        [HttpGet]
+        [Route("deauthenticateUser")]
+        public IActionResult DeauthenticateUser([FromQuery] Guid user, [FromQuery] ApiName apiName) {
+            if (!UserPagesEnabled()) return NotFound();
+            return DeauthenticateProvidedUser(user, apiName);
         }
 
         [Authorize]
@@ -540,6 +554,19 @@ namespace jellyfin_ani_sync.Api {
             }
 
             return toReturn;
+        }
+
+        private IActionResult DeauthenticateProvidedUser(Guid user, ApiName apiName) {
+            var jellyfinUser = _userManager.GetUser(User, user);
+            if (jellyfinUser == null) return Forbid();
+            
+            (bool success, string? reason) deauthenticateUser = ConfigHelper.DeauthenticateUser(jellyfinUser.Id, apiName);
+            if (deauthenticateUser.success) {
+                return Ok();
+            } else {
+                _logger.LogError($"Error while deauthenticating user {jellyfinUser.Id}: {deauthenticateUser.reason}");
+                return StatusCode(500);
+            }
         }
     }
 }

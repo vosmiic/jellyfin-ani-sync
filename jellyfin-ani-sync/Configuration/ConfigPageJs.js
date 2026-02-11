@@ -62,6 +62,7 @@ async function initialLoad(common) {
     page.querySelector('#generateCallbackUrlButton').onclick = generateCallbackUrl;
     page.querySelector('#authorizeDevice').onclick = (async () => await onAuthorizeButtonClick(common));
     page.querySelector('#testAuthentication').onclick = (() => getUser(common));
+    page.querySelector('#deauthenticate').onclick = deauthenticateUser;
 
     async function runTestAnimeListSaveLocation() {
         document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
@@ -201,6 +202,18 @@ async function initialLoad(common) {
                     page.querySelector('#localApiUrl').innerHTML = "Could not fetch local URL.";
                 }
             });
+    }
+
+    async function deauthenticateUser() {
+        var url = ApiClient.getUrl(`/AniSync/deauthenticate?user=${encodeURIComponent(document.querySelector('#selectUser').value)}&apiName=${encodeURIComponent(document.querySelector('#selectProvider').value)}`);
+        await ApiClient.ajax({ type: "GET", url })
+            .then((response) => {
+                if (response.ok) {
+                    page.querySelector('#deauthenticateResponse').innerHTML = "Successfully deauthenticated user.";
+                } else {
+                    page.querySelector('#deauthenticateResponse').innerHTML = "Could not deauthenticate user. Check logs for more information.";
+                }
+            })
     }
 
     function setLocalApiUrl(page, https, localIpAddress, localPort) {
