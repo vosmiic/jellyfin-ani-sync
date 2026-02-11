@@ -279,7 +279,7 @@ namespace jellyfin_ani_sync.Api {
         
         [Authorize]
         [HttpGet]
-        [Route("buildAuthorizeRequestUrlUser")]
+        [Route("user/buildAuthorizeRequestUrl")]
         public ActionResult BuildAuthorizeRequestUrlUser(ApiName provider, Guid user) {
             if (!UserPagesEnabled()) return NotFound();
             var jellyfinUser = _userManager.GetUser(User, user);
@@ -303,7 +303,7 @@ namespace jellyfin_ani_sync.Api {
 
         [Authorize]
         [HttpGet]
-        [Route("passwordGrantUser")]
+        [Route("user/passwordGrant")]
         public async Task<IActionResult> PasswordGrantAuthenticationUser(ApiName provider, [FromQuery] Guid user, string username, string password) {
             if (!UserPagesEnabled()) return NotFound();
             var jellyfinUser = _userManager.GetUser(User, user);
@@ -314,7 +314,7 @@ namespace jellyfin_ani_sync.Api {
 
         [Authorize]
         [HttpGet]
-        [Route("userUser")]
+        [Route("user/user")]
         public async Task<ActionResult> GetUserUser(ApiName apiName, Guid user) {
             if (!UserPagesEnabled()) return NotFound();
             var jellyfinUser = _userManager.GetUser(User, user);
@@ -325,7 +325,7 @@ namespace jellyfin_ani_sync.Api {
 
         [Authorize]
         [HttpGet]
-        [Route("configurationUser")]
+        [Route("user/configuration")]
         public ActionResult GetConfigurationUser(Guid user) {
             if (!UserPagesEnabled()) return NotFound();
             var jellyfinUser = _userManager.GetUser(User, user);
@@ -342,7 +342,7 @@ namespace jellyfin_ani_sync.Api {
 
         [Authorize]
         [HttpPut]
-        [Route("configurationUser")]
+        [Route("user/configuration")]
         public ActionResult UpdateConfigurationUser(
             [FromQuery] Guid user,
             [FromBody] UserEditableConfig dto)
@@ -401,7 +401,7 @@ namespace jellyfin_ani_sync.Api {
 
         [Authorize]
         [HttpGet]
-        [Route("parametersUser")]
+        [Route("user/parameters")]
         public object GetFrontendParametersUser(ParameterInclude[]? includes) {
             if (!UserPagesEnabled()) return NotFound();
             return GetFrontendParameters(includes, true, true);
@@ -409,7 +409,7 @@ namespace jellyfin_ani_sync.Api {
 
         [Authorize]
         [HttpGet]
-        [Route("deauthenticateUser")]
+        [Route("user/deauthenticate")]
         public IActionResult DeauthenticateUser([FromQuery] Guid user, [FromQuery] ApiName apiName) {
             if (!UserPagesEnabled()) return NotFound();
             return DeauthenticateProvidedUser(user, apiName);

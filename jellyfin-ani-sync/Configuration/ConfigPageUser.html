@@ -91,8 +91,8 @@ async function initialLoad(common) {
         const provider = page.querySelector('#selectProvider').value;
         const isKitsu = provider === "Kitsu";
         const url = isKitsu ?
-            ApiClient.getUrl(`/AniSync/passwordGrantUser?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}&username=${document.querySelector('#username').value}&password=${document.querySelector('#password').value}`) :
-            ApiClient.getUrl(`/AniSync/buildAuthorizeRequestUrlUser?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+            ApiClient.getUrl(`/AniSync/user/passwordGrant?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}&username=${document.querySelector('#username').value}&password=${document.querySelector('#password').value}`) :
+            ApiClient.getUrl(`/AniSync/user/buildAuthorizeRequestUrl?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
         const response = await ApiClient.ajax({ type: "GET", url });
         if (isKitsu) {
             if (response.ok) {
@@ -118,7 +118,7 @@ async function initialLoad(common) {
         const provider = page.querySelector('#selectProvider').value;
         page.querySelector('#getUserResponse').innerHTML = "Testing authentication...";
         try {
-            const url = ApiClient.getUrl(`/AniSync/userUser?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+            const url = ApiClient.getUrl(`/AniSync/user/user?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
             const response = await ApiClient.ajax({ type: "GET", url });
             if (response.ok) {
                 const json = await response.json();
@@ -134,7 +134,7 @@ async function initialLoad(common) {
     page.querySelector('#deauthenticate').onclick = async () => {
         page.querySelector('#deauthenticateResponse').innerHTML = "";
         const provider = page.querySelector('#selectProvider').value;
-        const url = ApiClient.getUrl(`/AniSync/deauthenticateUser?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+        const url = ApiClient.getUrl(`/AniSync/user/deauthenticate?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
         const response = await ApiClient.ajax({ type: "GET", url });
         if (response.ok) {
             page.querySelector('#deauthenticateResponse').innerHTML = "Deauthentication successful";
@@ -145,7 +145,7 @@ async function initialLoad(common) {
 
     async function setParameters(common, page) {
         try {
-            const url = ApiClient.getUrl("/AniSync/parametersUser");
+            const url = ApiClient.getUrl("/AniSync/user/parameters");
             const response = await ApiClient.ajax({ type: 'GET', url });
             const json = await response.json();
             common.setProviderSelection(page, json.providerList, '#selectProvider');
@@ -160,7 +160,7 @@ async function initialLoad(common) {
     async function loadUserConfiguration(libraries) {
         try {
             Dashboard.showLoadingMsg();
-            const url = ApiClient.getUrl(`/AniSync/configurationUser?user=${encodeURIComponent(currentUserId)}`);
+            const url = ApiClient.getUrl(`/AniSync/user/configuration?user=${encodeURIComponent(currentUserId)}`);
             const response = await ApiClient.ajax({ type: "GET", url });
             let userConfig = response.ok ? await response.json() : {};
 
@@ -198,7 +198,7 @@ async function initialLoad(common) {
 
         const body = { LibraryToCheck, PlanToWatchOnly, RewatchCompleted, provider };
         try {
-            const url = ApiClient.getUrl(`/AniSync/configurationUser?user=${encodeURIComponent(currentUserId)}`);
+            const url = ApiClient.getUrl(`/AniSync/user/configuration?user=${encodeURIComponent(currentUserId)}`);
             await ApiClient.ajax({ type: "PUT", url, data: JSON.stringify(body), contentType: "application/json" });
             Dashboard.alert("Configuration saved");
         } catch (err) {
