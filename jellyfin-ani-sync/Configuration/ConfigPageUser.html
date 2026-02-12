@@ -58,6 +58,7 @@
 <script>
 
 var currentUserId = null;
+var providerList = [];
 
 async function initialLoad(common) {
     const page = document;
@@ -97,6 +98,7 @@ async function initialLoad(common) {
         if (isKitsu) {
             if (response.ok) {
                 page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Authentication successful.';
+                await refreshConnectedProviders(common);
             } else {
                 page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Authentication failed.';
             }
@@ -123,6 +125,7 @@ async function initialLoad(common) {
             if (response.ok) {
                 const json = await response.json();
                 page.querySelector('#getUserResponse').innerHTML = json.name ? `Authenticated ${json.name}` : "Authenticated";
+                await refreshConnectedProviders(common);
             } else {
                 page.querySelector('#getUserResponse').innerHTML = "Authentication failed";
             }
@@ -138,6 +141,7 @@ async function initialLoad(common) {
         const response = await ApiClient.ajax({ type: "GET", url });
         if (response.ok) {
             page.querySelector('#deauthenticateResponse').innerHTML = "Deauthentication successful";
+            await refreshConnectedProviders(common);
         } else {
             page.querySelector('#deauthenticateResponse').innerHTML = "Could not deauthenticate user";
         }
@@ -148,7 +152,8 @@ async function initialLoad(common) {
             const url = ApiClient.getUrl("/AniSync/user/parameters");
             const response = await ApiClient.ajax({ type: 'GET', url });
             const json = await response.json();
-            common.setProviderSelection(page, json.providerList, '#selectProvider');
+            providerList = json.providerList || [];
+            common.setProviderSelection(page, providerList, '#selectProvider');
             if (json.providerList.length === 1) {
                 // only kitsu
                 setKitsuAsSelectedProvider();
@@ -168,6 +173,7 @@ async function initialLoad(common) {
             let libraryToCheck = userConfig.LibraryToCheck || [];
             page.querySelector('#PlanToWatchOnly').checked = userConfig.PlanToWatchOnly ?? true;
             page.querySelector('#RewatchCompleted').checked = userConfig.RewatchCompleted ?? true;
+            updateProviderSelection(common, userConfig);
             Dashboard.hideLoadingMsg();
 
             var html = '';
@@ -204,6 +210,41 @@ async function initialLoad(common) {
         } catch (err) {
             Dashboard.alert("Failed to save configuration");
         }
+    }
+
+    function updateProviderSelection(common, userConfig) {
+        if (!providerList || providerList.length === 0) return;
+        const select = page.querySelector('#selectProvider');
+        const currentValue = select.value;
+        const connected = getConnectedProviderSet(userConfig);
+        common.setProviderSelection(page, providerList, '#selectProvider', {
+            connectedProviders: connected,
+            selectedValue: currentValue
+        });
+        if (select.value === "Kitsu") {
+            setKitsuAsSelectedProvider();
+        } else {
+            document.querySelector('#passwordGrant').style.display = 'none';
+        }
+    }
+
+    function getConnectedProviderSet(userConfig) {
+        const authList = (userConfig && userConfig.UserApiAuth) ? userConfig.UserApiAuth : [];
+        const set = new Set();
+        for (var i = 0; i < authList.length; i++) {
+            set.add(authList[i].Name);
+        }
+        return set;
+    }
+
+    async function refreshConnectedProviders(common) {
+        try {
+            const url = ApiClient.getUrl(`/AniSync/user/configuration?user=${encodeURIComponent(currentUserId)}`);
+            const response = await ApiClient.ajax({ type: "GET", url });
+            if (!response.ok) return;
+            const userConfig = await response.json();
+            updateProviderSelection(common, userConfig);
+        } catch {}
     }
 
     function setKitsuAsSelectedProvider() {
