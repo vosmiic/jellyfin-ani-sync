@@ -14,6 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
         <PackageReference Include="Jellyfin.Controller" Version="10.11.0" />
         <PackageReference Include="Jellyfin.Model" Version="10.11.0" />
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
@@ -26,6 +27,8 @@
         <EmbeddedResource Include="Configuration\ConfigPage.html"/>
         <None Remove="Configuration\ConfigPageJs.js"/>
         <EmbeddedResource Include="Configuration\ConfigPageJs.js"/>
+        <None Remove="Configuration\ConfigPageUser.html"/>
+        <EmbeddedResource Include="Configuration\ConfigPageUser.html"/>
         <None Remove="Configuration\CommonJs.js"/>
         <EmbeddedResource Include="Configuration\CommonJs.js"/>
         <None Remove="Configuration\ManualSync.html"/>

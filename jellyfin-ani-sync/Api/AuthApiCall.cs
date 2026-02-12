@@ -119,7 +119,7 @@ namespace jellyfin_ani_sync.Api {
                             try {
                                 newAuth = new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(UserConfig.UserId, refreshToken: auth.RefreshToken);
                             } catch (Exception e) {
-                                _logger.LogError($"Could not re-authenticate: {e.Message}, please manually re-authenticate the user via the AniSync configuration page");
+                                _logger.LogError($"Could not re-authenticate: {e.Message}, please manually re-authenticate the user via the Ani-Sync configuration page");
                                 return null;
                             }
 

@@ -60,6 +60,15 @@
                 </div>
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label class="emby-checkbox-label">
+                        <input id="enableUserPages" name="enableUserPages" type="checkbox"
+                               is="emby-checkbox"/>
+                        <span>Enable User Authentication Pages?</span>
+                    </label>
+                    <div class="fieldDescription">Whether or not to enable user authentication pages. Read the plugin guide for more information. Changing this value requires a restart to apply.
+                    </div>
+                </div>                
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
                         <input id="watchedTickboxUpdatesProvider" name="watchedTickboxUpdatesProvider" type="checkbox"
                                is="emby-checkbox"/>
                         <span>Ticking watched updates providers?</span>
@@ -109,53 +118,65 @@
                         Simkl supports individual episode marking. Check this to update all episodes to the current point. Check the wiki for a more thorough explanation.
                     </div>
                 </div>
-                <div class="selectContainer">
-                    <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
-                </div>
-                <button is="emby-button" type="button" id="authorizeDevice" class="raised block">Authorize User
+
+                <button is="emby-button" type="button" id="toggleUserSection" class="raised block">
+                    Manual connect a user
                 </button>
-                <div id="authorizeDeviceDescription" class="fieldDescription">Click on the button above and then open the link that appears below. Only
-                    authenticate one user at a time.<b>The access token will be stored in plain text in the plugin
-                        config. Make sure no untrusted users have access to the file.</b></div>
-                <a id="authorizeLink"></a>
-                <span id="authorizeLinkGenerationNotification"></span>
-                <div id="testAuthenticationDescription" class="fieldDescription">Once you have authenticated your user, click the below button to test
-                    the authentication:
-                </div>
-                <button is="emby-button" type="button" id="testAuthentication" class="raised block">
-                    Test Authentication
-                </button>
-                <span id="getUserResponse"></span>
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocussed" for="linkTimeExpire">Authentication Link Expiry</label>
-                    <input id="linkTimeExpire" name="" type="text" is="emby-input" />
-                    <div class="fieldDescription">
-                        How long before the generated authorization link expires in minutes. Note: the link can still be visited after expiring, but the authentication details will not be saved.
+
+                <div id="userSection" style="display: none;">
+
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selectUser" name="selectUser" label="User"></select>
                     </div>
-                </div>
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="PlanToWatchOnly" name="PlanToWatchOnly" type="checkbox" is="emby-checkbox"/>
-                        <span>Only change anime in Plan To Watch?</span>
-                    </label>
-                </div>
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input id="RewatchCompleted" name="RewatchCompleted" type="checkbox" is="emby-checkbox"/>
-                        <span>Automatically set completed shows as rewatching?</span>
-                    </label>
-                    <div class="fieldDescription">When watching an anime you have already seen, automatically set the
-                        anime as rewatching (or increase the rewatch value by 1 if the series is a single
-                        episode/movie).
+                    <button is="emby-button" type="button" id="authorizeDevice" class="raised block">Authorize User
+                    </button>
+                    <div id="authorizeDeviceDescription" class="fieldDescription">Click on the button above and then open the link that appears below. Only
+                        authenticate one user at a time.<b>The access token will be stored in plain text in the plugin
+                            config. Make sure no untrusted users have access to the file.</b></div>
+                    <a id="authorizeLink"></a>
+                    <span id="authorizeLinkGenerationNotification"></span>
+                    <div id="testAuthenticationDescription" class="fieldDescription">Once you have authenticated your user, click the below button to test
+                        the authentication:
                     </div>
-                </div>
-                <div>
-                    <h3 class="checkboxListLabel">Libraries to check:</h3>
-                    <div id="libraries" class="paperList checkboxList checkboxList-paperList">
+                    <button is="emby-button" type="button" id="testAuthentication" class="raised block">
+                        Test Authentication
+                    </button>
+                    <span id="getUserResponse"></span>
+                    <button is="emby-button" type="button" id="deauthenticate" class="raised block">
+                        Deauthenticate
+                    </button>
+                    <span id="deauthenticateResponse"></span>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocussed" for="linkTimeExpire">Authentication Link Expiry</label>
+                        <input id="linkTimeExpire" name="" type="text" is="emby-input" />
+                        <div class="fieldDescription">
+                            How long before the generated authorization link expires in minutes. Note: the link can still be visited after expiring, but the authentication details will not be saved.
+                        </div>
                     </div>
-                    <div class="fieldDescription">The libraries to monitor completed anime for. Any non-checked
-                        libraries will not be monitored (dedicated anime-only libraries are advised if possible),
-                        unlesss it is left empty in which case <b>ALL libraries will be checked.</b>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="PlanToWatchOnly" name="PlanToWatchOnly" type="checkbox" is="emby-checkbox"/>
+                            <span>Only change anime in Plan To Watch?</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="RewatchCompleted" name="RewatchCompleted" type="checkbox" is="emby-checkbox"/>
+                            <span>Automatically set completed shows as rewatching?</span>
+                        </label>
+                        <div class="fieldDescription">When watching an anime you have already seen, automatically set the
+                            anime as rewatching (or increase the rewatch value by 1 if the series is a single
+                            episode/movie).
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="checkboxListLabel">Libraries to check:</h3>
+                        <div id="libraries" class="paperList checkboxList checkboxList-paperList">
+                        </div>
+                        <div class="fieldDescription">The libraries to monitor completed anime for. Any non-checked
+                            libraries will not be monitored (dedicated anime-only libraries are advised if possible),
+                            unlesss it is left empty in which case <b>ALL libraries will be checked.</b>
+                        </div>
                     </div>
                 </div>
                 <div>

@@ -4,7 +4,7 @@ using System.Linq;
 using jellyfin_ani_sync.Configuration;
 
 namespace jellyfin_ani_sync.Models {
-    public class UserConfig {
+    public class UserConfig : UserEditableConfig {
         public UserConfig() {
             // set default options here
             PlanToWatchOnly = true;
@@ -15,16 +15,6 @@ namespace jellyfin_ani_sync.Models {
         /// ID of the user.
         /// </summary>
         public Guid UserId { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the API should only search for shows on the users plan to watch list.
-        /// </summary>
-        public bool PlanToWatchOnly { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the plugin should automatically set completed shows as re-watching.
-        /// </summary>
-        public bool RewatchCompleted { get; set; }
 
         /// <summary>
         /// API authentication details of the user.
@@ -45,7 +35,19 @@ namespace jellyfin_ani_sync.Models {
                 UserApiAuth = new[] { userApiAuth };
             }
         }
+    }
 
+    public class UserEditableConfig {
+        /// <summary>
+        /// Gets or sets a value indicating whether the API should only search for shows on the users plan to watch list.
+        /// </summary>
+        public bool PlanToWatchOnly { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the plugin should automatically set completed shows as re-watching.
+        /// </summary>
+        public bool RewatchCompleted { get; set; }
+        
         public string[] LibraryToCheck { get; set; }
     }
 }

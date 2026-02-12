@@ -45,10 +45,24 @@ async function initialLoad(common) {
             return false;
         });
 
+    const toggleButton = document.getElementById('toggleUserSection');
+    const userSection = document.getElementById('userSection');
+
+    toggleButton.addEventListener('click', () => {
+        if (userSection.style.display === 'none') {
+            userSection.style.display = 'block';
+            toggleButton.textContent = 'Hide user section';
+        } else {
+            userSection.style.display = 'none';
+            toggleButton.textContent = 'Manual connect a user';
+        }
+    });
+
     page.querySelector('#testAnimeListSaveLocation').onclick = await runTestAnimeListSaveLocation;
     page.querySelector('#generateCallbackUrlButton').onclick = generateCallbackUrl;
     page.querySelector('#authorizeDevice').onclick = (async () => await onAuthorizeButtonClick(common));
     page.querySelector('#testAuthentication').onclick = (() => getUser(common));
+    page.querySelector('#deauthenticate').onclick = deauthenticateUser;
 
     async function runTestAnimeListSaveLocation() {
         document.querySelector('#testAnimeListSaveLocationResponse').innerHTML = "Testing anime list save location..."
@@ -190,6 +204,18 @@ async function initialLoad(common) {
             });
     }
 
+    async function deauthenticateUser() {
+        var url = ApiClient.getUrl(`/AniSync/deauthenticate?user=${encodeURIComponent(document.querySelector('#selectUser').value)}&apiName=${encodeURIComponent(document.querySelector('#selectProvider').value)}`);
+        await ApiClient.ajax({ type: "GET", url })
+            .then((response) => {
+                if (response.ok) {
+                    page.querySelector('#deauthenticateResponse').innerHTML = "Successfully deauthenticated user.";
+                } else {
+                    page.querySelector('#deauthenticateResponse').innerHTML = "Could not deauthenticate user. Check logs for more information.";
+                }
+            })
+    }
+
     function setLocalApiUrl(page, https, localIpAddress, localPort) {
         var localApiUrl = (https ? "https://" : "http://") + localIpAddress + ":" + localPort;
         PluginConfig.localApiUrl = localApiUrl;
@@ -268,6 +294,8 @@ async function initialLoad(common) {
             page.querySelector('#clientSecret').value = provider.ClientSecret;
             if (config.animeListSaveLocation)
                 page.querySelector('#animeListSaveLocation').value = config.animeListSaveLocation;
+            if (config.enableUserPages)
+                page.querySelector('#enableUserPages').checked = config.enableUserPages;
             if (config.watchedTickboxUpdatesProvider)
                 page.querySelector('#watchedTickboxUpdatesProvider').checked = config.watchedTickboxUpdatesProvider;
             if (config.callbackRedirectUrl)
@@ -382,6 +410,7 @@ async function initialLoad(common) {
             }
             setProviderApiAuthConfig(config);
             config.animeListSaveLocation = document.querySelector('#animeListSaveLocation').value;
+            config.enableUserPages = document.querySelector('#enableUserPages').checked;
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;

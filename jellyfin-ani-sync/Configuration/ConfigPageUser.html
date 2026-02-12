@@ -1,0 +1,258 @@
+<div id="TemplateConfigPage" data-role="page" class="page type-interior">
+    <div data-role="content">
+        <div class="content-primary">
+            <h1>Ani-Sync Configuration</h1>
+            <form id="TemplateConfigForm">
+                <div class="checkboxContainer">
+                    <label class="emby-checkbox-label">
+                        <input id="PlanToWatchOnly" name="PlanToWatchOnly" type="checkbox" is="emby-checkbox"/>
+                        <span>Only change anime in Plan To Watch?</span>
+                    </label>
+                </div>
+                <div class="checkboxContainer">
+                    <label class="emby-checkbox-label">
+                        <input id="RewatchCompleted" name="RewatchCompleted" type="checkbox" is="emby-checkbox"/>
+                        <span>Automatically set completed shows as rewatching?</span>
+                    </label>
+                </div>
+                <div class="selectContainer">
+                    <select is="emby-select" id="selectProvider" name="selectProvider" label="Provider"></select>
+                </div>
+                <div style="display: none" id="passwordGrant">
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="username">Username</label>
+                        <input id="username" name="username" type="text" is="emby-input"/>
+                        <span id="usernameError"></span>
+                        <div id="usernameDescription" class="fieldDescription">The username used to login to the provider application.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="password">Password</label>
+                        <input id="password" name="password" type="password" is="emby-input"/>
+                        <span id="passwordError"></span>
+                        <div id="passwordDescription" class="fieldDescription">The password used to login to the provider application.<b>This value will be stored in plain text in the plugin config. Make sure no untrusted users have access to the file.</b></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="checkboxListLabel">Libraries to check:</h3>
+                    <div id="libraries" class="paperList checkboxList checkboxList-paperList">
+                    </div>
+                    <div class="fieldDescription">The libraries to monitor anime for. Any non-checked
+                        libraries will not be monitored unlesss it is left empty in which case <b>ALL libraries will be checked.</b>
+                    </div>
+                </div>
+                <button is="emby-button" type="button" id="authorizeDevice" class="raised block">Generate Authentication</button>
+                <a id="authorizeLink"></a>
+                <span id="authorizeLinkGenerationNotification"></span>
+                <button is="emby-button" type="button" id="testAuthentication" class="raised block">Test Authentication</button>
+                <span id="getUserResponse"></span>
+                <button is="emby-button" type="button" id="deauthenticate" class="raised block">Deauthenticate</button>
+                <span id="deauthenticateResponse"></span>
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button"><span>Save</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+
+var currentUserId = null;
+var providerList = [];
+
+async function initialLoad(common) {
+    const page = document;
+    Dashboard.showLoadingMsg();
+
+    currentUserId = await ApiClient.getCurrentUserId();
+
+    await setParameters(common, page);
+
+    Dashboard.hideLoadingMsg();
+
+    page.querySelector('#selectProvider').addEventListener('change', (e) => {
+        page.querySelector('#authorizeLink').innerHTML = '';
+        page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
+
+        if (e.target.value === "Kitsu") {
+            setKitsuAsSelectedProvider();
+        } else {
+            document.querySelector('#passwordGrant').style.display = 'none';
+        }
+    });
+
+    page.querySelector('#TemplateConfigForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        await saveUserConfig();
+    });
+
+    page.querySelector('#authorizeDevice').onclick = async () => {
+        await saveUserConfig();
+        page.querySelector('#authorizeLinkGenerationNotification').innerHTML = "";
+        const provider = page.querySelector('#selectProvider').value;
+        const isKitsu = provider === "Kitsu";
+        const url = isKitsu ?
+            ApiClient.getUrl(`/AniSync/user/passwordGrant?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}&username=${document.querySelector('#username').value}&password=${document.querySelector('#password').value}`) :
+            ApiClient.getUrl(`/AniSync/user/buildAuthorizeRequestUrl?provider=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+        const response = await ApiClient.ajax({ type: "GET", url });
+        if (isKitsu) {
+            if (response.ok) {
+                page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Authentication successful.';
+                await refreshConnectedProviders(common);
+            } else {
+                page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Authentication failed.';
+            }
+        } else if (response.ok) {
+            await response.json()
+                .then((json) => {
+                    page.querySelector('#authorizeLink').innerHTML = `<a href="${json}" target="_blank">Click here to authorize</a>`;
+                    page.querySelector('#authorizeLinkGenerationNotification').innerHTML = '';
+                })
+                .catch(() => {
+                page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Error generating authorize link.';
+            });
+        } else {
+            page.querySelector('#authorizeLinkGenerationNotification').innerHTML = 'Error generating authorize link.';
+        }
+    };
+
+    page.querySelector('#testAuthentication').onclick = async () => {
+        const provider = page.querySelector('#selectProvider').value;
+        page.querySelector('#getUserResponse').innerHTML = "Testing authentication...";
+        try {
+            const url = ApiClient.getUrl(`/AniSync/user/user?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+            const response = await ApiClient.ajax({ type: "GET", url });
+            if (response.ok) {
+                const json = await response.json();
+                page.querySelector('#getUserResponse').innerHTML = json.name ? `Authenticated ${json.name}` : "Authenticated";
+                await refreshConnectedProviders(common);
+            } else {
+                page.querySelector('#getUserResponse').innerHTML = "Authentication failed";
+            }
+        } catch (err) {
+            page.querySelector('#getUserResponse').innerHTML = "Authentication error";
+        }
+    };
+
+    page.querySelector('#deauthenticate').onclick = async () => {
+        page.querySelector('#deauthenticateResponse').innerHTML = "";
+        const provider = page.querySelector('#selectProvider').value;
+        const url = ApiClient.getUrl(`/AniSync/user/deauthenticate?apiName=${encodeURIComponent(provider)}&userId=${encodeURIComponent(currentUserId)}`);
+        const response = await ApiClient.ajax({ type: "GET", url });
+        if (response.ok) {
+            page.querySelector('#deauthenticateResponse').innerHTML = "Deauthentication successful";
+            await refreshConnectedProviders(common);
+        } else {
+            page.querySelector('#deauthenticateResponse').innerHTML = "Could not deauthenticate user";
+        }
+    }
+
+    async function setParameters(common, page) {
+        try {
+            const url = ApiClient.getUrl("/AniSync/user/parameters");
+            const response = await ApiClient.ajax({ type: 'GET', url });
+            const json = await response.json();
+            providerList = json.providerList || [];
+            common.setProviderSelection(page, providerList, '#selectProvider');
+            if (json.providerList.length === 1) {
+                // only kitsu
+                setKitsuAsSelectedProvider();
+            }
+            await loadUserConfiguration(json.libraries);
+        } catch {}
+    }
+
+    async function loadUserConfiguration(libraries) {
+        try {
+            Dashboard.showLoadingMsg();
+            const url = ApiClient.getUrl(`/AniSync/user/configuration?user=${encodeURIComponent(currentUserId)}`);
+            const response = await ApiClient.ajax({ type: "GET", url });
+            let userConfig = response.ok ? await response.json() : {};
+
+            if (!userConfig.LibraryToCheck) userConfig.LibraryToCheck = [];
+            let libraryToCheck = userConfig.LibraryToCheck || [];
+            page.querySelector('#PlanToWatchOnly').checked = userConfig.PlanToWatchOnly ?? true;
+            page.querySelector('#RewatchCompleted').checked = userConfig.RewatchCompleted ?? true;
+            updateProviderSelection(common, userConfig);
+            Dashboard.hideLoadingMsg();
+
+            var html = '';
+            html += '<div data-role="controlgroup">';
+            if (libraries.length === 0) {
+                html += '<p>No libraries found!</p>'
+            }
+            for (var x = 0; x < libraries.length; x++) {
+                html += '<label><input ';
+                if (libraryToCheck.includes(libraries[x].Id)) {
+                    html += 'checked="true" ';
+                }
+                html += 'is="emby-checkbox" class="library" type="checkbox" data-mini="true" id="' + libraries[x].Id + '" name="' + libraries[x].Name + '"/><span>' + libraries[x].Name + '</span></label>';
+            }
+            html += '</div>';
+            document.querySelector('#libraries').innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function saveUserConfig() {
+        const provider = page.querySelector('#selectProvider').value;
+        const LibraryToCheck = Array.from(page.querySelectorAll('.library:checked')).map(el => el.id);
+        const PlanToWatchOnly = page.querySelector('#PlanToWatchOnly').checked;
+        const RewatchCompleted = page.querySelector('#RewatchCompleted').checked;
+
+        const body = { LibraryToCheck, PlanToWatchOnly, RewatchCompleted, provider };
+        try {
+            const url = ApiClient.getUrl(`/AniSync/user/configuration?user=${encodeURIComponent(currentUserId)}`);
+            await ApiClient.ajax({ type: "PUT", url, data: JSON.stringify(body), contentType: "application/json" });
+            Dashboard.alert("Configuration saved");
+        } catch (err) {
+            Dashboard.alert("Failed to save configuration");
+        }
+    }
+
+    function updateProviderSelection(common, userConfig) {
+        if (!providerList || providerList.length === 0) return;
+        const select = page.querySelector('#selectProvider');
+        const currentValue = select.value;
+        const connected = getConnectedProviderSet(userConfig);
+        common.setProviderSelection(page, providerList, '#selectProvider', {
+            connectedProviders: connected,
+            selectedValue: currentValue
+        });
+        if (select.value === "Kitsu") {
+            setKitsuAsSelectedProvider();
+        } else {
+            document.querySelector('#passwordGrant').style.display = 'none';
+        }
+    }
+
+    function getConnectedProviderSet(userConfig) {
+        const authList = (userConfig && userConfig.UserApiAuth) ? userConfig.UserApiAuth : [];
+        const set = new Set();
+        for (var i = 0; i < authList.length; i++) {
+            set.add(authList[i].Name);
+        }
+        return set;
+    }
+
+    async function refreshConnectedProviders(common) {
+        try {
+            const url = ApiClient.getUrl(`/AniSync/user/configuration?user=${encodeURIComponent(currentUserId)}`);
+            const response = await ApiClient.ajax({ type: "GET", url });
+            if (!response.ok) return;
+            const userConfig = await response.json();
+            updateProviderSelection(common, userConfig);
+        } catch {}
+    }
+
+    function setKitsuAsSelectedProvider() {
+        document.querySelector('#passwordGrant').style.display = "block";
+        document.querySelector('#authorizeDevice').innerHTML = "Authenticate";
+    }
+}
+
+var generalFunctionsUrl = ApiClient.getUrl("web/ConfigurationPage", { name: "AniSync_CommonJs" });
+import(generalFunctionsUrl).then(async generalFunctions => await initialLoad(generalFunctions));
+</script>

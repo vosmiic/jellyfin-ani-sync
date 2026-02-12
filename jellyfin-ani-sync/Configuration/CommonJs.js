@@ -36,12 +36,26 @@ export const TabManualSync = 1;
 
 const configurationPageUrl = (name) => 'configurationpage?name=' + encodeURIComponent(name);
 
-export function setProviderSelection(page, providerList, providerListSelectElement) {
+export function setProviderSelection(page, providerList, providerListSelectElement, options) {
+    options = options || {};
+    const connectedProviders = options.connectedProviders || null;
+    const connectedSet = connectedProviders
+        ? (connectedProviders instanceof Set ? connectedProviders : new Set(connectedProviders))
+        : null;
+    const select = page.querySelector(providerListSelectElement);
+    const selectedValue = options.selectedValue || select.value;
+
     var html = '';
     for (var x = 0; x < providerList.length; x++) {
-        html += '<option value="' + providerList[x].Key + '">' + providerList[x].Name + '</option>';
+        const provider = providerList[x];
+        const suffix = connectedSet && connectedSet.has(provider.Key) ? ' (connected)' : '';
+        html += '<option value="' + provider.Key + '">' + provider.Name + suffix + '</option>';
     }
-    page.querySelector(providerListSelectElement).innerHTML = html;
+    select.innerHTML = html;
+
+    if (selectedValue) {
+        select.value = selectedValue;
+    }
 }
 
 export function populateUserList(page, users, userListSelectElement) {
