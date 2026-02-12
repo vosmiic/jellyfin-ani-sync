@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "c14725265542de3fb0f792b858a25689",
+        "changelog": "1. Added user authentication pages.",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v4.0b/10.11.0.-.ani-sync_4.0.0.0.zip",
+        "timestamp": "2026-02-12T00:00:00Z",
+        "version": "4.0.0.0"
+      },
+      {
         "checksum": "6a260fcbff42901be1d2f81a7c42cf66",
         "changelog": "1. Allow custom arm server usage.",
         "targetAbi": "10.11.4.0",
