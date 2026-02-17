@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
@@ -95,7 +96,7 @@ namespace jellyfin_ani_sync.Api {
         /// <param name="httpClientFactory"></param>
         /// <param name="code">Optional auth code to generate a new token with.</param>
         /// <param name="refreshToken">Optional refresh token to refresh an existing token with.</param>
-        public UserApiAuth GetToken(Guid userId, string? code = null, string? refreshToken = null) {
+        public async Task<UserApiAuth> GetToken(Guid userId, string? code = null, string? refreshToken = null) {
             var client = _httpClientFactory.CreateClient(NamedClient.Default);
 
             HttpContent formUrlEncodedContent;
@@ -186,7 +187,7 @@ namespace jellyfin_ani_sync.Api {
                 throw new NullReferenceException("The user you are attempting to authenticate does not exist in the plugins config file");
             }
 
-            throw new AuthenticationException($"Could not retrieve {_provider} token: " + response.StatusCode + " - " + response.ReasonPhrase);
+            throw new AuthenticationException($"Could not retrieve {_provider} token: " + response.StatusCode + " - " + await response.Content.ReadAsStringAsync());
         }
 
         public static string GeneratePkce() {
