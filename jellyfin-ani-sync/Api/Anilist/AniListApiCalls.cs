@@ -10,6 +10,7 @@ using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Mal;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Anilist {
-    public class AniListApiCalls {
+    public class AniListApiCalls : IApiCallHelpers {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILoggerFactory _loggerFactory;
         private readonly IServerApplicationHost _serverApplicationHost;
@@ -89,7 +90,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                     while (page < 10) {
                         page++;
                         variables["page"] = page.ToString();
-                        
+
                         AniListSearch.AniListSearchMedia nextPageResult = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, query, variables);
 
                         result.Data.Page.Media = result.Data.Page.Media.Concat(nextPageResult.Data.Page.Media).ToList();
@@ -106,6 +107,102 @@ namespace jellyfin_ani_sync.Api.Anilist {
             }
 
             return null;
+        }
+
+        public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+            AniListSearch.Media anime = await GetAnime(id);
+            if (anime == null) return null;
+
+            return ClassConversions.ConvertAniListAnime(anime);
+        }
+
+        public async Task<UpdateAnimeStatusResponse> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
+            AniListSearch.MediaListStatus anilistStatus;
+            switch (status) {
+                case Status.Watching:
+                    anilistStatus = AniListSearch.MediaListStatus.Current;
+                    break;
+                case Status.Completed:
+                    anilistStatus = isRewatching != null && isRewatching.Value ? AniListSearch.MediaListStatus.Repeating : AniListSearch.MediaListStatus.Completed;
+                    break;
+                case Status.On_hold:
+                    anilistStatus = AniListSearch.MediaListStatus.Paused;
+                    break;
+                case Status.Dropped:
+                    anilistStatus = AniListSearch.MediaListStatus.Dropped;
+                    break;
+                case Status.Plan_to_watch:
+                    anilistStatus = AniListSearch.MediaListStatus.Planning;
+                    break;
+                case Status.Rewatching:
+                    anilistStatus = AniListSearch.MediaListStatus.Repeating;
+                    break;
+                default:
+                    anilistStatus = AniListSearch.MediaListStatus.Current;
+                    break;
+            }
+
+            if (await UpdateAnime(animeId, anilistStatus, numberOfWatchedEpisodes, numberOfTimesRewatched, startDate, endDate)) {
+                return new UpdateAnimeStatusResponse();
+            }
+
+            return null;
+        }
+
+        public async Task<MalApiCalls.User> GetUser() {
+            AniListViewer.Viewer user = await GetCurrentUser();
+            return ClassConversions.ConvertUser(user.Id, user.Name);
+        }
+
+        public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
+            AniListSearch.MediaListStatus anilistStatus;
+            switch (status) {
+                case Status.Watching:
+                    anilistStatus = AniListSearch.MediaListStatus.Current;
+                    break;
+                case Status.Completed:
+                    anilistStatus = AniListSearch.MediaListStatus.Completed;
+                    break;
+                case Status.Rewatching:
+                    anilistStatus = AniListSearch.MediaListStatus.Repeating;
+                    break;
+                case Status.On_hold:
+                    anilistStatus = AniListSearch.MediaListStatus.Paused;
+                    break;
+                case Status.Dropped:
+                    anilistStatus = AniListSearch.MediaListStatus.Dropped;
+                    break;
+                case Status.Plan_to_watch:
+                    anilistStatus = AniListSearch.MediaListStatus.Planning;
+                    break;
+                default:
+                    anilistStatus = AniListSearch.MediaListStatus.Current;
+                    break;
+            }
+
+            var animeList = await GetAnimeList(userId.Value, anilistStatus);
+            List<Anime> convertedList = new List<Anime>();
+            if (animeList != null) {
+                foreach (var media in animeList) {
+                    int lastIndex = media.Media.SiteUrl.LastIndexOf("/", StringComparison.CurrentCulture);
+                    if (lastIndex != -1) {
+                        DateTime finishDate = new DateTime();
+                        if (media.CompletedAt is { Year: { }, Month: { }, Day: { } }) {
+                            finishDate = new DateTime(media.CompletedAt.Year.Value, media.CompletedAt.Month.Value, media.CompletedAt.Day.Value);
+                        }
+
+                        convertedList.Add(new Anime {
+                            Id = media.Media.Id,
+                            MyListStatus = new MyListStatus {
+                                FinishDate = finishDate.ToShortDateString(),
+                                NumEpisodesWatched = media.Progress ?? -1
+                            }
+                        });
+                    }
+                }
+            }
+
+            return convertedList;
         }
 
         /// <summary>
@@ -292,6 +389,54 @@ namespace jellyfin_ani_sync.Api.Anilist {
             }
 
             return null;
+        }
+
+        async Task<List<Anime>> IApiCallHelpers.SearchAnime(string query) {
+            bool updateNsfw = Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw;
+
+            return AniListSearchAnimeConvertedList(await SearchAnime(query), updateNsfw);
+        }
+
+        internal static List<Anime> AniListSearchAnimeConvertedList(List<AniListSearch.Media> animeList, bool updateNsfw) {
+            List<Anime> convertedList = new List<Anime>();
+            if (animeList != null) {
+                foreach (AniListSearch.Media media in animeList) {
+                    if (!updateNsfw && media.IsAdult) continue; // Skip NSFW anime if the user doesn't want to update them
+                    var synonyms = new List<string> {
+                        { media.Title.Romaji },
+                        { media.Title.UserPreferred }
+                    };
+                    synonyms.AddRange(media.Synonyms);
+                    var anime = new Anime {
+                        Id = media.Id,
+                        Title = media.Title.English,
+                        AlternativeTitles = new AlternativeTitles {
+                            En = media.Title.English,
+                            Ja = media.Title.Native,
+                            Synonyms = synonyms
+                        },
+                        NumEpisodes = media.Episodes ?? 0,
+                    };
+
+                    switch (media.Status) {
+                        case AniListSearch.AiringStatus.FINISHED:
+                            anime.Status = AiringStatus.finished_airing;
+                            break;
+                        case AniListSearch.AiringStatus.RELEASING:
+                            anime.Status = AiringStatus.currently_airing;
+                            break;
+                        case AniListSearch.AiringStatus.NOT_YET_RELEASED:
+                        case AniListSearch.AiringStatus.CANCELLED:
+                        case AniListSearch.AiringStatus.HIATUS:
+                            anime.Status = AiringStatus.not_yet_aired;
+                            break;
+                    }
+
+                    convertedList.Add(anime);
+                }
+            }
+
+            return convertedList;
         }
     }
 }

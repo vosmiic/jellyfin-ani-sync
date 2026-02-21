@@ -89,15 +89,15 @@ public class Sync {
     /// <param name="userId">ID of the user to get the anime list of.</param>
     /// <returns>Users' provider anime list.</returns>
     private async Task<List<Anime>> GetAnimeList(string userId) {
-        ApiCallHelpers apiCallHelpers = new ApiCallHelpers();
+        IApiCallHelpers apiCallHelpers;
         MalApiCalls.User user = new MalApiCalls.User();
         switch (_apiName) {
             case ApiName.Mal:
-                apiCallHelpers = new ApiCallHelpers(malApiCalls: new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                apiCallHelpers = new MalApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
 
                 break;
             case ApiName.AniList:
-                apiCallHelpers = new ApiCallHelpers(aniListApiCalls: new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                apiCallHelpers = new AniListApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                 user = await apiCallHelpers.GetUser();
                 if (user == null || user.Id == 0) {
                     _logger.LogError("(Sync) Could not retrieve user information. Cannot proceed");
@@ -106,7 +106,7 @@ public class Sync {
 
                 break;
             case ApiName.Kitsu:
-                apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId))));
+                apiCallHelpers = new KitsuApiCalls(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, Plugin.Instance.PluginConfiguration.UserConfig.FirstOrDefault(item => item.UserId == Guid.Parse(userId)));
                 user = await apiCallHelpers.GetUser();
 
                 if (user == null || user.Id == 0) {
@@ -115,21 +115,26 @@ public class Sync {
                 }
 
                 break;
+            default:
+                apiCallHelpers = null;
+                break;
         }
 
-        switch (_status) {
-            case SyncHelper.Status.Completed:
-                return await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
-            case SyncHelper.Status.Watching:
-                return await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
-            case SyncHelper.Status.Both:
-                List<Anime> completed = await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
-                List<Anime> watching = await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
-                if (completed != null && watching != null) {
-                    return completed.Concat(watching).ToList();
-                }
+        if (apiCallHelpers != null) {
+            switch (_status) {
+                case SyncHelper.Status.Completed:
+                    return await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
+                case SyncHelper.Status.Watching:
+                    return await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
+                case SyncHelper.Status.Both:
+                    List<Anime> completed = await apiCallHelpers.GetAnimeList(Status.Completed, user?.Id);
+                    List<Anime> watching = await apiCallHelpers.GetAnimeList(Status.Watching, user?.Id);
+                    if (completed != null && watching != null) {
+                        return completed.Concat(watching).ToList();
+                    }
 
-                return completed ?? watching;
+                    return completed ?? watching;
+            }
         }
 
         return null;

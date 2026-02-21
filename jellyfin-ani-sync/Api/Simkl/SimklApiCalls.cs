@@ -11,6 +11,7 @@ using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Mal;
 using jellyfin_ani_sync.Models.Simkl;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
@@ -19,7 +20,7 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Simkl;
 
-public class SimklApiCalls {
+public class SimklApiCalls : IApiCallHelpers {
     private readonly Dictionary<string, string> _requestHeaders;
     private readonly ILogger<SimklApiCalls> _logger;
     private readonly AuthApiCall _authApiCall;
@@ -115,6 +116,46 @@ public class SimklApiCalls {
         return result;
     }
 
+    public Task<Anime>? GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+        return null;
+    }
+
+    public async Task<UpdateAnimeStatusResponse?> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
+        SimklStatus simklStatus;
+
+        switch (status) {
+            case Status.Completed:
+                simklStatus = SimklStatus.completed;
+                break;
+            case Status.Dropped:
+                simklStatus = SimklStatus.dropped;
+                break;
+            case Status.On_hold:
+                simklStatus = SimklStatus.hold;
+                break;
+            case Status.Plan_to_watch:
+                simklStatus = SimklStatus.plantowatch;
+                break;
+            default:
+                simklStatus = SimklStatus.watching;
+                break;
+        }
+
+        if (await UpdateAnime(animeId, simklStatus, isShow.Value, ids, numberOfWatchedEpisodes)) {
+            return new UpdateAnimeStatusResponse();
+        }
+
+        return null;
+    }
+
+    public Task<MalApiCalls.User>? GetUser() {
+        return null;
+    }
+
+    public Task<List<Anime>>? GetAnimeList(Status status, int? userId = null) {
+        return null;
+    }
+
     public async Task<SimklExtendedMedia?> GetAnime(int id) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiBaseUrl}/anime/{id}",
@@ -139,6 +180,20 @@ public class SimklApiCalls {
             _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
             return null;
         }
+    }
+
+
+    public async Task<Anime?> GetAnime(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, string title, bool getRelated = false) {
+        SimklIdLookupMedia idLookupResult = await GetAnimeByIdLookup(ids, title);
+        if (idLookupResult != null && (idLookupResult.Ids?.Simkl != null && idLookupResult.Ids.Simkl != 0)) {
+            var detailedAnime = await GetAnime(idLookupResult.Ids.Simkl);
+            var userList = await GetUserAnimeList();
+            if (detailedAnime != null) {
+                return ClassConversions.ConvertSimklAnime(detailedAnime, userList?.FirstOrDefault(userEntry => userEntry.Show.Ids.Simkl == detailedAnime.Ids.Simkl));
+            }
+        }
+
+        return null;
     }
 
     public async Task<SimklIdLookupMedia?> GetAnimeByIdLookup(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, string title) {
@@ -294,5 +349,9 @@ public class SimklApiCalls {
         }
 
         return false;
+    }
+
+    Task<List<Anime>> IApiCallHelpers.SearchAnime(string query) {
+        return Task.FromResult(new List<Anime>());
     }
 }

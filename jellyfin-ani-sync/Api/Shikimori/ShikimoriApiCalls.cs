@@ -12,6 +12,7 @@ using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
+using jellyfin_ani_sync.Models.Mal;
 using jellyfin_ani_sync.Models.Shikimori;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
@@ -20,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Shikimori;
 
-public class ShikimoriApiCalls {
+public class ShikimoriApiCalls : IApiCallHelpers {
     private readonly ILogger<ShikimoriApiCalls> _logger;
     private readonly AuthApiCall _authApiCall;
     private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
@@ -168,6 +169,99 @@ public class ShikimoriApiCalls {
             }
         }
         return result;
+    }
+
+    public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+        var anime = await GetAnime(alternativeId, getRelated);
+        if (anime == null) return null;
+
+        return ClassConversions.ConvertShikimoriAnime(anime);
+    }
+
+    public async Task<UpdateAnimeStatusResponse?> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
+        ShikimoriUserRate.StatusEnum shikimoriUpdateStatus;
+
+        switch (status) {
+            case Status.Watching:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
+                break;
+            case Status.Completed:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.completed;
+                break;
+            case Status.Rewatching:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.rewatching;
+                break;
+            case Status.On_hold:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.on_hold;
+                break;
+            case Status.Dropped:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.dropped;
+                break;
+            case Status.Plan_to_watch:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.planned;
+                break;
+            default:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
+                break;
+        }
+
+        if (await UpdateAnime(alternativeId, shikimoriUpdateStatus, numberOfWatchedEpisodes, numberOfTimesRewatched)) {
+            return new UpdateAnimeStatusResponse();
+        }
+
+        return null;
+    }
+
+    public async Task<MalApiCalls.User?> GetUser() {
+        ShikimoriApiCalls.User user = await GetUserInformation();
+        if (user != null) {
+            return new MalApiCalls.User {
+                Id = user.Id,
+                Name = user.Name
+            };
+        }
+
+        return null;
+    }
+
+    public async Task<List<Anime>?> GetAnimeList(Status status, int? userId = null) {
+        ShikimoriUserRate.StatusEnum shikimoriUpdateStatus;
+
+        switch (status) {
+            case Status.Watching:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
+                break;
+            case Status.Rewatching:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.rewatching;
+                break;
+            case Status.Completed:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.completed;
+                break;
+            case Status.On_hold:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.on_hold;
+                break;
+            case Status.Dropped:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.dropped;
+                break;
+            case Status.Plan_to_watch:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.planned;
+                break;
+            default:
+                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
+                break;
+        }
+
+        var animeList = await GetUserAnimeList(status: shikimoriUpdateStatus);
+        if (animeList != null) {
+            List<Anime> convertedList = new List<Anime>();
+            foreach (ShikimoriAnime shikimoriAnime in animeList) {
+                convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
+            }
+
+            return convertedList;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -372,5 +466,24 @@ public class ShikimoriApiCalls {
         }
 
         return response.Data;
+    }
+
+    async Task<List<Anime>> IApiCallHelpers.SearchAnime(string query) {
+        bool updateNsfw = Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw;
+        List<ShikimoriAnime> animeList = await SearchAnime(query);
+
+        return ShikimoriSearchAnimeConvertedList(animeList, updateNsfw);
+    }
+
+    internal static List<Anime> ShikimoriSearchAnimeConvertedList(List<ShikimoriAnime> animeList, bool updateNsfw) {
+        List<Anime> convertedList = new List<Anime>();
+        if (animeList != null) {
+            foreach (ShikimoriAnime shikimoriAnime in animeList) {
+                if (!updateNsfw && shikimoriAnime.IsCensored == true) continue;
+                convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
+            }
+        }
+
+        return convertedList;
     }
 }

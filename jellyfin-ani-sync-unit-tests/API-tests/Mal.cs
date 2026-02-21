@@ -101,7 +101,7 @@ public class Mal {
             }
         });
         
-        var result = await _malApiCalls.GetAnime(animeId);
+        var result = await _malApiCalls.GetAnime(animeId, null);
         Assert.IsNotNull(result);
     }
 

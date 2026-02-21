@@ -18,7 +18,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api {
-    public class MalApiCalls {
+    public class MalApiCalls : IApiCallHelpers {
         private readonly ILogger<MalApiCalls> _logger;
         private readonly AuthApiCall _authApiCall;
         private readonly string _refreshTokenUrl = "https://myanimelist.net/v1/oauth2/token";
@@ -249,6 +249,30 @@ namespace jellyfin_ani_sync.Api {
             }
 
             return updateResponse;
+        }
+
+        public Task<List<Anime>> SearchAnime(string query) {
+            bool updateNsfw = Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw;
+            
+            return SearchAnime(query, [ "id", "title", "alternative_titles", "num_episodes", "status" ], updateNsfw);
+        }
+
+        public Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+            return GetAnime(id, [ "title", "related_anime", "my_list_status", "num_episodes" ]);
+        }
+
+
+        public Task<UpdateAnimeStatusResponse> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
+            return UpdateAnimeStatus(animeId, numberOfWatchedEpisodes, status, isRewatching, numberOfTimesRewatched, startDate, endDate);
+        }
+
+        public Task<User> GetUser() {
+            return GetUserInformation();
+        }
+
+        public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
+            List<UserAnimeListData> userAnimeList = await GetUserAnimeList(status);
+            return userAnimeList.Select(animeList => animeList.Anime).ToList();
         }
     }
 }

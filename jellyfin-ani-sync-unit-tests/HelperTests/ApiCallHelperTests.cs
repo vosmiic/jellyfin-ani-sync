@@ -5,7 +5,9 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using jellyfin_ani_sync.Api.Anilist;
 using jellyfin_ani_sync.Api.Kitsu;
+using jellyfin_ani_sync.Api.Shikimori;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
@@ -39,8 +41,7 @@ public class ApiCallHelperTests {
             mediaList.Add(GetAniListMedia(true));
         }
 
-        ApiCallHelpers apiCallHelpers = new ApiCallHelpers();
-        List<Anime> animeList = apiCallHelpers.AniListSearchAnimeConvertedList(mediaList, true);
+        List<Anime> animeList = AniListApiCalls.AniListSearchAnimeConvertedList(mediaList, true);
         Assert.AreEqual(10, animeList.Count);
         // Assert that the anime list contains the expected anime objects
         for (int i = 0; i < animeList.Count; i++) {
@@ -98,7 +99,7 @@ public class ApiCallHelperTests {
             mediaList.Add(GetShikimoriAnime(true));
         }
 
-        List<Anime> animeList = ApiCallHelpers.ShikimoriSearchAnimeConvertedList(mediaList, true);
+        List<Anime> animeList = ShikimoriApiCalls.ShikimoriSearchAnimeConvertedList(mediaList, true);
         Assert.AreEqual(10, animeList.Count);
         // Assert that the anime list contains the expected anime objects
         for (int i = 0; i < animeList.Count; i++) {
@@ -209,9 +210,8 @@ public class ApiCallHelperTests {
             },
             KeyPairs = new List<KeyPairs> { new()  { Key = "KitsuUserId", Value = "1" }}
         });
-        
-        ApiCallHelpers apiCallHelpers = new ApiCallHelpers(kitsuApiCalls: kitsuApiCalls);
-        MyListStatus convertedResult = await apiCallHelpers.GetConvertedKitsuUserList(animeId);
+
+        MyListStatus convertedResult = await kitsuApiCalls.GetConvertedKitsuUserList(animeId);
         
         Assert.IsTrue(convertedResult.NumEpisodesWatched == expectedProgress);
         Assert.IsTrue(convertedResult.IsRewatching == expectedReconsuming);

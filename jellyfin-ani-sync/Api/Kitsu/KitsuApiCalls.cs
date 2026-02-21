@@ -12,13 +12,14 @@ using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Kitsu;
+using jellyfin_ani_sync.Models.Mal;
 using MediaBrowser.Controller;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Kitsu {
-    public class KitsuApiCalls {
+    public class KitsuApiCalls : IApiCallHelpers {
         private readonly string ApiUrl = "https://kitsu.io/api/edge";
         private readonly ILogger<KitsuApiCalls> _logger;
         private readonly AuthApiCall _authApiCall;
@@ -48,6 +49,152 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
                 _logger.LogInformation("Search complete");
                 return animeList.KitsuSearchData;
+            }
+
+            return null;
+        }
+
+        public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+            KitsuGet.KitsuGetAnime anime = await GetAnime(id);
+            if (anime == null) return null;
+            Anime convertedAnime = ClassConversions.ConvertKitsuAnime(anime.KitsuAnimeData);
+
+            convertedAnime.MyListStatus = await GetConvertedKitsuUserList(id);
+
+            return convertedAnime;
+        }
+
+        /// <summary>
+        /// Gets a users list from the Kitsu API and converts it to a <see cref="MyListStatus"/> object instance.
+        /// </summary>
+        /// <param name="id">The ID of the anime to get the user status of.</param>
+        /// <returns>The converted user list status of the anime.</returns>
+        internal async Task<MyListStatus> GetConvertedKitsuUserList(int id) {
+            int? userId = await GetUserId();
+
+            MyListStatus userList = new MyListStatus();
+
+            if (userId != null) {
+                KitsuUpdate.KitsuLibraryEntry userAnimeStatus = await GetUserAnimeStatus(userId.Value, id);
+                if (userAnimeStatus is { Attributes: { } })
+                    userList = new MyListStatus {
+                        NumEpisodesWatched = userAnimeStatus.Attributes.Progress ?? 0,
+                        IsRewatching = userAnimeStatus.Attributes.Reconsuming ?? false,
+                        RewatchCount = userAnimeStatus.Attributes.ReconsumeCount ?? 0
+                    };
+
+                if (userAnimeStatus is { Attributes: { } })
+                    switch (userAnimeStatus.Attributes.Status) {
+                        case KitsuUpdate.Status.completed:
+                            userList.Status = Status.Completed;
+                            break;
+                        case KitsuUpdate.Status.current:
+                            userList.Status = Status.Watching;
+                            break;
+                        case KitsuUpdate.Status.dropped:
+                            userList.Status = Status.Dropped;
+                            break;
+                        case KitsuUpdate.Status.on_hold:
+                            userList.Status = Status.On_hold;
+                            break;
+                        case KitsuUpdate.Status.planned:
+                            userList.Status = Status.Plan_to_watch;
+                            break;
+                    }
+            }
+
+            return userList;
+        }
+
+        public async Task<UpdateAnimeStatusResponse> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
+            KitsuUpdate.Status kitsuStatus;
+
+            switch (status) {
+                case Status.Watching:
+                    kitsuStatus = KitsuUpdate.Status.current;
+                    break;
+                case Status.Completed:
+                case Status.Rewatching:
+                    kitsuStatus = isRewatching != null && isRewatching.Value ? KitsuUpdate.Status.current : KitsuUpdate.Status.completed;
+                    break;
+                case Status.On_hold:
+                    kitsuStatus = KitsuUpdate.Status.on_hold;
+                    break;
+                case Status.Dropped:
+                    kitsuStatus = KitsuUpdate.Status.dropped;
+                    break;
+                case Status.Plan_to_watch:
+                    kitsuStatus = KitsuUpdate.Status.planned;
+                    break;
+                default:
+                    kitsuStatus = KitsuUpdate.Status.current;
+                    break;
+            }
+
+            if (await UpdateAnimeStatus(animeId, numberOfWatchedEpisodes, kitsuStatus, isRewatching, numberOfTimesRewatched, startDate, endDate)) {
+                return new UpdateAnimeStatusResponse();
+            }
+
+            return null;
+        }
+
+        public async Task<MalApiCalls.User> GetUser() {
+            int? user = await GetUserId();
+            if (user != null)
+                return new MalApiCalls.User {
+                    Id = user.Value
+                };
+
+            return null;
+        }
+
+        public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
+            KitsuUpdate.Status kitsuStatus;
+            switch (status) {
+                case Status.Watching:
+                case Status.Rewatching:
+                    kitsuStatus = KitsuUpdate.Status.current;
+                    break;
+                case Status.Completed:
+                    kitsuStatus = KitsuUpdate.Status.completed;
+                    break;
+                case Status.On_hold:
+                    kitsuStatus = KitsuUpdate.Status.on_hold;
+                    break;
+                case Status.Dropped:
+                    kitsuStatus = KitsuUpdate.Status.dropped;
+                    break;
+                case Status.Plan_to_watch:
+                    kitsuStatus = KitsuUpdate.Status.planned;
+                    break;
+                default:
+                    kitsuStatus = KitsuUpdate.Status.current;
+                    break;
+            }
+
+            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await GetUserAnimeList(userId.Value, status: kitsuStatus);
+            if (animeList != null) {
+                List<Anime> convertedList = new List<Anime>();
+                foreach (KitsuUpdate.KitsuLibraryEntry kitsuLibraryEntry in animeList.Data) {
+                    Anime toAddAnime = new Anime();
+                    if (kitsuLibraryEntry.Relationships != null &&
+                        kitsuLibraryEntry.Relationships.AnimeData != null &&
+                        kitsuLibraryEntry.Relationships.AnimeData.Anime != null) {
+                        toAddAnime.Id = kitsuLibraryEntry.Relationships.AnimeData.Anime.Id;
+                    }
+
+                    toAddAnime.MyListStatus = new MyListStatus();
+                    if (kitsuLibraryEntry.Attributes != null) {
+                        toAddAnime.MyListStatus.FinishDate = kitsuLibraryEntry.Attributes.FinishedAt.ToString();
+                        if (kitsuLibraryEntry.Attributes.Progress != null) {
+                            toAddAnime.MyListStatus.NumEpisodesWatched = kitsuLibraryEntry.Attributes.Progress.Value;
+                        }
+                    }
+
+                    convertedList.Add(toAddAnime);
+                }
+
+                return convertedList;
             }
 
             return null;
@@ -265,8 +412,12 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                 new("filter[status]", status.ToString()),
                 new("include", "anime"),
             });
-            
+
             return animeList;
+        }
+
+        async Task<List<Anime>> IApiCallHelpers.SearchAnime(string query) {
+            return ApiCallHelpers.KitsuSearchAnimeConvertedList(await SearchAnime(query));
         }
     }
 }
