@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using jellyfin_ani_sync.Api;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Models;
 using jellyfin_ani_sync.Models.Annict;
 using jellyfin_ani_sync.Models.Kitsu;
@@ -34,27 +35,7 @@ namespace jellyfin_ani_sync.Helpers {
 
             if (aniListAnime.MediaListEntry != null) {
                 anime.MyListStatus.RewatchCount = aniListAnime.MediaListEntry.RepeatCount;
-
-                switch (aniListAnime.MediaListEntry.MediaListStatus) {
-                    case AniListSearch.MediaListStatus.Current:
-                        anime.MyListStatus.Status = Status.Plan_to_watch;
-                        break;
-                    case AniListSearch.MediaListStatus.Completed:
-                        anime.MyListStatus.Status = Status.Completed;
-                        break;
-                    case AniListSearch.MediaListStatus.Repeating:
-                        anime.MyListStatus.Status = Status.Rewatching;
-                        break;
-                    case AniListSearch.MediaListStatus.Dropped:
-                        anime.MyListStatus.Status = Status.Dropped;
-                        break;
-                    case AniListSearch.MediaListStatus.Paused:
-                        anime.MyListStatus.Status = Status.On_hold;
-                        break;
-                    case AniListSearch.MediaListStatus.Planning:
-                        anime.MyListStatus.Status = Status.Plan_to_watch;
-                        break;
-                }
+                anime.MyListStatus.Status = aniListAnime.MediaListEntry.MediaListStatus.ToMalStatus();
             }
 
             anime.RelatedAnime = new List<RelatedAnime>();
@@ -104,32 +85,11 @@ namespace jellyfin_ani_sync.Helpers {
             anime.AlternativeTitles.Synonyms.AddRange(kitsuAnime.Attributes.AbbreviatedTitles);
 
             if (kitsuAnime.RelatedAnime != null && kitsuAnime.RelatedAnime.Count > 0) {
-                foreach (KitsuSearch.KitsuAnime relatedAnime in kitsuAnime.RelatedAnime) {
+                foreach (KitsuSearch.KitsuAnime relatedAnime in kitsuAnime.RelatedAnime.Where(relatedAnime => relatedAnime.RelationType != null)) {
                     RelatedAnime convertedRelatedAnime = new RelatedAnime {
-                        Anime = ClassConversions.ConvertKitsuAnime(relatedAnime)
+                        Anime = ConvertKitsuAnime(relatedAnime),
+                        RelationType = relatedAnime.RelationType.Value.ToMalRelationType()
                     };
-
-                    switch (relatedAnime.RelationType) {
-                        case KitsuMediaRelationship.RelationType.sequel:
-                            convertedRelatedAnime.RelationType = RelationType.Sequel;
-                            break;
-                        case KitsuMediaRelationship.RelationType.side_story:
-                        case KitsuMediaRelationship.RelationType.full_story:
-                        case KitsuMediaRelationship.RelationType.parent_story:
-                            convertedRelatedAnime.RelationType = RelationType.Side_Story;
-                            break;
-                        case KitsuMediaRelationship.RelationType.alternative_setting:
-                        case KitsuMediaRelationship.RelationType.alternative_version:
-                            convertedRelatedAnime.RelationType = RelationType.Alternative_Setting;
-                            break;
-                        case KitsuMediaRelationship.RelationType.spinoff:
-                        case KitsuMediaRelationship.RelationType.adaptation:
-                            convertedRelatedAnime.RelationType = RelationType.Spin_Off;
-                            break;
-                        default:
-                            convertedRelatedAnime.RelationType = RelationType.Other;
-                            break;
-                    }
 
                     if (anime.RelatedAnime == null) {
                         anime.RelatedAnime = new List<RelatedAnime> { convertedRelatedAnime };
@@ -148,26 +108,10 @@ namespace jellyfin_ani_sync.Helpers {
                 Id = int.TryParse(annictAnime.MalAnimeId, out int id) ? id : -1,
                 Title = annictAnime.TitleEn,
                 NumEpisodes = annictAnime.NumberOfEpisodes,
-                MyListStatus = annictAnime.ViewerStatusState == AnnictSearch.AnnictMediaStatus.No_state ? null : new MyListStatus()
+                MyListStatus = annictAnime.ViewerStatusState == AnnictSearch.AnnictMediaStatus.No_state ? null : new MyListStatus {
+                    Status = annictAnime.ViewerStatusState.ToMalStatus()
+                }
             };
-            switch (annictAnime.ViewerStatusState) {
-                case AnnictSearch.AnnictMediaStatus.Watching:
-                    anime.MyListStatus.Status = Status.Watching;
-                    break;
-                case AnnictSearch.AnnictMediaStatus.Watched:
-                    anime.MyListStatus.Status = Status.Completed;
-                    break;
-                case AnnictSearch.AnnictMediaStatus.On_hold:
-                    anime.MyListStatus.Status = Status.On_hold;
-                    break;
-                case AnnictSearch.AnnictMediaStatus.Stop_watching:
-                    anime.MyListStatus.Status = Status.Dropped;
-                    break;
-                case AnnictSearch.AnnictMediaStatus.Wanna_watch:
-                    anime.MyListStatus.Status = Status.Plan_to_watch;
-                    break;
-            }
-
             return anime;
         }
 
@@ -201,27 +145,8 @@ namespace jellyfin_ani_sync.Helpers {
                     NumEpisodesWatched = userRate.Episodes,
                     IsRewatching = userRate.Status is ShikimoriUserRate.StatusEnum.rewatching,
                     RewatchCount = userRate.Rewatches,
+                    Status = userRate.Status.ToMalStatus()
                 };
-                switch (userRate.Status) {
-                    case ShikimoriUserRate.StatusEnum.completed:
-                        anime.MyListStatus.Status = Status.Completed;
-                        break;
-                    case ShikimoriUserRate.StatusEnum.watching:
-                        anime.MyListStatus.Status = Status.Watching;
-                        break;
-                    case ShikimoriUserRate.StatusEnum.rewatching:
-                        anime.MyListStatus.Status = Status.Rewatching;
-                        break;
-                    case ShikimoriUserRate.StatusEnum.dropped:
-                        anime.MyListStatus.Status = Status.Dropped;
-                        break;
-                    case ShikimoriUserRate.StatusEnum.on_hold:
-                        anime.MyListStatus.Status = Status.On_hold;
-                        break;
-                    case ShikimoriUserRate.StatusEnum.planned:
-                        anime.MyListStatus.Status = Status.Plan_to_watch;
-                        break;
-                }
             }
 
             if (shikimoriAnime.Related != null) {
@@ -278,26 +203,9 @@ namespace jellyfin_ani_sync.Helpers {
                 anime.MyListStatus = new MyListStatus {
                     NumEpisodesWatched = simklUserEntry.WatchedEpisodesCount,
                     IsRewatching = false, // simkl does not support rewatching at the moment
-                    RewatchCount = 0
+                    RewatchCount = 0,
+                    Status = simklUserEntry.Status.ToMalStatus()
                 };
-
-                switch (simklUserEntry.Status) {
-                    case SimklStatus.watching:
-                        anime.MyListStatus.Status = Status.Watching;
-                        break;
-                    case SimklStatus.plantowatch:
-                        anime.MyListStatus.Status = Status.Plan_to_watch;
-                        break;
-                    case SimklStatus.hold:
-                        anime.MyListStatus.Status = Status.On_hold;
-                        break;
-                    case SimklStatus.completed:
-                        anime.MyListStatus.Status = Status.Completed;
-                        break;
-                    case SimklStatus.dropped:
-                        anime.MyListStatus.Status = Status.Dropped;
-                        break;
-                }
             }
 
             return anime;

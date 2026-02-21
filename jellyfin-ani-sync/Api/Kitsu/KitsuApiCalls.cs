@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
@@ -83,24 +84,8 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                         RewatchCount = userAnimeStatus.Attributes.ReconsumeCount ?? 0
                     };
 
-                if (userAnimeStatus is { Attributes: { } })
-                    switch (userAnimeStatus.Attributes.Status) {
-                        case KitsuUpdate.Status.completed:
-                            userList.Status = Status.Completed;
-                            break;
-                        case KitsuUpdate.Status.current:
-                            userList.Status = Status.Watching;
-                            break;
-                        case KitsuUpdate.Status.dropped:
-                            userList.Status = Status.Dropped;
-                            break;
-                        case KitsuUpdate.Status.on_hold:
-                            userList.Status = Status.On_hold;
-                            break;
-                        case KitsuUpdate.Status.planned:
-                            userList.Status = Status.Plan_to_watch;
-                            break;
-                    }
+                if (userAnimeStatus is { Attributes.Status: not null })
+                    userList.Status = userAnimeStatus.Attributes.Status.Value.ToMalStatus();
             }
 
             return userList;
@@ -115,7 +100,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                     break;
                 case Status.Completed:
                 case Status.Rewatching:
-                    kitsuStatus = isRewatching != null && isRewatching.Value ? KitsuUpdate.Status.current : KitsuUpdate.Status.completed;
+                    kitsuStatus = isRewatching == true ? KitsuUpdate.Status.current : KitsuUpdate.Status.completed;
                     break;
                 case Status.On_hold:
                     kitsuStatus = KitsuUpdate.Status.on_hold;
@@ -149,30 +134,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
         }
 
         public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
-            KitsuUpdate.Status kitsuStatus;
-            switch (status) {
-                case Status.Watching:
-                case Status.Rewatching:
-                    kitsuStatus = KitsuUpdate.Status.current;
-                    break;
-                case Status.Completed:
-                    kitsuStatus = KitsuUpdate.Status.completed;
-                    break;
-                case Status.On_hold:
-                    kitsuStatus = KitsuUpdate.Status.on_hold;
-                    break;
-                case Status.Dropped:
-                    kitsuStatus = KitsuUpdate.Status.dropped;
-                    break;
-                case Status.Plan_to_watch:
-                    kitsuStatus = KitsuUpdate.Status.planned;
-                    break;
-                default:
-                    kitsuStatus = KitsuUpdate.Status.current;
-                    break;
-            }
-
-            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await GetUserAnimeList(userId.Value, status: kitsuStatus);
+            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await GetUserAnimeList(userId.Value, status: status.ToKitsuStatus());
             if (animeList != null) {
                 List<Anime> convertedList = new List<Anime>();
                 foreach (KitsuUpdate.KitsuLibraryEntry kitsuLibraryEntry in animeList.Data) {

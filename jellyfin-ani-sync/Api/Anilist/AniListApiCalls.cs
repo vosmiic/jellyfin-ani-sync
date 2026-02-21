@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
@@ -155,32 +156,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
         }
 
         public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
-            AniListSearch.MediaListStatus anilistStatus;
-            switch (status) {
-                case Status.Watching:
-                    anilistStatus = AniListSearch.MediaListStatus.Current;
-                    break;
-                case Status.Completed:
-                    anilistStatus = AniListSearch.MediaListStatus.Completed;
-                    break;
-                case Status.Rewatching:
-                    anilistStatus = AniListSearch.MediaListStatus.Repeating;
-                    break;
-                case Status.On_hold:
-                    anilistStatus = AniListSearch.MediaListStatus.Paused;
-                    break;
-                case Status.Dropped:
-                    anilistStatus = AniListSearch.MediaListStatus.Dropped;
-                    break;
-                case Status.Plan_to_watch:
-                    anilistStatus = AniListSearch.MediaListStatus.Planning;
-                    break;
-                default:
-                    anilistStatus = AniListSearch.MediaListStatus.Current;
-                    break;
-            }
-
-            var animeList = await GetAnimeList(userId.Value, anilistStatus);
+            var animeList = await GetAnimeList(userId.Value, status.ToAniListStatus());
             List<Anime> convertedList = new List<Anime>();
             if (animeList != null) {
                 foreach (var media in animeList) {

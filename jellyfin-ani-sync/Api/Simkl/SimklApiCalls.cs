@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
@@ -121,27 +122,7 @@ public class SimklApiCalls : IApiCallHelpers {
     }
 
     public async Task<UpdateAnimeStatusResponse?> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
-        SimklStatus simklStatus;
-
-        switch (status) {
-            case Status.Completed:
-                simklStatus = SimklStatus.completed;
-                break;
-            case Status.Dropped:
-                simklStatus = SimklStatus.dropped;
-                break;
-            case Status.On_hold:
-                simklStatus = SimklStatus.hold;
-                break;
-            case Status.Plan_to_watch:
-                simklStatus = SimklStatus.plantowatch;
-                break;
-            default:
-                simklStatus = SimklStatus.watching;
-                break;
-        }
-
-        if (await UpdateAnime(animeId, simklStatus, isShow.Value, ids, numberOfWatchedEpisodes)) {
+        if (await UpdateAnime(animeId, status.ToSimklStatus(), isShow.Value, ids, numberOfWatchedEpisodes)) {
             return new UpdateAnimeStatusResponse();
         }
 

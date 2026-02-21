@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
@@ -179,33 +180,7 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     }
 
     public async Task<UpdateAnimeStatusResponse?> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
-        ShikimoriUserRate.StatusEnum shikimoriUpdateStatus;
-
-        switch (status) {
-            case Status.Watching:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
-                break;
-            case Status.Completed:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.completed;
-                break;
-            case Status.Rewatching:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.rewatching;
-                break;
-            case Status.On_hold:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.on_hold;
-                break;
-            case Status.Dropped:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.dropped;
-                break;
-            case Status.Plan_to_watch:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.planned;
-                break;
-            default:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
-                break;
-        }
-
-        if (await UpdateAnime(alternativeId, shikimoriUpdateStatus, numberOfWatchedEpisodes, numberOfTimesRewatched)) {
+        if (await UpdateAnime(alternativeId, status.ToShikimoriStatus(), numberOfWatchedEpisodes, numberOfTimesRewatched)) {
             return new UpdateAnimeStatusResponse();
         }
 
@@ -225,33 +200,7 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     }
 
     public async Task<List<Anime>?> GetAnimeList(Status status, int? userId = null) {
-        ShikimoriUserRate.StatusEnum shikimoriUpdateStatus;
-
-        switch (status) {
-            case Status.Watching:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
-                break;
-            case Status.Rewatching:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.rewatching;
-                break;
-            case Status.Completed:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.completed;
-                break;
-            case Status.On_hold:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.on_hold;
-                break;
-            case Status.Dropped:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.dropped;
-                break;
-            case Status.Plan_to_watch:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.planned;
-                break;
-            default:
-                shikimoriUpdateStatus = ShikimoriUserRate.StatusEnum.watching;
-                break;
-        }
-
-        var animeList = await GetUserAnimeList(status: shikimoriUpdateStatus);
+        var animeList = await GetUserAnimeList(status.ToShikimoriStatus());
         if (animeList != null) {
             List<Anime> convertedList = new List<Anime>();
             foreach (ShikimoriAnime shikimoriAnime in animeList) {

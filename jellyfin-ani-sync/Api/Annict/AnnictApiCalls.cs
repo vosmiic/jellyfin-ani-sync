@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
+using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
@@ -84,31 +85,7 @@ namespace jellyfin_ani_sync.Api.Annict {
         }
 
         public async Task<UpdateAnimeStatusResponse> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
-            AnnictSearch.AnnictMediaStatus annictMediaStatus;
-            
-            switch (status) {
-                case Status.Watching:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watching;
-                    break;
-                case Status.Completed:
-                case Status.Rewatching:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watched;
-                    break;
-                case Status.On_hold:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.On_hold;
-                    break;
-                case Status.Dropped:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Stop_watching;
-                    break;
-                case Status.Plan_to_watch:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Wanna_watch;
-                    break;
-                default:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.No_state;
-                    break;
-            }
-            
-            if (await UpdateAnime(alternativeId, annictMediaStatus))
+            if (await UpdateAnime(alternativeId, status.ToAnnictStatus()))
                 return new UpdateAnimeStatusResponse();
 
             return null;
@@ -125,30 +102,7 @@ namespace jellyfin_ani_sync.Api.Annict {
         }
 
         public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
-            AnnictSearch.AnnictMediaStatus annictMediaStatus;
-            switch (status) {
-                case Status.Watching:
-                case Status.Rewatching:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watching;
-                    break;
-                case Status.Completed:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Watched;
-                    break;
-                case Status.On_hold:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.On_hold;
-                    break;
-                case Status.Dropped:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Stop_watching;
-                    break;
-                case Status.Plan_to_watch:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.Wanna_watch;
-                    break;
-                default:
-                    annictMediaStatus = AnnictSearch.AnnictMediaStatus.No_state;
-                    break;
-            }
-            
-            List<AnnictSearch.AnnictAnime> animeList = await GetAnimeList(annictMediaStatus);
+            List<AnnictSearch.AnnictAnime> animeList = await GetAnimeList(status.ToAnnictStatus());
             if (animeList != null) {
                 List<Anime> convertedList = new List<Anime>();
                 foreach (AnnictSearch.AnnictAnime annictAnime in animeList) {
