@@ -30,6 +30,10 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     private readonly UserConfig? _userConfig;
     private readonly Dictionary<string, string>? _requestHeaders;
 
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new()  {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private readonly string _graphqlQuery = @"
       query SearchAnime($search: String!, $page: Int!, $limit: Int!) {
         animes(search: $search, page: $page, limit: $limit) {
@@ -321,12 +325,8 @@ public class ShikimoriApiCalls : IApiCallHelpers {
         if (numberOfTimesRewatched != null) {
             updateBody.UserRate.Rewatches = numberOfTimesRewatched.Value;
         }
-
-        var jsonSerializerOptions = new JsonSerializerOptions {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        };
-
-        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody, jsonSerializerOptions), Encoding.UTF8, "application/json");
+        
+        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody, _jsonSerializerOptions), Encoding.UTF8, "application/json");
         var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: _requestHeaders);
         if (apiCall != null) {
             return apiCall.IsSuccessStatusCode;
@@ -377,13 +377,9 @@ public class ShikimoriApiCalls : IApiCallHelpers {
             Base = $"{_apiBaseUrl}/graphql"
         };
 
-        var jsonSerializerOptions = new JsonSerializerOptions {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        };
-
         // See also https://graphql.org/learn/serving-over-http
         var stringContent = new StringContent(
-            JsonSerializer.Serialize(request, jsonSerializerOptions),
+            JsonSerializer.Serialize(request, _jsonSerializerOptions),
             Encoding.UTF8, "application/json");
         var apiCall = await _authApiCall.AuthenticatedApiCall(
             ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(),

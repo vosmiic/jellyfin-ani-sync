@@ -27,6 +27,10 @@ namespace jellyfin_ani_sync.Api {
 
         private string ApiUrl => _apiBaseUrl + "v" + _apiVersion;
 
+        private static readonly JsonSerializerOptions JsonSerializerOptions = new()  {
+            Converters = { new JsonStringEnumConverter() }
+        };
+
         public MalApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig = null) {
             _logger = loggerFactory.CreateLogger<MalApiCalls>();
             _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
@@ -118,9 +122,7 @@ namespace jellyfin_ani_sync.Api {
                 var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, AuthApiCall.CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                    var options = new JsonSerializerOptions();
-                    options.Converters.Add(new JsonStringEnumConverter());
-                    var anime = JsonSerializer.Deserialize<Anime>(await streamReader.ReadToEndAsync(), options);
+                    var anime = JsonSerializer.Deserialize<Anime>(await streamReader.ReadToEndAsync(), JsonSerializerOptions);
                     _logger.LogInformation("Anime retrieval complete");
                     return anime;
                 } else {
@@ -162,9 +164,7 @@ namespace jellyfin_ani_sync.Api {
                 var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Mal, AuthApiCall.CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                    var options = new JsonSerializerOptions();
-                    options.Converters.Add(new JsonStringEnumConverter());
-                    UserAnimeList userAnimeListPage = JsonSerializer.Deserialize<UserAnimeList>(await streamReader.ReadToEndAsync(), options);
+                    UserAnimeList userAnimeListPage = JsonSerializer.Deserialize<UserAnimeList>(await streamReader.ReadToEndAsync(), JsonSerializerOptions);
 
                     if (userAnimeListPage?.Data != null && userAnimeListPage.Data.Count > 0) {
                         if (idSearch != null) {
@@ -235,10 +235,8 @@ namespace jellyfin_ani_sync.Api {
 
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                    var options = new JsonSerializerOptions();
-                    options.Converters.Add(new JsonStringEnumConverter());
                     _logger.LogInformation($"Updating anime status (PUT {builtUrl})...");
-                    updateResponse = JsonSerializer.Deserialize<UpdateAnimeStatusResponse>(await streamReader.ReadToEndAsync(), options);
+                    updateResponse = JsonSerializer.Deserialize<UpdateAnimeStatusResponse>(await streamReader.ReadToEndAsync(), JsonSerializerOptions);
                     _logger.LogInformation("Update complete");
                 } else {
                     updateResponse = null;

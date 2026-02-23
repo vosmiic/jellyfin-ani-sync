@@ -26,6 +26,10 @@ namespace jellyfin_ani_sync.Api.Kitsu {
         private readonly AuthApiCall _authApiCall;
         private readonly UserConfig _userConfig;
 
+        private readonly JsonSerializerOptions _jsonSerializerOptions = new()  {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
         public KitsuApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig) {
             _logger = loggerFactory.CreateLogger<KitsuApiCalls>();
             _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
@@ -316,11 +320,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                     payload.Data.Attributes.FinishedAt = endDate.Value;
                 }
 
-                var jsonSerializerOptions = new JsonSerializerOptions {
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                };
-
-                var stringContent = new StringContent(JsonSerializer.Serialize(payload, jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
+                var stringContent = new StringContent(JsonSerializer.Serialize(payload, _jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
                 HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? AuthApiCall.CallType.PATCH : AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent);
 
                 if (apiCall != null) {
