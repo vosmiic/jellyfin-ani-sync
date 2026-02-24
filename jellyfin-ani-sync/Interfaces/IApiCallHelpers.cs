@@ -24,7 +24,7 @@ public interface IApiCallHelpers {
     /// <param name="alternativeId">Alternative ID (provider-specific)</param>
     /// <param name="getRelated">Whether to fetch related anime</param>
     /// <returns>Anime details or null if not found</returns>
-    Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false);
+    Task<Anime> GetAnime(int? id = null, string alternativeId = null, bool getRelated = false);
 
     /// <summary>
     /// Update anime watch status for the authenticated user.

@@ -110,8 +110,9 @@ namespace jellyfin_ani_sync.Api.Anilist {
             return null;
         }
 
-        public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
-            AniListSearch.Media anime = await GetAnime(id);
+        public async Task<Anime> GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
+            if (id == null) return null;
+            AniListSearch.Media anime = await GetAnime(id.Value);
             if (anime == null) return null;
 
             return ClassConversions.ConvertAniListAnime(anime);

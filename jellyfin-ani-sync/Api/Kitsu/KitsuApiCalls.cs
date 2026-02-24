@@ -59,12 +59,13 @@ namespace jellyfin_ani_sync.Api.Kitsu {
             return null;
         }
 
-        public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
-            KitsuGet.KitsuGetAnime anime = await GetAnime(id);
+        public async Task<Anime> GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
+            if (id == null) return null;
+            KitsuGet.KitsuGetAnime anime = await GetAnime(id.Value);
             if (anime == null) return null;
             Anime convertedAnime = ClassConversions.ConvertKitsuAnime(anime.KitsuAnimeData);
 
-            convertedAnime.MyListStatus = await GetConvertedKitsuUserList(id);
+            convertedAnime.MyListStatus = await GetConvertedKitsuUserList(id.Value);
 
             return convertedAnime;
         }

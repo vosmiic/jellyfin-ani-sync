@@ -117,7 +117,7 @@ public class SimklApiCalls : IApiCallHelpers {
         return result;
     }
 
-    public Task<Anime>? GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+    public Task<Anime>? GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
         return null;
     }
 

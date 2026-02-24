@@ -255,8 +255,9 @@ namespace jellyfin_ani_sync.Api {
             return SearchAnime(query, [ "id", "title", "alternative_titles", "num_episodes", "status" ], updateNsfw);
         }
 
-        public Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
-            return GetAnime(id, [ "title", "related_anime", "my_list_status", "num_episodes" ]);
+        public Task<Anime> GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
+            if (id == null) return null;
+            return GetAnime(id.Value, [ "title", "related_anime", "my_list_status", "num_episodes" ]);
         }
 
 

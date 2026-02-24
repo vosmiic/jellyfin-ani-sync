@@ -78,7 +78,8 @@ namespace jellyfin_ani_sync.Api.Annict {
             return null;
         }
 
-        public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+        public async Task<Anime> GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
+            if (alternativeId == null) return null;
             var anime = await GetAnime(alternativeId);
             if (anime == null) return null;
             return ClassConversions.ConvertAnnictAnime(anime);

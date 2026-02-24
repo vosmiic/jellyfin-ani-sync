@@ -176,7 +176,8 @@ public class ShikimoriApiCalls : IApiCallHelpers {
         return result;
     }
 
-    public async Task<Anime> GetAnime(int id, string alternativeId = null, bool getRelated = false) {
+    public async Task<Anime?> GetAnime(int? id, string? alternativeId = null, bool getRelated = false) {
+        if (alternativeId == null) return null;
         var anime = await GetAnime(alternativeId, getRelated);
         if (anime == null) return null;
 
