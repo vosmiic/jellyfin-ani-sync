@@ -20,21 +20,15 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Kitsu {
-    public class KitsuApiCalls : IApiCallHelpers {
-        private readonly string ApiUrl = "https://kitsu.io/api/edge";
-        private readonly ILogger<KitsuApiCalls> _logger;
-        private readonly AuthApiCall _authApiCall;
-        private readonly UserConfig _userConfig;
+    public class KitsuApiCalls (IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig)
+        : IApiCallHelpers {
+        private const string ApiUrl = "https://kitsu.io/api/edge";
+        private readonly ILogger<KitsuApiCalls> _logger = loggerFactory.CreateLogger<KitsuApiCalls>();
+        private readonly AuthApiCall _authApiCall = new (httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
 
         private readonly JsonSerializerOptions _jsonSerializerOptions = new()  {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
-
-        public KitsuApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig) {
-            _logger = loggerFactory.CreateLogger<KitsuApiCalls>();
-            _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
-            _userConfig = userConfig;
-        }
 
         public async Task<List<KitsuSearch.KitsuAnime>> SearchAnime(string query) {
             UrlBuilder url = new UrlBuilder {
@@ -47,16 +41,13 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             string builtUrl = url.Build();
             _logger.LogInformation($"(Kitsu) Starting search for anime (GET {builtUrl})...");
-            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
-            if (apiCall != null) {
-                StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                var animeList = JsonSerializer.Deserialize<KitsuSearch.KitsuSearchMedia>(await streamReader.ReadToEndAsync());
+            HttpResponseMessage apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
+            if (apiCall == null) return null;
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            var animeList = JsonSerializer.Deserialize<KitsuSearch.KitsuSearchMedia>(await streamReader.ReadToEndAsync());
 
-                _logger.LogInformation("Search complete");
-                return animeList.KitsuSearchData;
-            }
-
-            return null;
+            _logger.LogInformation("Search complete");
+            return animeList.KitsuSearchData;
         }
 
         public async Task<Anime> GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
@@ -80,18 +71,17 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             MyListStatus userList = new MyListStatus();
 
-            if (userId != null) {
-                KitsuUpdate.KitsuLibraryEntry userAnimeStatus = await GetUserAnimeStatus(userId.Value, id);
-                if (userAnimeStatus is { Attributes: { } })
-                    userList = new MyListStatus {
-                        NumEpisodesWatched = userAnimeStatus.Attributes.Progress ?? 0,
-                        IsRewatching = userAnimeStatus.Attributes.Reconsuming ?? false,
-                        RewatchCount = userAnimeStatus.Attributes.ReconsumeCount ?? 0
-                    };
+            if (userId == null) return userList;
+            KitsuUpdate.KitsuLibraryEntry userAnimeStatus = await GetUserAnimeStatus(userId.Value, id);
+            if (userAnimeStatus is { Attributes: not null })
+                userList = new MyListStatus {
+                    NumEpisodesWatched = userAnimeStatus.Attributes.Progress ?? 0,
+                    IsRewatching = userAnimeStatus.Attributes.Reconsuming ?? false,
+                    RewatchCount = userAnimeStatus.Attributes.ReconsumeCount ?? 0
+                };
 
-                if (userAnimeStatus is { Attributes.Status: not null })
-                    userList.Status = userAnimeStatus.Attributes.Status.Value.ToMalStatus();
-            }
+            if (userAnimeStatus is { Attributes.Status: not null })
+                userList.Status = userAnimeStatus.Attributes.Status.Value.ToMalStatus();
 
             return userList;
         }
@@ -139,67 +129,54 @@ namespace jellyfin_ani_sync.Api.Kitsu {
         }
 
         public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
+            if (userId == null) return null;
             KitsuUpdate.KitsuLibraryEntryListRoot animeList = await GetUserAnimeList(userId.Value, status: status.ToKitsuStatus());
-            if (animeList != null) {
-                List<Anime> convertedList = new List<Anime>();
-                foreach (KitsuUpdate.KitsuLibraryEntry kitsuLibraryEntry in animeList.Data) {
-                    Anime toAddAnime = new Anime();
-                    if (kitsuLibraryEntry.Relationships != null &&
-                        kitsuLibraryEntry.Relationships.AnimeData != null &&
-                        kitsuLibraryEntry.Relationships.AnimeData.Anime != null) {
-                        toAddAnime.Id = kitsuLibraryEntry.Relationships.AnimeData.Anime.Id;
-                    }
-
-                    toAddAnime.MyListStatus = new MyListStatus();
-                    if (kitsuLibraryEntry.Attributes != null) {
-                        toAddAnime.MyListStatus.FinishDate = kitsuLibraryEntry.Attributes.FinishedAt.ToString();
-                        if (kitsuLibraryEntry.Attributes.Progress != null) {
-                            toAddAnime.MyListStatus.NumEpisodesWatched = kitsuLibraryEntry.Attributes.Progress.Value;
-                        }
-                    }
-
-                    convertedList.Add(toAddAnime);
+            if (animeList?.Data == null) return null;
+            List<Anime> convertedList = new List<Anime>();
+            foreach (KitsuUpdate.KitsuLibraryEntry kitsuLibraryEntry in animeList.Data) {
+                Anime toAddAnime = new Anime();
+                if (kitsuLibraryEntry.Relationships is { AnimeData.Anime: not null }) {
+                    toAddAnime.Id = kitsuLibraryEntry.Relationships.AnimeData.Anime.Id;
                 }
 
-                return convertedList;
+                toAddAnime.MyListStatus = new MyListStatus();
+                if (kitsuLibraryEntry.Attributes != null) {
+                    toAddAnime.MyListStatus.FinishDate = kitsuLibraryEntry.Attributes.FinishedAt.ToString();
+                    if (kitsuLibraryEntry.Attributes.Progress != null) {
+                        toAddAnime.MyListStatus.NumEpisodesWatched = kitsuLibraryEntry.Attributes.Progress.Value;
+                    }
+                }
+
+                convertedList.Add(toAddAnime);
             }
 
-            return null;
+            return convertedList;
         }
 
-        public async Task<int?> GetUserId() {
-            var userIdKeyPair = _userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId")?.Value;
-            int? userId = null;
+        private async Task<int?> GetUserId() {
+            string userIdKeyPair = userConfig.KeyPairs.FirstOrDefault(item => item.Key == "KitsuUserId")?.Value;
             if (userIdKeyPair != null) {
                 return int.Parse(userIdKeyPair);
-            } else {
-                var userInformation = await GetUserInformation();
-                if (userInformation != null) return userInformation.Id;
             }
 
-            return null;
+            var userInformation = await GetUserInformation();
+            return userInformation?.Id;
         }
 
         public async Task<MalApiCalls.User> GetUserInformation() {
             UrlBuilder url = new UrlBuilder {
                 Base = $"{ApiUrl}/users",
-                Parameters = new List<KeyValuePair<string, string>> {
-                    new KeyValuePair<string, string>("filter[self]", "true")
-                }
+                Parameters = [new KeyValuePair<string, string> ("filter[self]", "true")]
             };
 
             _logger.LogInformation($"(Kitsu) Retrieving user information...");
-            var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, url.Build());
-            if (apiCall != null) {
-                var xd = await apiCall.Content.ReadAsStringAsync();
-                StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                var animeList = JsonSerializer.Deserialize<KitsuGetUser.KitsuUserRoot>(await streamReader.ReadToEndAsync());
+            HttpResponseMessage apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, url.Build());
+            if (apiCall == null) return null;
+            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+            KitsuGetUser.KitsuUserRoot animeList = JsonSerializer.Deserialize<KitsuGetUser.KitsuUserRoot>(await streamReader.ReadToEndAsync());
 
-                _logger.LogInformation("(Kitsu) Retrieved user information");
-                return new MalApiCalls.User { Id = animeList.KitsuUserList[0].Id, Name = animeList.KitsuUserList[0].KitsuUser.Name };
-            }
-
-            return null;
+            _logger.LogInformation("(Kitsu) Retrieved user information");
+            return new MalApiCalls.User { Id = animeList.KitsuUserList[0].Id, Name = animeList.KitsuUserList[0].KitsuUser.Name };
         }
 
         public async Task<KitsuGet.KitsuGetAnime> GetAnime(int animeId) {
@@ -208,12 +185,12 @@ namespace jellyfin_ani_sync.Api.Kitsu {
             };
 
             string builtUrl = url.Build();
-            _logger.LogInformation($"(Kitsu) Retrieving an anime from Kitsu (GET {builtUrl})...");
+            _logger.LogInformation("(Kitsu) Retrieving an anime from Kitsu (GET {BuiltUrl})...", builtUrl);
             try {
-                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
+                HttpResponseMessage apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                    var anime = JsonSerializer.Deserialize<KitsuGet.KitsuGetAnime>(await streamReader.ReadToEndAsync());
+                    KitsuGet.KitsuGetAnime anime = JsonSerializer.Deserialize<KitsuGet.KitsuGetAnime>(await streamReader.ReadToEndAsync());
                     _logger.LogInformation("(Kitsu) Anime retrieval complete");
                     List<KitsuSearch.KitsuAnime> relatedAnime = await GetRelatedAnime(animeId);
                     if (relatedAnime != null && anime != null) {
@@ -223,7 +200,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                     return anime;
                 }
             } catch (Exception e) {
-                _logger.LogError(e.Message);
+                _logger.LogError("(Kitsu) Could not retrieve anime: {EMessage}", e.Message);
             }
 
             return null;
@@ -238,16 +215,16 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             string builtUrl = url.Build();
             try {
-                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
+                HttpResponseMessage apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, builtUrl);
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                    var mediaRelationships = JsonSerializer.Deserialize<KitsuMediaRelationship.MediaRelationship>(await streamReader.ReadToEndAsync());
+                    KitsuMediaRelationship.MediaRelationship mediaRelationships = JsonSerializer.Deserialize<KitsuMediaRelationship.MediaRelationship>(await streamReader.ReadToEndAsync());
 
                     List<int> listOfRelatedAnimeIds = new List<int>();
                     if (mediaRelationships != null) {
                         foreach (KitsuMediaRelationship.RelationshipData relationshipData in mediaRelationships.Data) {
-                            if (relationshipData.Relationships.Destination.RelationshipData.Type == "anime") {
-                                listOfRelatedAnimeIds.Add(int.Parse(relationshipData.Relationships.Destination.RelationshipData.Id));
+                            if (relationshipData.Relationships.Destination.RelationshipData.Type == "anime" && int.TryParse(relationshipData.Relationships.Destination.RelationshipData.Id, out int id)) {
+                                listOfRelatedAnimeIds.Add(id);
                             }
                         }
 
@@ -259,7 +236,7 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                     }
                 }
             } catch (Exception e) {
-                _logger.LogError(e.Message);
+                _logger.LogError("(Kitsu) Could not retrieve related anime: {EMessage}", e.Message);
             }
 
             return null;
@@ -267,17 +244,17 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
         public async Task<bool> UpdateAnimeStatus(int animeId, int numberOfWatchedEpisodes, KitsuUpdate.Status status,
             bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
-            _logger.LogInformation($"(Kitsu) Preparing to update anime {animeId} status...");
+            _logger.LogInformation("(Kitsu) Preparing to update anime {AnimeId} status...", animeId);
             int? userId = await GetUserId();
 
             if (userId != null) {
-                var libraryStatus = await GetUserAnimeStatus(userId.Value, animeId);
+                KitsuUpdate.KitsuLibraryEntry libraryStatus = await GetUserAnimeStatus(userId.Value, animeId);
                 // if this is populated, it means there is already a record of the anime in the users anime list. therefore we update the record instead of create a new one
                 UrlBuilder url = new UrlBuilder {
                     Base = $"{ApiUrl}/library-entries{(libraryStatus != null ? $"/{libraryStatus.Id}" : "")}"
                 };
 
-                var payload = new KitsuUpdate.KitsuLibraryEntryPostPatchRoot {
+                KitsuUpdate.KitsuLibraryEntryPostPatchRoot payload = new KitsuUpdate.KitsuLibraryEntryPostPatchRoot {
                     Data = new KitsuUpdate.KitsuLibraryEntry {
                         Type = "libraryEntries",
                         Attributes = new KitsuUpdate.Attributes {
@@ -321,8 +298,8 @@ namespace jellyfin_ani_sync.Api.Kitsu {
                     payload.Data.Attributes.FinishedAt = endDate.Value;
                 }
 
-                var stringContent = new StringContent(JsonSerializer.Serialize(payload, _jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
-                HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? AuthApiCall.CallType.PATCH : AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent);
+                StringContent stringContent = new StringContent(JsonSerializer.Serialize(payload, _jsonSerializerOptions), Encoding.UTF8, "application/vnd.api+json");
+                HttpResponseMessage apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, libraryStatus != null ? AuthApiCall.CallType.PATCH : AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent);
 
                 if (apiCall != null) {
                     return apiCall.IsSuccessStatusCode;
@@ -333,16 +310,12 @@ namespace jellyfin_ani_sync.Api.Kitsu {
         }
 
         public async Task<KitsuUpdate.KitsuLibraryEntry> GetUserAnimeStatus(int userId, int animeId) {
-            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await LibraryEntriesCall(new List<KeyValuePair<string, string>> {
-                new ("filter[animeId]", animeId.ToString()),
-                new ("filter[userId]", userId.ToString())
-            });
+            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await LibraryEntriesCall([
+                new KeyValuePair<string, string> ("filter[animeId]", animeId.ToString()),
+                new KeyValuePair<string, string> ("filter[userId]", userId.ToString())
+            ]);
 
-            if (animeList.Data is { Count: > 0 }) {
-                return animeList.Data[0];
-            }
-
-            return null;
+            return animeList.Data is { Count: > 0 } ? animeList.Data[0] : null;
         }
 
         private async Task<KitsuUpdate.KitsuLibraryEntryListRoot> LibraryEntriesCall(List<KeyValuePair<string, string>> parameters) {
@@ -353,28 +326,28 @@ namespace jellyfin_ani_sync.Api.Kitsu {
 
             _logger.LogInformation("(Kitsu) Fetching current user anime list status...");
             try {
-                var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, url.Build());
+                HttpResponseMessage apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Kitsu, AuthApiCall.CallType.GET, url.Build());
 
                 if (apiCall != null) {
                     StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-                    var library = JsonSerializer.Deserialize<KitsuUpdate.KitsuLibraryEntryListRoot>(await streamReader.ReadToEndAsync());
+                    KitsuUpdate.KitsuLibraryEntryListRoot library = JsonSerializer.Deserialize<KitsuUpdate.KitsuLibraryEntryListRoot>(await streamReader.ReadToEndAsync());
                     _logger.LogInformation("(Kitsu) Fetched user anime list");
                     return library;
                 }
             } catch (Exception e) {
-                _logger.LogError(e.Message);
+                _logger.LogError("(Kitsu) Could not get current user anime list status: {EMessage}", e.Message);
             }
 
             return null;
         }
 
-        public async Task<KitsuUpdate.KitsuLibraryEntryListRoot> GetUserAnimeList(int userId, KitsuUpdate.Status status) {
-            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await LibraryEntriesCall(new List<KeyValuePair<string, string>> {
-                new("filter[userId]", userId.ToString()),
-                new("filter[kind]", "anime"),
-                new("filter[status]", status.ToString()),
-                new("include", "anime"),
-            });
+        private async Task<KitsuUpdate.KitsuLibraryEntryListRoot> GetUserAnimeList(int userId, KitsuUpdate.Status status) {
+            KitsuUpdate.KitsuLibraryEntryListRoot animeList = await LibraryEntriesCall([
+                new KeyValuePair<string, string>("filter[userId]", userId.ToString()),
+                new KeyValuePair<string, string>("filter[kind]", "anime"),
+                new KeyValuePair<string, string>("filter[status]", status.ToString()),
+                new KeyValuePair<string, string>("include", "anime")
+            ]);
 
             return animeList;
         }

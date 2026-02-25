@@ -8,7 +8,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
-using jellyfin_ani_sync.Extensions;
 using jellyfin_ani_sync.Helpers;
 using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
@@ -21,17 +20,11 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Simkl;
 
-public class SimklApiCalls : IApiCallHelpers {
-    private readonly Dictionary<string, string> _requestHeaders;
-    private readonly ILogger<SimklApiCalls> _logger;
-    private readonly AuthApiCall _authApiCall;
-    public static readonly string ApiBaseUrl = "https://api.simkl.com";
-
-    public SimklApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
-        _requestHeaders = requestHeaders;
-        _logger = loggerFactory.CreateLogger<SimklApiCalls>();
-        _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
-    }
+public class SimklApiCalls (IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, Dictionary<string, string>? requestHeaders, UserConfig userConfig)
+    : IApiCallHelpers {
+    private readonly ILogger<SimklApiCalls> _logger = loggerFactory.CreateLogger<SimklApiCalls>();
+    private readonly AuthApiCall _authApiCall = new (httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
+    public const string ApiBaseUrl = "https://api.simkl.com";
 
     /// <summary>
     /// Get the users last activity. While this does not return the activity because this is only used to validate the token, it can later be adjusted to return the actual data if needed.
@@ -42,7 +35,7 @@ public class SimklApiCalls : IApiCallHelpers {
             Base = $"{ApiBaseUrl}/sync/activities"
         };
 
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: requestHeaders);
         return apiCall is { IsSuccessStatusCode: true };
     }
 
@@ -54,7 +47,7 @@ public class SimklApiCalls : IApiCallHelpers {
         url.Parameters.Add(new KeyValuePair<string, string>("q", searchString));
         url.Parameters.Add(new KeyValuePair<string, string>("extended", "full"));
 
-        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+        if (requestHeaders != null && requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
             url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
         } else {
             return null;
@@ -65,7 +58,7 @@ public class SimklApiCalls : IApiCallHelpers {
         url.Parameters.Add(new KeyValuePair<string, string>("limit", pageLimit.ToString()));
         url.Parameters.Add(new KeyValuePair<string, string>("page", page.ToString()));
 
-        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: requestHeaders);
         if (apiCall == null) {
             return null;
         }
@@ -75,7 +68,7 @@ public class SimklApiCalls : IApiCallHelpers {
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
             result = JsonSerializer.Deserialize<List<SimklMedia>>(await streamReader.ReadToEndAsync());
         } catch (Exception e) {
-            _logger.LogError($"Could not deserialize result, reason: {e.Message}");
+            _logger.LogError("Could not deserialize result, reason: {EMessage}", e.Message);
             return null;
         }
 
@@ -100,7 +93,7 @@ public class SimklApiCalls : IApiCallHelpers {
                 StreamReader streamReader = new StreamReader(await pageApiCall.Content.ReadAsStreamAsync());
                 nextPageResult = JsonSerializer.Deserialize<List<SimklMedia>>(await streamReader.ReadToEndAsync());
             } catch (Exception e) {
-                _logger.LogWarning($"Could not retrieve next result page, reason: {e.Message}");
+                _logger.LogWarning("Could not retrieve next result page, reason: {EMessage}", e.Message);
                 break;
             }
 
@@ -117,12 +110,12 @@ public class SimklApiCalls : IApiCallHelpers {
         return result;
     }
 
-    public Task<Anime>? GetAnime(int? id, string alternativeId = null, bool getRelated = false) {
+    public Task<Anime>? GetAnime(int? id, string? alternativeId = null, bool getRelated = false) {
         return null;
     }
 
     public async Task<UpdateAnimeStatusResponse?> UpdateAnime(int animeId, int numberOfWatchedEpisodes, Status status, bool? isRewatching = null, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null, string alternativeId = null, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids = null, bool? isShow = null) {
-        if (await UpdateAnime(animeId, status.ToSimklStatus(), isShow.Value, ids, numberOfWatchedEpisodes)) {
+        if (isShow != null && await UpdateAnime(animeId, isShow.Value, ids, numberOfWatchedEpisodes)) {
             return new UpdateAnimeStatusResponse();
         }
 
@@ -140,16 +133,16 @@ public class SimklApiCalls : IApiCallHelpers {
     public async Task<SimklExtendedMedia?> GetAnime(int id) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiBaseUrl}/anime/{id}",
-            Parameters = new List<KeyValuePair<string, string>> { new ("extended", "full") }
+            Parameters = [new KeyValuePair<string, string> ("extended", "full")]
         };
 
-        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+        if (requestHeaders != null && requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
             url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
         } else {
             return null;
         }
 
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: requestHeaders);
         if (apiCall == null) {
             return null;
         }
@@ -158,17 +151,17 @@ public class SimklApiCalls : IApiCallHelpers {
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
             return JsonSerializer.Deserialize<SimklExtendedMedia>(await streamReader.ReadToEndAsync());
         } catch (Exception e) {
-            _logger.LogError($"Could not deserialize anime, reason: {e.Message}");
+            _logger.LogError("Could not deserialize anime, reason: {EMessage}", e.Message);
             return null;
         }
     }
 
 
     public async Task<Anime?> GetAnime(AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, string title, bool getRelated = false) {
-        SimklIdLookupMedia idLookupResult = await GetAnimeByIdLookup(ids, title);
-        if (idLookupResult != null && (idLookupResult.Ids?.Simkl != null && idLookupResult.Ids.Simkl != 0)) {
-            var detailedAnime = await GetAnime(idLookupResult.Ids.Simkl);
-            var userList = await GetUserAnimeList();
+        SimklIdLookupMedia? idLookupResult = await GetAnimeByIdLookup(ids, title);
+        if (idLookupResult is { Ids.Simkl: not null } && idLookupResult.Ids.Simkl != 0) {
+            SimklExtendedMedia? detailedAnime = await GetAnime(idLookupResult.Ids.Simkl.Value);
+            List<SimklUserEntry>? userList = await GetUserAnimeList();
             if (detailedAnime != null) {
                 return ClassConversions.ConvertSimklAnime(detailedAnime, userList?.FirstOrDefault(userEntry => userEntry.Show.Ids.Simkl == detailedAnime.Ids.Simkl));
             }
@@ -182,7 +175,7 @@ public class SimklApiCalls : IApiCallHelpers {
             Base = $"{ApiBaseUrl}/search/id"
         };
 
-        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+        if (requestHeaders != null && requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
             url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
         } else {
             return null;
@@ -204,7 +197,7 @@ public class SimklApiCalls : IApiCallHelpers {
             url.Parameters.Add(new KeyValuePair<string, string>("mal", ids.MyAnimeList.Value.ToString()));
         }
 
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: requestHeaders);
         if (apiCall == null) {
             return null;
         }
@@ -212,18 +205,18 @@ public class SimklApiCalls : IApiCallHelpers {
         try {
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
             List<SimklIdLookupMedia>? results = JsonSerializer.Deserialize<List<SimklIdLookupMedia>?>(await streamReader.ReadToEndAsync());
-            if (results != null && results.Count > 0) {
+            if (results is { Count: > 0 }) {
                 // attempt to match to title
-                var detectedAnime = results.FirstOrDefault(anime => string.Equals(anime.Title, title, StringComparison.CurrentCultureIgnoreCase));
+                SimklIdLookupMedia? detectedAnime = results.FirstOrDefault(anime => string.Equals(anime.Title, title, StringComparison.CurrentCultureIgnoreCase));
                 if (detectedAnime != null) {
                     return detectedAnime;
-                } else {
-                    // might not be a perfect match; just return the first result (should only ever be a single result anyway)
-                    return results[0];
                 }
+
+                // might not be a perfect match; just return the first result (should only ever be a single result anyway)
+                return results[0];
             }
         } catch (Exception e) {
-            _logger.LogError($"Could not deserialize anime list, reason: {e.Message}");
+            _logger.LogError("Could not deserialize anime list, reason: {EMessage}", e.Message);
             return null;
         }
 
@@ -240,7 +233,7 @@ public class SimklApiCalls : IApiCallHelpers {
 
         url.Parameters.Add(new KeyValuePair<string, string>("extended", "full"));
 
-        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.GET, url.Build(), requestHeaders: requestHeaders);
         if (apiCall == null) {
             return null;
         }
@@ -248,23 +241,19 @@ public class SimklApiCalls : IApiCallHelpers {
         try {
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
             SimklUserList? deserialized = JsonSerializer.Deserialize<SimklUserList>(await streamReader.ReadToEndAsync());
-            if (deserialized != null) {
-                return deserialized.Entry;
-            } else {
-                return null;
-            }
+            return deserialized?.Entry;
         } catch (Exception e) {
-            _logger.LogError($"Could not deserialize user anime list, reason: {e.Message}");
+            _logger.LogError("Could not deserialize user anime list, reason: {EMessage}", e.Message);
             return null;
         }
     }
 
-    public async Task<bool> UpdateAnime(int animeId, SimklStatus updateStatus, bool isShow, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, int numberOfWatchedEpisodes) {
+    public async Task<bool> UpdateAnime(int animeId, bool isShow, AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse ids, int numberOfWatchedEpisodes) {
         UrlBuilder url = new UrlBuilder {
             Base = $"{ApiBaseUrl}/sync/history"
         };
 
-        if (_requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
+        if (requestHeaders != null && requestHeaders.TryGetValue("simkl-api-key", out string? clientId)) {
             url.Parameters.Add(new KeyValuePair<string, string>("client_id", clientId));
         } else {
             return false;
@@ -292,7 +281,7 @@ public class SimklApiCalls : IApiCallHelpers {
 
         SimklUpdateBody updateBody = new SimklUpdateBody();
         if (isShow) {
-            var updateBodyShow = new UpdateBodyShow {
+            UpdateBodyShow updateBodyShow = new UpdateBodyShow {
                 Ids = convertedIds
             };
 
@@ -322,9 +311,9 @@ public class SimklApiCalls : IApiCallHelpers {
             };
         }
 
-        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody), Encoding.UTF8, "application/json");
+        StringContent stringContent = new StringContent(JsonSerializer.Serialize(updateBody), Encoding.UTF8, "application/json");
 
-        HttpResponseMessage? response = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: _requestHeaders);
+        HttpResponseMessage? response = await _authApiCall.AuthenticatedApiCall(ApiName.Simkl, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: requestHeaders);
         if (response != null) {
             return response.IsSuccessStatusCode;
         }

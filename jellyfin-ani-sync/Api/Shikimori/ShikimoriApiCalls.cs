@@ -22,76 +22,70 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Shikimori;
 
-public class ShikimoriApiCalls : IApiCallHelpers {
-    private readonly ILogger<ShikimoriApiCalls> _logger;
-    private readonly AuthApiCall _authApiCall;
-    private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
-    private readonly string _apiBaseUrl = "https://shikimori.one/api";
-    private readonly UserConfig? _userConfig;
-    private readonly Dictionary<string, string>? _requestHeaders;
+public class ShikimoriApiCalls (IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, Dictionary<string, string>? requestHeaders, UserConfig userConfig)
+    : IApiCallHelpers {
+    private readonly ILogger<ShikimoriApiCalls> _logger = loggerFactory.CreateLogger<ShikimoriApiCalls>();
+    private readonly AuthApiCall _authApiCall = new (httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
+    private const string ApiBaseUrl = "https://shikimori.one/api";
+    private const int PageLimit = 50;
 
     private readonly JsonSerializerOptions _jsonSerializerOptions = new()  {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly string _graphqlQuery = @"
-      query SearchAnime($search: String!, $page: Int!, $limit: Int!) {
-        animes(search: $search, page: $page, limit: $limit) {
-          ...AnimeFields
-        }
-      }
+    private  const string GraphqlQuery = """
 
-      query GetAnime($id: String!, $getRelated: Boolean!) {
-        animes(ids: $id) {
-          ...AnimeFields
+                                                query SearchAnime($search: String!, $page: Int!, $limit: Int!) {
+                                                  animes(search: $search, page: $page, limit: $limit) {
+                                                    ...AnimeFields
+                                                  }
+                                                }
 
-          userRate {
-            ...UserRateFields
-          }
+                                                query GetAnime($id: String!, $getRelated: Boolean!) {
+                                                  animes(ids: $id) {
+                                                    ...AnimeFields
 
-          related @include(if: $getRelated) {
-            anime {
-              ...AnimeFields
-            }
-            relationEn
-          }
-        }
-      }
+                                                    userRate {
+                                                      ...UserRateFields
+                                                    }
 
-      query GetUserAnimeList($mylist: MylistString!, $page: Int!, $limit: Int!) {
-        animes(mylist: $mylist, page: $page, limit: $limit) {
-          ...AnimeFields
-          userRate {
-            ...UserRateFields
-          }
-        }
-      }
+                                                    related @include(if: $getRelated) {
+                                                      anime {
+                                                        ...AnimeFields
+                                                      }
+                                                      relationEn
+                                                    }
+                                                  }
+                                                }
 
-      fragment UserRateFields on UserRate {
-         status
-         rewatches
-         episodes
-      }
+                                                query GetUserAnimeList($mylist: MylistString!, $page: Int!, $limit: Int!) {
+                                                  animes(mylist: $mylist, page: $page, limit: $limit) {
+                                                    ...AnimeFields
+                                                    userRate {
+                                                      ...UserRateFields
+                                                    }
+                                                  }
+                                                }
 
-      fragment AnimeFields on Anime {
-        id
-        malId
-        name
-        episodes
-        synonyms
-        russian
-        english
-        japanese
-        isCensored
-      }
-    ";
+                                                fragment UserRateFields on UserRate {
+                                                   status
+                                                   rewatches
+                                                   episodes
+                                                }
 
-    public ShikimoriApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, Dictionary<string, string>? requestHeaders, UserConfig? userConfig = null) {
-        _userConfig = userConfig;
-        _requestHeaders = requestHeaders;
-        _logger = loggerFactory.CreateLogger<ShikimoriApiCalls>();
-        _authApiCall = new AuthApiCall(httpClientFactory, serverApplicationHost, httpContextAccessor, loggerFactory, memoryCache, delayer, userConfig: userConfig);
-    }
+                                                fragment AnimeFields on Anime {
+                                                  id
+                                                  malId
+                                                  name
+                                                  episodes
+                                                  synonyms
+                                                  russian
+                                                  english
+                                                  japanese
+                                                  isCensored
+                                                }
+                                              
+                                          """;
 
     public class User {
         [JsonPropertyName("id")] public int Id { get; set; }
@@ -103,30 +97,26 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     /// </summary>
     public async Task<User?> GetUserInformation() {
         UrlBuilder url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/users/whoami"
+            Base = $"{ApiBaseUrl}/users/whoami"
         };
-        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: _requestHeaders);
-        if (apiCall != null) {
-            StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
-            string streamText = await streamReader.ReadToEndAsync();
+        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.GET, url.Build(), requestHeaders: requestHeaders);
+        if (apiCall == null) return null;
+        StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
+        string streamText = await streamReader.ReadToEndAsync();
 
-            try {
-                User? user = JsonSerializer.Deserialize<User>(streamText);
+        try {
+            User? user = JsonSerializer.Deserialize<User>(streamText);
 
-                if (user != null) {
-                    _userConfig?.KeyPairs.Add(new KeyPairs {
-                        Key = "ShikimoriUserId",
-                        Value = user.Id.ToString()
-                    });
+            if (user == null) return user;
+            userConfig?.KeyPairs.Add(new KeyPairs {
+                Key = "ShikimoriUserId",
+                Value = user.Id.ToString()
+            });
 
-                    Plugin.Instance?.SaveConfiguration();
-                }
+            Plugin.Instance?.SaveConfiguration();
 
-                return user;
-            } catch (Exception) {
-                return null;
-            }
-        } else {
+            return user;
+        } catch (Exception) {
             return null;
         }
     }
@@ -138,47 +128,46 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     /// <returns></returns>
     public async Task<List<ShikimoriAnime>?> SearchAnime(string searchString) {
         const int maxPages = 10;
-        const int limit = 50;
 
         List<ShikimoriAnime>? result = null;
         for (int page = 1; page < maxPages; page++) {
-            var request = new GraphqlRequest {
-                Query = _graphqlQuery,
+            GraphqlRequest request = new GraphqlRequest {
+                Query = GraphqlQuery,
                 OperationName = "SearchAnime",
                 Variables = new Dictionary<string, object>() {
                     { "search", searchString },
-                    { "limit", limit },
+                    { "limit", PageLimit },
                     { "page", page },
                 },
             };
 
-            var data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
+            Dictionary<string, List<ShikimoriAnime>>? data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
             if (data == null) {
                 break;
             }
 
-            List<ShikimoriAnime> animes;
-            if (!data.TryGetValue("animes", out animes)) {
+            if (!data.TryGetValue("animes", out var anime)) {
                 _logger.LogWarning("GraphQL response does not contain animes query");
                 break;
             }
 
             if (result != null) {
-                result.AddRange(animes);
+                result.AddRange(anime);
             } else {
-                result = animes;
+                result = anime;
             }
 
-            if (animes.Count < limit) {
+            if (anime.Count < PageLimit) {
                 break;
             }
         }
+        
         return result;
     }
 
     public async Task<Anime?> GetAnime(int? id, string? alternativeId = null, bool getRelated = false) {
         if (alternativeId == null) return null;
-        var anime = await GetAnime(alternativeId, getRelated);
+        ShikimoriAnime? anime = await GetAnime(alternativeId, getRelated);
         if (anime == null) return null;
 
         return ClassConversions.ConvertShikimoriAnime(anime);
@@ -193,7 +182,7 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     }
 
     public async Task<MalApiCalls.User?> GetUser() {
-        ShikimoriApiCalls.User user = await GetUserInformation();
+        User? user = await GetUserInformation();
         if (user != null) {
             return new MalApiCalls.User {
                 Id = user.Id,
@@ -205,27 +194,25 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     }
 
     public async Task<List<Anime>?> GetAnimeList(Status status, int? userId = null) {
-        var animeList = await GetUserAnimeList(status.ToShikimoriStatus());
-        if (animeList != null) {
-            List<Anime> convertedList = new List<Anime>();
-            foreach (ShikimoriAnime shikimoriAnime in animeList) {
-                convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
-            }
-
-            return convertedList;
+        List<ShikimoriAnime>? animeList = await GetUserAnimeList(status.ToShikimoriStatus());
+        if (animeList == null) return null;
+        List<Anime> convertedList = new List<Anime>();
+        foreach (ShikimoriAnime shikimoriAnime in animeList) {
+            convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
         }
 
-        return null;
+        return convertedList;
     }
 
     /// <summary>
     /// Get an anime.
     /// </summary>
     /// <param name="id">ID of the anime you want to get.</param>
-    /// <returns></returns>
+    /// <param name="getRelated">True to request related anime from the API.</param>
+    /// <returns>Nullable <see cref="ShikimoriAnime"/></returns>
     public async Task<ShikimoriAnime?> GetAnime(string id, bool getRelated = false) {
-        var request = new GraphqlRequest {
-            Query = _graphqlQuery,
+        GraphqlRequest request = new GraphqlRequest {
+            Query = GraphqlQuery,
             OperationName = "GetAnime",
             Variables = new Dictionary<string, object>() {
                 { "id", id },
@@ -233,52 +220,45 @@ public class ShikimoriApiCalls : IApiCallHelpers {
             },
         };
 
-        var data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
+        Dictionary<string, List<ShikimoriAnime>>? data = await GraphqlApiCall<Dictionary<string, List<ShikimoriAnime>>>(request);
         if (data == null) {
             return null;
         }
 
-        List<ShikimoriAnime> animes;
-        if (!data.TryGetValue("animes", out animes)) {
+        if (!data.TryGetValue("animes", out var anime)) {
             _logger.LogWarning("GraphQL response does not contain animes query");
             return null;
         }
 
-        if (!animes.Any()) {
+        if (anime.Count == 0) {
             return null;
         }
 
-        return animes[0];
+        return anime[0];
     }
 
     /// <summary>
-    /// Get a anime users rates.
+    /// Get anime users rates.
     /// </summary>
     /// <param name="status">Only retrieve user rate with a given status.</param>
-    /// <returns></returns>
+    /// <returns>Nullable list of <see cref="ShikimoriAnime"/></returns>
     public async Task<List<ShikimoriAnime>?> GetUserAnimeList(ShikimoriUserRate.StatusEnum? status = null) {
-        const int limit = 50;
-
-        string mylist;
+        string myList;
         if (status == null) {
-            mylist = String.Join(
-                ",",
-                Enum.GetValues(typeof(ShikimoriUserRate.StatusEnum))
-                    .Cast<ShikimoriUserRate.StatusEnum>()
-                    .Select(x => x.ToString()));
+            myList = string.Join(",", Enum.GetValues<ShikimoriUserRate.StatusEnum>().Select(x => x.ToString()));
         } else {
-            mylist = status.Value.ToString();
+            myList = status.Value.ToString();
         }
 
         List<ShikimoriAnime>? result = null;
         for (int page = 1; ; page++) {
-            var request = new GraphqlRequest {
-                Query = _graphqlQuery,
+            GraphqlRequest request = new GraphqlRequest {
+                Query = GraphqlQuery,
                 OperationName = "GetUserAnimeList",
                 Variables = new Dictionary<string, object>() {
                     { "page", page },
-                    { "limit", limit },
-                    { "mylist", mylist },
+                    { "limit", PageLimit },
+                    { "mylist", myList },
                 },
             };
 
@@ -287,28 +267,35 @@ public class ShikimoriApiCalls : IApiCallHelpers {
                 return null;
             }
 
-            List<ShikimoriAnime> animes;
-            if (!data.TryGetValue("animes", out animes)) {
+            if (!data.TryGetValue("animes", out var anime)) {
                 _logger.LogWarning("GraphQL response does not contain animes query");
                 return null;
             }
 
             if (result != null) {
-                result.AddRange(animes);
+                result.AddRange(anime);
             } else {
-                result = animes;
+                result = anime;
             }
 
-            if (animes.Count < limit) {
+            if (anime.Count < PageLimit) {
                 break;
             }
         }
         return result;
     }
 
+    /// <summary>
+    /// Update anime in the users list.
+    /// </summary>
+    /// <param name="id">ID of the anime to update.</param>
+    /// <param name="updateStatus">Status to update anime to.</param>
+    /// <param name="progress">Progress to update anime to.</param>
+    /// <param name="numberOfTimesRewatched">Number of times rewatched to update anime to.</param>
+    /// <returns>True if successful, false if not.</returns>
     public async Task<bool> UpdateAnime(string id, ShikimoriUserRate.StatusEnum updateStatus, int progress, int? numberOfTimesRewatched = null) {
         UrlBuilder url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/v2/user_rates"
+            Base = $"{ApiBaseUrl}/v2/user_rates"
         };
 
         string? shikimoriUserId = await GetUserId();
@@ -327,8 +314,8 @@ public class ShikimoriApiCalls : IApiCallHelpers {
             updateBody.UserRate.Rewatches = numberOfTimesRewatched.Value;
         }
         
-        var stringContent = new StringContent(JsonSerializer.Serialize(updateBody, _jsonSerializerOptions), Encoding.UTF8, "application/json");
-        var apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: _requestHeaders);
+        StringContent stringContent = new StringContent(JsonSerializer.Serialize(updateBody, _jsonSerializerOptions), Encoding.UTF8, "application/json");
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(), stringContent: stringContent, requestHeaders: requestHeaders);
         if (apiCall != null) {
             return apiCall.IsSuccessStatusCode;
         }
@@ -337,7 +324,7 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     }
 
     private async Task<string?> GetUserId() {
-        string? shikimoriUserId = _userConfig?.KeyPairs.FirstOrDefault(keypair => keypair.Key == "ShikimoriUserId")?.Value;
+        string? shikimoriUserId = userConfig?.KeyPairs.FirstOrDefault(keypair => keypair.Key == "ShikimoriUserId")?.Value;
         if (shikimoriUserId == null || string.IsNullOrEmpty(shikimoriUserId))  {
             _logger.LogInformation("No Shikimori user ID stored in the config. Attempting to retrieve...");
             User? user = await GetUserInformation();
@@ -374,39 +361,39 @@ public class ShikimoriApiCalls : IApiCallHelpers {
     }
 
     private async Task<T?> GraphqlApiCall<T>(GraphqlRequest request) where T: class {
-        var url = new UrlBuilder {
-            Base = $"{_apiBaseUrl}/graphql"
+        UrlBuilder url = new UrlBuilder {
+            Base = $"{ApiBaseUrl}/graphql"
         };
 
         // See also https://graphql.org/learn/serving-over-http
-        var stringContent = new StringContent(
+        StringContent stringContent = new StringContent(
             JsonSerializer.Serialize(request, _jsonSerializerOptions),
             Encoding.UTF8, "application/json");
-        var apiCall = await _authApiCall.AuthenticatedApiCall(
+        HttpResponseMessage? apiCall = await _authApiCall.AuthenticatedApiCall(
             ApiName.Shikimori, AuthApiCall.CallType.POST, url.Build(),
             stringContent: stringContent,
-            requestHeaders: _requestHeaders);
+            requestHeaders: requestHeaders);
         if (apiCall == null) {
             return null;
         }
 
-        GraphqlResponse<T> response;
+        GraphqlResponse<T>? response;
         try {
             StreamReader streamReader = new StreamReader(await apiCall.Content.ReadAsStreamAsync());
             response = JsonSerializer.Deserialize<GraphqlResponse<T>>(await streamReader.ReadToEndAsync());
         } catch (Exception e) {
-            _logger.LogError($"Could not deserialize GraphQL response, reason: {e.Message}");
+            _logger.LogError("Could not deserialize GraphQL response, reason: {EMessage}", e.Message);
             return null;
         }
 
-        if (response.Errors != null && response.Errors.Any()) {
+        if (response?.Errors != null && response.Errors.Any()) {
             foreach (GraphqlError error in response.Errors) {
-                _logger.LogError($"GraphQL error: {error.Message}");
+                _logger.LogError("GraphQL error: {ErrorMessage}", error.Message);
             }
             return null;
         }
 
-        if (response.Data == null) {
+        if (response?.Data == null) {
             _logger.LogError("GraphQL returned empty data");
             return null;
         }
@@ -416,18 +403,17 @@ public class ShikimoriApiCalls : IApiCallHelpers {
 
     async Task<List<Anime>> IApiCallHelpers.SearchAnime(string query) {
         bool updateNsfw = Plugin.Instance?.PluginConfiguration?.updateNsfw != null && Plugin.Instance.PluginConfiguration.updateNsfw;
-        List<ShikimoriAnime> animeList = await SearchAnime(query);
+        List<ShikimoriAnime>? animeList = await SearchAnime(query);
 
         return ShikimoriSearchAnimeConvertedList(animeList, updateNsfw);
     }
 
-    internal static List<Anime> ShikimoriSearchAnimeConvertedList(List<ShikimoriAnime> animeList, bool updateNsfw) {
+    internal static List<Anime> ShikimoriSearchAnimeConvertedList(List<ShikimoriAnime>? animeList, bool updateNsfw) {
         List<Anime> convertedList = new List<Anime>();
-        if (animeList != null) {
-            foreach (ShikimoriAnime shikimoriAnime in animeList) {
-                if (!updateNsfw && shikimoriAnime.IsCensored == true) continue;
-                convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
-            }
+        if (animeList == null) return convertedList;
+        foreach (ShikimoriAnime shikimoriAnime in animeList) {
+            if (!updateNsfw && shikimoriAnime.IsCensored == true) continue;
+            convertedList.Add(ClassConversions.ConvertShikimoriAnime(shikimoriAnime));
         }
 
         return convertedList;

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Extensions;
@@ -19,29 +18,12 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Api.Anilist {
-    public class AniListApiCalls : IApiCallHelpers {
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly IServerApplicationHost _serverApplicationHost;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly HttpClient _httpClient;
-        private readonly IMemoryCache _memoryCache;
-        private readonly IAsyncDelayer _delayer;
-        private readonly UserConfig _userConfig;
-        private static readonly int PageSize = 50;
-        private static readonly int ChunkSize = 500;
+    public class AniListApiCalls (IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig = null)
+        : IApiCallHelpers {
+        private readonly HttpClient _httpClient = httpClientFactory.CreateClient(NamedClient.Default);
+        private const int PageSize = 50;
+        private const int ChunkSize = 500;
 
-
-        public AniListApiCalls(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache, IAsyncDelayer delayer, UserConfig userConfig = null) {
-            _httpClientFactory = httpClientFactory;
-            _loggerFactory = loggerFactory;
-            _serverApplicationHost = serverApplicationHost;
-            _httpContextAccessor = httpContextAccessor;
-            _httpClient = httpClientFactory.CreateClient(NamedClient.Default);
-            _memoryCache = memoryCache;
-            _delayer = delayer;
-            _userConfig = userConfig;
-        }
 
         /// <summary>
         /// Search for an anime based upon its name.
@@ -49,31 +31,33 @@ namespace jellyfin_ani_sync.Api.Anilist {
         /// <param name="searchString">The name to search for.</param>
         /// <returns>List of anime.</returns>
         public async Task<List<AniListSearch.Media>> SearchAnime(string searchString) {
-            string query = @"query ($search: String!, $type: MediaType, $perPage: Int, $page: Int) {
-            Page(perPage: $perPage, page: $page) {
-                pageInfo {
-                    total
-                        perPage
-                    currentPage
-                        lastPage
-                    hasNextPage
-                }
-                media(search: $search, type: $type) {
-                    id
-                    title {
-                        romaji
-                            english
-                        native
-                            userPreferred
-                    },
-                    synonyms
-                    episodes
-                    status
-                    isAdult
-                }
-            }
-        }
-        ";
+            const string query = """
+                                 query ($search: String!, $type: MediaType, $perPage: Int, $page: Int) {
+                                             Page(perPage: $perPage, page: $page) {
+                                                 pageInfo {
+                                                     total
+                                                         perPage
+                                                     currentPage
+                                                         lastPage
+                                                     hasNextPage
+                                                 }
+                                                 media(search: $search, type: $type) {
+                                                     id
+                                                     title {
+                                                         romaji
+                                                             english
+                                                         native
+                                                             userPreferred
+                                                     },
+                                                     synonyms
+                                                     episodes
+                                                     status
+                                                     isAdult
+                                                 }
+                                             }
+                                         }
+                                         
+                                 """;
 
             int page = 1;
             Dictionary<string, object> variables = new Dictionary<string, object> {
@@ -100,7 +84,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                         }
 
                         // sleeping thread so we dont hammer the API
-                        Thread.Sleep(1000);
+                        await Task.Delay(1000);
                     }
                 }
 
@@ -157,25 +141,25 @@ namespace jellyfin_ani_sync.Api.Anilist {
         }
 
         public async Task<List<Anime>> GetAnimeList(Status status, int? userId = null) {
-            var animeList = await GetAnimeList(userId.Value, status.ToAniListStatus());
+            if (userId == null) return null;
+            List<AniListMediaList.Entries> animeList = await GetAnimeList(userId.Value, status.ToAniListStatus());
             List<Anime> convertedList = new List<Anime>();
-            if (animeList != null) {
-                foreach (var media in animeList) {
-                    int lastIndex = media.Media.SiteUrl.LastIndexOf("/", StringComparison.CurrentCulture);
-                    if (lastIndex != -1) {
-                        DateTime finishDate = new DateTime();
-                        if (media.CompletedAt is { Year: { }, Month: { }, Day: { } }) {
-                            finishDate = new DateTime(media.CompletedAt.Year.Value, media.CompletedAt.Month.Value, media.CompletedAt.Day.Value);
-                        }
-
-                        convertedList.Add(new Anime {
-                            Id = media.Media.Id,
-                            MyListStatus = new MyListStatus {
-                                FinishDate = finishDate.ToShortDateString(),
-                                NumEpisodesWatched = media.Progress ?? -1
-                            }
-                        });
+            if (animeList == null) return convertedList;
+            foreach (AniListMediaList.Entries media in animeList) {
+                int lastIndex = media.Media.SiteUrl.LastIndexOf("/", StringComparison.CurrentCulture);
+                if (lastIndex != -1) {
+                    DateTime finishDate = new DateTime();
+                    if (media.CompletedAt is { Year: not null, Month: not null, Day: not null }) {
+                        finishDate = new DateTime(media.CompletedAt.Year.Value, media.CompletedAt.Month.Value, media.CompletedAt.Day.Value);
                     }
+
+                    convertedList.Add(new Anime {
+                        Id = media.Media.Id,
+                        MyListStatus = new MyListStatus {
+                            FinishDate = finishDate.ToShortDateString(),
+                            NumEpisodesWatched = media.Progress ?? -1
+                        }
+                    });
                 }
             }
 
@@ -188,58 +172,60 @@ namespace jellyfin_ani_sync.Api.Anilist {
         /// <param name="id">ID of the anime you want to get.</param>
         /// <returns>The retrieved anime.</returns>
         public async Task<AniListSearch.Media> GetAnime(int id) {
-            string query = @"query ($id: Int) {
-          Media(id: $id) {
-            id
-            episodes
-            isAdult
-            title {
-              romaji
-              english
-              native
-              userPreferred
-            }
-            relations {
-              edges {
-                relationType
-                node {
-                  id
-                  title {
-                    romaji
-                    english
-                    native
-                    userPreferred
-                  }
-                }
-              }
-            }
-            mediaListEntry {
-              status
-              progress
-              repeat
-              startedAt {
-                day
-                month
-                year
-              }
-              completedAt {
-                day
-                month
-                year
-              }
-            }
-          }
-        }";
+            const string query = """
+                                 query ($id: Int) {
+                                           Media(id: $id) {
+                                             id
+                                             episodes
+                                             isAdult
+                                             title {
+                                               romaji
+                                               english
+                                               native
+                                               userPreferred
+                                             }
+                                             relations {
+                                               edges {
+                                                 relationType
+                                                 node {
+                                                   id
+                                                   title {
+                                                     romaji
+                                                     english
+                                                     native
+                                                     userPreferred
+                                                   }
+                                                 }
+                                               }
+                                             }
+                                             mediaListEntry {
+                                               status
+                                               progress
+                                               repeat
+                                               startedAt {
+                                                 day
+                                                 month
+                                                 year
+                                               }
+                                               completedAt {
+                                                 day
+                                                 month
+                                                 year
+                                               }
+                                             }
+                                           }
+                                         }
+                                 """;
 
 
             Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "id", id.ToString() }
             };
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.AniList, variables);
+            HttpResponseMessage response = await GraphQlHelper.AuthenticatedRequest(httpClientFactory, loggerFactory, serverApplicationHost, httpContextAccessor, memoryCache, delayer, userConfig, query, ApiName.AniList, variables);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
-                var result = JsonSerializer.Deserialize<AniListGet.AniListGetMedia>(await streamReader.ReadToEndAsync());
+                AniListGet.AniListGetMedia result = JsonSerializer.Deserialize<AniListGet.AniListGetMedia>(await streamReader.ReadToEndAsync());
 
                 if (result != null) {
                     return result.Data.Media;
@@ -250,17 +236,19 @@ namespace jellyfin_ani_sync.Api.Anilist {
         }
 
         public async Task<AniListViewer.Viewer> GetCurrentUser() {
-            string query = @"query {
-          Viewer {
-            id
-            name
-          }
-        }";
+            const string query = """
+                                 query {
+                                           Viewer {
+                                             id
+                                             name
+                                           }
+                                         }
+                                 """;
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.AniList);
+            var response = await GraphQlHelper.AuthenticatedRequest(httpClientFactory, loggerFactory, serverApplicationHost, httpContextAccessor, memoryCache, delayer, userConfig, query, ApiName.AniList);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
-                var result = JsonSerializer.Deserialize<AniListViewer.AniListGetViewer>(await streamReader.ReadToEndAsync());
+                AniListViewer.AniListGetViewer result = JsonSerializer.Deserialize<AniListViewer.AniListGetViewer>(await streamReader.ReadToEndAsync());
 
                 if (result != null) {
                     return result.Data.Viewer;
@@ -271,19 +259,23 @@ namespace jellyfin_ani_sync.Api.Anilist {
         }
 
         public async Task<bool> UpdateAnime(int id, AniListSearch.MediaListStatus status, int progress, int? numberOfTimesRewatched = null, DateTime? startDate = null, DateTime? endDate = null) {
-            string query = @"mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int" +
+            string query = "mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int" +
                            (numberOfTimesRewatched != null ? ", $repeat: Int" : "") +
                            (startDate != null ? ",$startDay: Int, $startMonth: Int, $startYear: Int" : "") +
                            (endDate != null ? ",$endDay: Int, $endMonth: Int, $endYear: Int" : "") +
-                           @") {
-          SaveMediaListEntry (mediaId: $mediaId, status: $status, progress: $progress" +
+                           """
+                           ) {
+                                     SaveMediaListEntry (mediaId: $mediaId, status: $status, progress: $progress
+                           """ +
                            (numberOfTimesRewatched != null ? ", repeat: $repeat" : "") +
                            (startDate != null ? @", startedAt: {day: $startDay, month: $startMonth, year: $startYear}" : "") +
                            (endDate != null ? @", completedAt: {day: $endDay, month: $endMonth, year: $endYear}" : "") +
-                           @") {
-            id
-          }
-        }";
+                           """
+                           ) {
+                                       id
+                                     }
+                                   }
+                           """;
 
             Dictionary<string, object> variables = new Dictionary<string, object> {
                 { "mediaId", id.ToString() },
@@ -307,30 +299,32 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 variables.Add("endYear", endDate.Value.Year.ToString());
             }
 
-            var response = await GraphQlHelper.AuthenticatedRequest(_httpClientFactory, _loggerFactory, _serverApplicationHost, _httpContextAccessor, _memoryCache, _delayer, _userConfig, query, ApiName.AniList, variables);
+            HttpResponseMessage response = await GraphQlHelper.AuthenticatedRequest(httpClientFactory, loggerFactory, serverApplicationHost, httpContextAccessor, memoryCache, delayer, userConfig, query, ApiName.AniList, variables);
             return response != null;
         }
 
-        public async Task<List<AniListMediaList.Entries>> GetAnimeList(int userId, AniListSearch.MediaListStatus status) {
-            string query = @"query ($status: MediaListStatus, $userId: Int, $chunk: Int, $chunkSize: Int) {
-              MediaListCollection(userId: $userId, status: $status, chunk: $chunk, perChunk: $chunkSize, type: ANIME) {
-                hasNextChunk
-                lists {
-                  entries {
-                    media {
-                      id
-                      siteUrl
-                    }
-                    completedAt {
-                      day
-                      month
-                      year
-                    }
-                    progress
-                  }
-                }
-              }
-            }";
+        private async Task<List<AniListMediaList.Entries>> GetAnimeList(int userId, AniListSearch.MediaListStatus status) {
+            const string query = """
+                                 query ($status: MediaListStatus, $userId: Int, $chunk: Int, $chunkSize: Int) {
+                                               MediaListCollection(userId: $userId, status: $status, chunk: $chunk, perChunk: $chunkSize, type: ANIME) {
+                                                 hasNextChunk
+                                                 lists {
+                                                   entries {
+                                                     media {
+                                                       id
+                                                       siteUrl
+                                                     }
+                                                     completedAt {
+                                                       day
+                                                       month
+                                                       year
+                                                     }
+                                                     progress
+                                                   }
+                                                 }
+                                               }
+                                             }
+                                 """;
 
             int page = 1;
             Dictionary<string, object> variables = new Dictionary<string, object> {
@@ -343,7 +337,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
             AniListMediaList.AniListUserMediaList result = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
 
             if (result?.Data?.MediaListCollection?.MediaList != null) {
-                var entriesList = result.Data.MediaListCollection.MediaList.SelectMany(entries => entries.Entries);
+                IEnumerable<AniListMediaList.Entries> entriesList = result.Data.MediaListCollection.MediaList.SelectMany(entries => entries.Entries);
                 if (result.Data.MediaListCollection.HasNextChunk) {
                     // impose a hard limit of 10 pages
                     while (page < 10) {
@@ -358,7 +352,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                         }
 
                         // sleeping thread so we dont hammer the API
-                        Thread.Sleep(2000);
+                        await Task.Delay(2000);
                     }
                 }
 
@@ -376,41 +370,40 @@ namespace jellyfin_ani_sync.Api.Anilist {
 
         internal static List<Anime> AniListSearchAnimeConvertedList(List<AniListSearch.Media> animeList, bool updateNsfw) {
             List<Anime> convertedList = new List<Anime>();
-            if (animeList != null) {
-                foreach (AniListSearch.Media media in animeList) {
-                    if (!updateNsfw && media.IsAdult) continue; // Skip NSFW anime if the user doesn't want to update them
-                    var synonyms = new List<string> {
-                        { media.Title.Romaji },
-                        { media.Title.UserPreferred }
-                    };
-                    synonyms.AddRange(media.Synonyms);
-                    var anime = new Anime {
-                        Id = media.Id,
-                        Title = media.Title.English,
-                        AlternativeTitles = new AlternativeTitles {
-                            En = media.Title.English,
-                            Ja = media.Title.Native,
-                            Synonyms = synonyms
-                        },
-                        NumEpisodes = media.Episodes ?? 0,
-                    };
+            if (animeList == null) return convertedList;
+            foreach (AniListSearch.Media media in animeList) {
+                if (!updateNsfw && media.IsAdult) continue; // Skip NSFW anime if the user doesn't want to update them
+                var synonyms = new List<string> {
+                    { media.Title.Romaji },
+                    { media.Title.UserPreferred }
+                };
+                synonyms.AddRange(media.Synonyms);
+                var anime = new Anime {
+                    Id = media.Id,
+                    Title = media.Title.English,
+                    AlternativeTitles = new AlternativeTitles {
+                        En = media.Title.English,
+                        Ja = media.Title.Native,
+                        Synonyms = synonyms
+                    },
+                    NumEpisodes = media.Episodes ?? 0,
+                };
 
-                    switch (media.Status) {
-                        case AniListSearch.AiringStatus.FINISHED:
-                            anime.Status = AiringStatus.finished_airing;
-                            break;
-                        case AniListSearch.AiringStatus.RELEASING:
-                            anime.Status = AiringStatus.currently_airing;
-                            break;
-                        case AniListSearch.AiringStatus.NOT_YET_RELEASED:
-                        case AniListSearch.AiringStatus.CANCELLED:
-                        case AniListSearch.AiringStatus.HIATUS:
-                            anime.Status = AiringStatus.not_yet_aired;
-                            break;
-                    }
-
-                    convertedList.Add(anime);
+                switch (media.Status) {
+                    case AniListSearch.AiringStatus.FINISHED:
+                        anime.Status = AiringStatus.finished_airing;
+                        break;
+                    case AniListSearch.AiringStatus.RELEASING:
+                        anime.Status = AiringStatus.currently_airing;
+                        break;
+                    case AniListSearch.AiringStatus.NOT_YET_RELEASED:
+                    case AniListSearch.AiringStatus.CANCELLED:
+                    case AniListSearch.AiringStatus.HIATUS:
+                        anime.Status = AiringStatus.not_yet_aired;
+                        break;
                 }
+
+                convertedList.Add(anime);
             }
 
             return convertedList;

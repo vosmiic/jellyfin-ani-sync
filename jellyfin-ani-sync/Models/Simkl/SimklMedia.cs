@@ -29,7 +29,7 @@ public class SimklExtendedMedia : SimklBaseMedia {
 }
 
 public class SimklBaseExtendedIds {
-    [JsonPropertyName("simkl")] public int Simkl { get; set; }
+    [JsonPropertyName("simkl")] public int? Simkl { get; set; }
     [JsonPropertyName("slug")] public string Slug { get; set; }
 }
 
