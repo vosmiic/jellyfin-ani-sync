@@ -5,25 +5,37 @@ on:
     branches: ['**']
     tags: ["v*.*"]
   pull_request:
-    branches: ["master"]
+    branches: ['master']
   schedule:
     - cron: '0 0 * * *' # Runs daily at 12 AM UTC (builds nightly)
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
 
-permissions: 
-  packages: write
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      image_name: ${{ steps.vars.outputs.image_name }}
+
+    steps:
+      - name: Set image name
+        id: vars
+        run: echo "image_name=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
   build:
     runs-on: ubuntu-latest
+    needs:
+      - prepare
     permissions:
-      contents: read
       packages: write
     strategy:
       fail-fast: false
@@ -34,19 +46,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Convert image name to lowercase
-        run: |
-          GITHUB_REPOSITORY="${{ github.repository }}"
-          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3
 
       - name: Log into registry ${{ env.REGISTRY }}
         if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
-        uses: docker/login-action@v3.0.0
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -54,13 +61,13 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5.0.0
+        uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ needs.prepare.outputs.image_name }}
 
       - name: Build Docker image
         id: build
-        uses: docker/build-push-action@v5.0.0
+        uses: docker/build-push-action@v6
         with:
           context: .
           labels: ${{ steps.meta.outputs.labels }}
@@ -69,7 +76,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           provenance: true
           sbom: true
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
+          outputs: type=image,name=${{ needs.prepare.outputs.image_name }},push-by-digest=true,name-canonical=true,push=${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
 
       - name: Export digest
         if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
@@ -79,9 +86,9 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
       - name: Upload digest
         if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
-          name: digests
+          name: digest-${{ strategy.job-index }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -90,37 +97,45 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ !github.event.pull_request || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name }}
     needs:
+      - prepare
       - build
     permissions:
       packages: write
+
     steps:
-      - name: Convert image name to lowercase
-        run: |
-          GITHUB_REPOSITORY="${{ github.repository }}"
-          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
       - name: Download digests
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
-          name: digests
+          pattern: digest-*
           path: /tmp/digests
+          merge-multiple: true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ needs.prepare.outputs.image_name }}
+
       - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v3.0.0
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+          mapfile -t tags < <(jq -r '.tags[] | "-t", .' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          refs=()
+          for digest in *; do
+            refs+=("${{ needs.prepare.outputs.image_name }}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tags[@]}" "${refs[@]}"
+
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ needs.prepare.outputs.image_name }}:${{ steps.meta.outputs.version }}
