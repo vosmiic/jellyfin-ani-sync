@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "4d95c608192395b72efe57551a6f2ae0",
+        "changelog": "1. Allowing custom arm server usage 2. Fix \"Plan to Watch\" status wrongly detected as \"Completed\" 3. Create user-side configuration page & expose user api methods",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v4.1/10.11.6.-.ani-sync_4.1.0.0.zip",
+        "timestamp": "2026-03-12T00:00:00Z",
+        "version": "4.1.0.0"
+      },
+      {
         "checksum": "365160ba5a45f2f987665eb6b005f58c",
         "changelog": "1. Updated plugin for compatability with Jellyfin version 10.11 2. Provider authentication is more stable",
         "targetAbi": "10.11.0.0",
