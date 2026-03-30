@@ -42,7 +42,7 @@ namespace jellyfin_ani_sync.Api {
                     _authApiUrl = "https://kitsu.io/api/oauth";
                     break;
                 case ApiName.Shikimori:
-                    _authApiUrl = "https://shikimori.one/oauth";
+                    _authApiUrl = "https://shikimori.io/oauth";
                     break;
                 case ApiName.Simkl:
                     _authApiUrl = "https://simkl.com/oauth";
