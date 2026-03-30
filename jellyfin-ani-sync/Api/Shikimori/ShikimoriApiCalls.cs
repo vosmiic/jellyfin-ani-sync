@@ -23,8 +23,8 @@ namespace jellyfin_ani_sync.Api.Shikimori;
 public class ShikimoriApiCalls {
     private readonly ILogger<ShikimoriApiCalls> _logger;
     private readonly AuthApiCall _authApiCall;
-    private readonly string _refreshTokenUrl = "https://shikimori.one/oauth/token";
-    private readonly string _apiBaseUrl = "https://shikimori.one/api";
+    private readonly string _refreshTokenUrl = "https://shikimori.io/oauth/token";
+    private readonly string _apiBaseUrl = "https://shikimori.io/api";
     private readonly UserConfig? _userConfig;
     private readonly Dictionary<string, string>? _requestHeaders;
 
