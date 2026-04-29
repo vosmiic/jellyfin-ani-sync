@@ -26,6 +26,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
         private readonly IMemoryCache _memoryCache;
         private readonly IAsyncDelayer _delayer;
         private readonly UserConfig _userConfig;
+        private readonly ILogger<AniListApiCalls> _logger;
         private static readonly int PageSize = 50;
         private static readonly int ChunkSize = 500;
 
@@ -39,6 +40,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
             _memoryCache = memoryCache;
             _delayer = delayer;
             _userConfig = userConfig;
+            _logger = loggerFactory.CreateLogger<AniListApiCalls>();
         }
 
         /// <summary>
@@ -81,7 +83,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 { "page", page.ToString() }
             };
 
-            AniListSearch.AniListSearchMedia result = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, query, variables);
+            AniListSearch.AniListSearchMedia result = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, _logger, ApiName.AniList, _memoryCache, _delayer, query, variables);
 
             if (result != null) {
                 if (result.Data.Page.PageInfo.HasNextPage) {
@@ -90,7 +92,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                         page++;
                         variables["page"] = page.ToString();
                         
-                        AniListSearch.AniListSearchMedia nextPageResult = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, query, variables);
+                        AniListSearch.AniListSearchMedia nextPageResult = await GraphQlHelper.DeserializeRequest<AniListSearch.AniListSearchMedia>(_httpClient, _logger, ApiName.AniList, _memoryCache, _delayer, query, variables);
 
                         result.Data.Page.Media = result.Data.Page.Media.Concat(nextPageResult.Data.Page.Media).ToList();
                         if (!nextPageResult.Data.Page.PageInfo.HasNextPage) {
@@ -266,7 +268,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                 { "chunk", page.ToString() }
             };
 
-            AniListMediaList.AniListUserMediaList result = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
+            AniListMediaList.AniListUserMediaList result = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, _logger, ApiName.AniList, _memoryCache, _delayer, query, variables);
 
             if (result?.Data?.MediaListCollection?.MediaList != null) {
                 var entriesList = result.Data.MediaListCollection.MediaList.SelectMany(entries => entries.Entries);
@@ -276,7 +278,7 @@ namespace jellyfin_ani_sync.Api.Anilist {
                         page++;
                         variables["chunk"] = page.ToString();
 
-                        AniListMediaList.AniListUserMediaList nextPageResult = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, query, variables);
+                        AniListMediaList.AniListUserMediaList nextPageResult = await GraphQlHelper.DeserializeRequest<AniListMediaList.AniListUserMediaList>(_httpClient, _logger, ApiName.AniList, _memoryCache, _delayer, query, variables);
 
                         entriesList = entriesList.Concat(nextPageResult.Data.MediaListCollection.MediaList.SelectMany(entries => entries.Entries));
                         if (!nextPageResult.Data.MediaListCollection.HasNextChunk) {

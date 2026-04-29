@@ -84,7 +84,7 @@ namespace jellyfin_ani_sync.Api {
         [HttpGet]
         [Route("buildAuthorizeRequestUrl")]
         public string BuildAuthorizeRequestUrl(ApiName provider, string clientId, string clientSecret, string? url, Guid user) {
-            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl(user);
+            return new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, _delayer, new ProviderApiAuth { ClientId = clientId, ClientSecret = clientSecret }, url).BuildAuthorizeRequestUrl(user);
         }
 
         [Authorize(Policy = Policies.RequiresElevation)]
@@ -115,7 +115,7 @@ namespace jellyfin_ani_sync.Api {
         [Route("passwordGrant")]
         public async Task<IActionResult> PasswordGrantAuthentication(ApiName provider, string userId, string username, string password) {
             try {
-                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId));
+                new ApiAuthentication(provider, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, _delayer, new ProviderApiAuth { ClientId = username, ClientSecret = password }).GetToken(Guid.Parse(userId));
             } catch (Exception e) {
                 return StatusCode(500, $"Could not authenticate; {e.Message}");
             }
@@ -463,7 +463,7 @@ namespace jellyfin_ani_sync.Api {
             if (state == null) return BadRequest("State is empty");
             StoredState? storedState = MemoryCacheHelper.ConsumeState(_memoryCache, state);
             if (storedState == null) return BadRequest("User not found or link already used/expired, try again");
-            new ApiAuthentication(storedState.ApiName, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache).GetToken(storedState.UserId, code);
+            new ApiAuthentication(storedState.ApiName, _httpClientFactory, _serverApplicationHost, _httpContextAccessor, _loggerFactory, _memoryCache, _delayer).GetToken(storedState.UserId, code);
             if (!string.IsNullOrEmpty(Plugin.Instance?.PluginConfiguration.callbackRedirectUrl)) {
                 string replacedCallbackRedirectUrl = Plugin.Instance.PluginConfiguration.callbackRedirectUrl.Replace("{{LocalIpAddress}}", Request.HttpContext.Connection.LocalIpAddress != null ? Request.HttpContext.Connection.LocalIpAddress.ToString() : "localhost")
                     .Replace("{{LocalPort}}", _serverApplicationHost.ListenWithHttps ? _serverApplicationHost.HttpsPort.ToString() : _serverApplicationHost.HttpPort.ToString());
