@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using jellyfin_ani_sync.Api.Simkl;
 using jellyfin_ani_sync.Configuration;
 using jellyfin_ani_sync.Helpers;
+using jellyfin_ani_sync.Interfaces;
 using jellyfin_ani_sync.Models;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
@@ -26,9 +27,10 @@ namespace jellyfin_ani_sync.Api {
         private readonly string _redirectUrl;
         private readonly ProviderApiAuth _providerApiAuth;
         private readonly IMemoryCache  _memoryCache;
+        private readonly IAsyncDelayer _delayer;
         private readonly string _codeChallenge = "eZBLUX_JPk4~el62z_k3Q4fV5CzCYHoTz4iLKvwJ~9QTsTJNlzwveKCSYCSiSOa5zAm5Zt~cfyVM~3BuO4kQ0iYwCxPoeN0SOmBYR_C.QgnzyYE4KY-xIe4Vy1bf7_B4";
 
-        public ApiAuthentication(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, IMemoryCache memoryCache, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
+        public ApiAuthentication(ApiName provider, IHttpClientFactory httpClientFactory, IServerApplicationHost serverApplicationHost, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory, IMemoryCache memoryCache, IAsyncDelayer delayer, ProviderApiAuth? overrideProviderApiAuth = null, string? overrideRedirectUrl = null) {
             _provider = provider;
 
             switch (provider) {
@@ -54,6 +56,7 @@ namespace jellyfin_ani_sync.Api {
             _httpClientFactory = httpClientFactory;
             _memoryCache = memoryCache;
             _logger = loggerFactory.CreateLogger<ApiAuthentication>();
+            _delayer = delayer;
             if (overrideProviderApiAuth != null) {
                 _providerApiAuth = overrideProviderApiAuth;
             } else {
@@ -148,10 +151,12 @@ namespace jellyfin_ani_sync.Api {
                 client.DefaultRequestHeaders.Add("User-Agent", shikimoriAppName);
             }
 
-            var response = client.PostAsync(new Uri($"{(_provider is not ApiName.Simkl ? _authApiUrl : $"{SimklApiCalls.ApiBaseUrl}/oauth")}/token"), formUrlEncodedContent).Result;
-
+            await MemoryCacheHelper.CheckRateLimiting(_provider, _logger, _memoryCache, _delayer);
+            var response = await client.PostAsync(new Uri($"{(_provider is not ApiName.Simkl ? _authApiUrl : $"{SimklApiCalls.ApiBaseUrl}/oauth")}/token"), formUrlEncodedContent);
+            MemoryCacheHelper.CheckResponseHeadersForRateLimiting(response, _logger, _provider, _memoryCache);
+            
             if (response.IsSuccessStatusCode) {
-                var content = response.Content.ReadAsStream();
+                var content = await response.Content.ReadAsStreamAsync();
 
                 StreamReader streamReader = new StreamReader(content);
 

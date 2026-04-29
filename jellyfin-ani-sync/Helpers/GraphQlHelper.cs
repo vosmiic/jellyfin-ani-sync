@@ -16,9 +16,10 @@ using Microsoft.Extensions.Logging;
 
 namespace jellyfin_ani_sync.Helpers {
     public class GraphQlHelper {
-        public static async Task<HttpResponseMessage> Request(HttpClient httpClient, string query, Dictionary<string, object> variables = null) {
+        public static async Task<HttpResponseMessage> Request(HttpClient httpClient, ILogger logger, ApiName provider, IMemoryCache memoryCache, IAsyncDelayer delayer, string query, Dictionary<string, object> variables = null) {
+            await MemoryCacheHelper.CheckRateLimiting(provider, logger, memoryCache, delayer);
             var call = await httpClient.PostAsync("https://graphql.anilist.co", new StringContent(JsonSerializer.Serialize(new GraphQl { Query = query, Variables = variables }), Encoding.UTF8, "application/json"));
-
+            MemoryCacheHelper.CheckResponseHeadersForRateLimiting(call, logger, provider, memoryCache);
             return call.IsSuccessStatusCode ? call : null;
         }
 
@@ -38,8 +39,8 @@ namespace jellyfin_ani_sync.Helpers {
             return call is { IsSuccessStatusCode: true } ? call : null;
         }
         
-        public static async Task<T> DeserializeRequest<T>(HttpClient httpClient, string query, Dictionary<string, object> variables) {
-            var response = await GraphQlHelper.Request(httpClient, query, variables);
+        public static async Task<T> DeserializeRequest<T>(HttpClient httpClient, ILogger logger, ApiName provider, IMemoryCache memoryCache, IAsyncDelayer delayer, string query, Dictionary<string, object> variables) {
+            var response = await Request(httpClient, logger, provider, memoryCache, delayer, query, variables);
             if (response != null) {
                 StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
                 return JsonSerializer.Deserialize<T>(await streamReader.ReadToEndAsync());
