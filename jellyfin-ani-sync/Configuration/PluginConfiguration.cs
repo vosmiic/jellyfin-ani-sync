@@ -66,5 +66,10 @@ namespace jellyfin_ani_sync.Configuration {
         /// True to enable user authentication pages.
         /// </summary>
         public bool enableUserPages { get; set; }
+        
+        /// <summary>
+        /// The custom domain for the Shikimori provider.
+        /// </summary>
+        public string shikimoriDomain { get; set; }
     }
 }

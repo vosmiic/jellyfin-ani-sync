@@ -302,6 +302,8 @@ async function initialLoad(common) {
                 page.querySelector('#callbackRedirectUrlInput').value = config.callbackRedirectUrl;
             if (config.shikimoriAppName)
                 page.querySelector('#shikimoriAppName').value = config.shikimoriAppName;
+            if (config.shikimoriDomain)
+                page.querySelector('#shikimoriDomain').value = config.shikimoriDomain;
             if (config.simklUpdateAll)
                 page.querySelector('#simklUpdateAll').checked = config.simklUpdateAll;
             if (config.updateNsfw)
@@ -313,7 +315,7 @@ async function initialLoad(common) {
             page.querySelector('#clientSecretDescription').style.display = "block";
             page.querySelector('#authorizeDevice').style.display = "block";
             page.querySelector('#authorizeDeviceDescription').style.display = "block";
-            page.querySelector('#shikimoriAppNameContainer').style.display = "none";
+            page.querySelector('#shikimoriDetails').style.display = "none";
             page.querySelector('#simklUpdateAllContainer').style.display = "none";
             page.querySelector('#testAuthenticationDescription').innerHTML = "Once you have authenticated your user, click the below button to test the authentication:";
             page.querySelector('#clientIdLabel').innerHTML = "Client ID";
@@ -335,7 +337,7 @@ async function initialLoad(common) {
                 page.querySelector('#authorizeDeviceDescription').style.display = "none";
                 page.querySelector('#testAuthenticationDescription').innerHTML = "Click the below button to test the authentication:";
             } else if (providerName === "Shikimori") {
-                page.querySelector('#shikimoriAppNameContainer').style.display = "block";
+                page.querySelector('#shikimoriDetails').style.display = "block";
             } else if (providerName === "Simkl") {
                 page.querySelector('#simklUpdateAllContainer').style.display = "block";
             }
@@ -414,6 +416,7 @@ async function initialLoad(common) {
             config.watchedTickboxUpdatesProvider = document.querySelector('#watchedTickboxUpdatesProvider').checked;
             config.callbackRedirectUrl = document.querySelector('#callbackRedirectUrlInput').value;
             config.shikimoriAppName = document.querySelector('#shikimoriAppName').value;
+            config.shikimoriDomain = document.querySelector('#shikimoriDomain').value;
             config.simklUpdateAll = document.querySelector('#simklUpdateAll').checked;
             config.updateNsfw = document.querySelector('#UpdateNsfw').checked;
             config.authenticationLinkExpireTimeMinutes = document.querySelector('#linkTimeExpire').value;
