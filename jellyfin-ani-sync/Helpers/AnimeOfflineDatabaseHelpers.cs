@@ -15,7 +15,7 @@ namespace jellyfin_ani_sync.Helpers {
             string customArmServerBaseUrl = Plugin.Instance?.Configuration.armServerBaseUrl;
             if (!string.IsNullOrEmpty(customArmServerBaseUrl)) {
                 if (Uri.TryCreate(customArmServerBaseUrl, UriKind.Absolute, out Uri baseUri) && (baseUri.Scheme == Uri.UriSchemeHttp || baseUri.Scheme == Uri.UriSchemeHttps)) {
-                    baseUrl = baseUri.AbsoluteUri;
+                    baseUrl = baseUri.AbsoluteUri.TrimEnd('/');
                 } else {
                     logger.LogWarning($"ARM server base URL ({customArmServerBaseUrl}) could not be parsed. Confirm the URL is valid. Falling back to public API...");
                 }
