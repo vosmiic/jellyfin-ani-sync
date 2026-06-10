@@ -8,6 +8,14 @@
     "overview": "Synchronize anime watch status",
     "versions": [
       {
+        "checksum": "0d398377b33c27840c021779497c72dc",
+        "changelog": "1. Rate limiting improvements 2. Added support for custom Shikimori domains",
+        "targetAbi": "10.11.11.0",
+        "sourceUrl": "https://github.com/vosmiic/jellyfin-ani-sync/releases/download/v4.4/10.11.11.-.ani-sync_4.4.0.0.zip",
+        "timestamp": "2026-06-10T00:00:00Z",
+        "version": "4.4.0.0"
+      },
+      {
         "checksum": "4d95c608192395b72efe57551a6f2ae0",
         "changelog": "1. Allowing custom arm server usage 2. Fix \"Plan to Watch\" status wrongly detected as \"Completed\" 3. Create user-side configuration page & expose user api methods",
         "targetAbi": "10.11.6.0",
