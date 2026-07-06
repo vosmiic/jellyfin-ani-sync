@@ -70,6 +70,7 @@ namespace jellyfin_ani_sync.Helpers {
                                 // is movie / only has one season / no related; just return the only result
                                 return int.TryParse(related.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
                             }
+
                             logger.LogInformation($"(Anidb) Anime {(video is Episode episodeWithoutSeason ? episodeWithoutSeason.Name : video.Name)} found in anime XML file");
                             // is movie / only has one season / no related; just return the only result
                             return int.TryParse(foundAnime.First().Anidbid, out aniDbId) ? (aniDbId, null) : (null, null);
@@ -142,7 +143,7 @@ namespace jellyfin_ani_sync.Helpers {
             if (absoluteEpisodeNumber != null) {
                 // FIXME: return correct offset when using absolute episode
                 // numbers.
-                var foundMapping = related.FirstOrDefault(animeListAnime => animeListAnime.MappingList?.Mapping?.FirstOrDefault(mapping => mapping.Start < absoluteEpisodeNumber && mapping.End > absoluteEpisodeNumber) != null);
+                var foundMapping = related.FirstOrDefault(animeListAnime => animeListAnime.MappingList?.Mapping?.FirstOrDefault(mapping => mapping.Start <= absoluteEpisodeNumber && mapping.End >= absoluteEpisodeNumber) != null);
                 if (foundMapping != null) {
                     return (int.TryParse(foundMapping.Anidbid, out var aniDbId) ? aniDbId : null, null);
                 } else {
@@ -166,27 +167,35 @@ namespace jellyfin_ani_sync.Helpers {
             var foundMapping =
                 related
                     .Where(animeListAnime => animeListAnime.Defaulttvdbseason == "a")
-                    .FirstOrDefault(
-                        animeListAnime =>
-                            animeListAnime.MappingList.Mapping.FirstOrDefault(
-                                mapping => mapping.Tvdbseason == seasonNumber
-                            ) != null
+                    .FirstOrDefault(animeListAnime =>
+                        animeListAnime.MappingList.Mapping.FirstOrDefault(mapping => mapping.Tvdbseason == seasonNumber
+                        ) != null
                     )
                 ?? related
                     .Where(animeListAnime => animeListAnime.Defaulttvdbseason == seasonNumber.ToString())
                     .OrderBy(animeListAnime => int.TryParse(animeListAnime.Episodeoffset, out var n) ? n : 0)
-                    .LastOrDefault(
-                        animeListAnime =>
-                            animeListAnime.Episodeoffset == null
-                            || !int.TryParse(animeListAnime.Episodeoffset, out var episodeOffset)
-                            || episodeOffset < episodeNumber
+                    .LastOrDefault(animeListAnime =>
+                        animeListAnime.Episodeoffset == null
+                        || !int.TryParse(animeListAnime.Episodeoffset, out var episodeOffset)
+                        || episodeOffset < episodeNumber
                     );
 
-            
+            var tvdbSeasonMappings = foundMapping?.MappingList?.Mapping
+                ?.Where(m => m.Tvdbseason == seasonNumber)
+                .ToList();
+
+            var specificMapping = tvdbSeasonMappings
+                ?.FirstOrDefault(m =>
+                    m.Start > 0 && m.End > 0 &&
+                    episodeNumber - m.Offset >= m.Start &&
+                    episodeNumber - m.Offset <= m.End)
+                ?? tvdbSeasonMappings?.FirstOrDefault();
 
             return (
                 int.TryParse(foundMapping?.Anidbid, out var aniDbId) ? aniDbId : null,
-                int.TryParse(foundMapping?.Episodeoffset, out var episodeOffset) ? episodeOffset : null
+                specificMapping?.Offset ?? (int.TryParse(foundMapping?.Episodeoffset, out var episodeOffset)
+                    ? episodeOffset
+                    : null)
             );
         }
 
