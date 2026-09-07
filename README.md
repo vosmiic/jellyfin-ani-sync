@@ -58,7 +58,9 @@ We use the XML documents in the [anime lists repo](https://github.com/Anime-List
 
 Please help the project by contributing to the lists of anime, it helps everyone!
 ### Anime Offline Database/arm server
-We use the API offered by the [arm server repo](https://github.com/BeeeQueue/arm-server) which accesses the [anime offline database repo](https://github.com/manami-project/anime-offline-database) that we use to fetch our providers IDs so we can update your progress.
+We use the API offered by the [arm server repo](https://github.com/BeeeQueue/arm-server) which accesses the [~~anime offline database repo~~](https://github.com/manami-project/anime-offline-database) that we use to fetch our providers IDs so we can update your progress.
+
+> **Note:** the original anime offline database repo was archived on 2026-07-04 and no longer accepts issues, PRs, or updates. [cedya77/anime-offline-database](https://github.com/cedya77/anime-offline-database) is an active continuation seeded from its final release (same format, weekly updates), and [Fribb/anime-lists](https://github.com/Fribb/anime-lists) — which arm-server's `/api/v2` endpoints are generated from — has already switched to pulling from it as of 2026-09-03 ([see the handoff thread](https://github.com/Fribb/anime-lists/issues/30)). Anime added since the original database's archival will only get cross-referenced to AniList/MAL through this new source.
 
 Please also help these projects by contributing to the anime database/helping with the API server.
 
