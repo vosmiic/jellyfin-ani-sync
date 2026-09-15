@@ -489,8 +489,10 @@ namespace jellyfin_ani_sync {
 
         private async Task CheckUserListAnimeStatusBase(Anime detectedAnime, int episodeNumber, bool overrideCheckRewatch, string? alternativeId = null) {
             if (detectedAnime == null) return;
-            if (detectedAnime.MyListStatus != null && detectedAnime.MyListStatus.Status == Status.Watching && ApiName != ApiName.Annict) {
-                _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on watching list");
+            if (detectedAnime.MyListStatus != null &&
+                (detectedAnime.MyListStatus.Status == Status.Watching || detectedAnime.MyListStatus.Status == Status.Rewatching) &&
+                ApiName != ApiName.Annict) {
+                _logger.LogInformation($"({ApiName}) {(_animeType == typeof(Episode) ? "Series" : "Movie")} ({GetAnimeTitle(detectedAnime)}) found on {detectedAnime.MyListStatus.Status} list");
                 await UpdateAnimeStatus(detectedAnime, episodeNumber);
                 return;
             }
@@ -694,19 +696,23 @@ namespace jellyfin_ani_sync {
                                     ids: _apiIds,
                                     isShow: _animeType == typeof(Episode));
                             } else {
+                                Status watchingStatus = detectedAnime.MyListStatus.IsRewatching &&
+                                    (ApiName == ApiName.AniList || ApiName == ApiName.Shikimori)
+                                        ? Status.Rewatching
+                                        : Status.Watching;
                                 if (episodeNumber > 1) {
                                     // don't set start date after first episode
                                     response = await ApiCallHelpers.UpdateAnime(detectedAnime.Id,
                                         episodeNumber.Value,
-                                        detectedAnime.MyListStatus.IsRewatching && ApiName == ApiName.AniList ? Status.Rewatching : Status.Watching,
+                                        watchingStatus,
                                         alternativeId: detectedAnime.AlternativeId,
                                         ids: _apiIds,
                                         isShow: _animeType == typeof(Episode));
                                 } else {
-                                    _logger.LogInformation($"({ApiName}) Setting new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) as watching.");
+                                    _logger.LogInformation($"({ApiName}) Setting new {(_animeType == typeof(Episode) ? "series" : "movie")} ({GetAnimeTitle(detectedAnime)}) as {watchingStatus}.");
                                     response = await ApiCallHelpers.UpdateAnime(detectedAnime.Id,
                                         episodeNumber.Value,
-                                        Status.Watching,
+                                        watchingStatus,
                                         startDate: DateTime.Now,
                                         alternativeId: detectedAnime.AlternativeId,
                                         ids: _apiIds,
