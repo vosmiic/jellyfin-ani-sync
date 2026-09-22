@@ -10,6 +10,6 @@ public class ProviderHelpers {
             return baseDomain.AbsoluteUri;
         }
 
-        return "https://shikimori.one/";
+        return "https://shikimori.io/";
     }
 }
