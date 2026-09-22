@@ -202,6 +202,7 @@ public class GeneralFlowTests {
     /// </summary>
     [TestCase(ApiName.Mal)]
     [TestCase(ApiName.AniList)]
+    [TestCase(ApiName.Shikimori)]
     public async Task UpdateAnimeReWatchingInProgress(ApiName apiName) {
         int episodesWatched = 10;
         Anime detectedAnime = new Anime {
@@ -223,7 +224,11 @@ public class GeneralFlowTests {
         await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, episodesWatched, setRewatching: true);
 
         _mockApiCallHelpers.Verify(s => s.UpdateAnime(It.IsAny<int>(), It.IsAny<int>(),
-            apiName == ApiName.Mal ? Status.Completed : Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
+            apiName == ApiName.Mal
+                ? Status.Completed
+                : apiName == ApiName.AniList || apiName == ApiName.Shikimori
+                    ? Status.Rewatching
+                    : Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
     }
@@ -254,6 +259,37 @@ public class GeneralFlowTests {
             Status.Watching, It.IsAny<bool?>(), It.IsAny<int?>(),
             It.Is<DateTime>(startDate => startDate >= DateTime.Now - TimeSpan.FromSeconds(30) && startDate < DateTime.Now + TimeSpan.FromSeconds(30)), // give range in case test takes some time for some reason
             It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Update in-progress first episode rewatch, per-provider expected status.
+    /// </summary>
+    [TestCase(ApiName.Mal, Status.Completed)]
+    [TestCase(ApiName.AniList, Status.Rewatching)]
+    [TestCase(ApiName.Shikimori, Status.Rewatching)]
+    public async Task UpdateAnimeReWatchingFirstEpisodeStatus(ApiName apiName, Status expectedStatus) {
+        Anime detectedAnime = new Anime {
+            Id = 1,
+            Title = "title",
+            NumEpisodes = 2,
+            MyListStatus = new MyListStatus {
+                NumEpisodesWatched = 0,
+                IsRewatching = true
+            }
+        };
+
+        _mockApiCallHelpers.Setup(s => s.UpdateAnime(1, 1,
+            expectedStatus, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>())).Returns(Task.FromResult(new UpdateAnimeStatusResponse()));
+
+        _updateProviderStatus.ApiName = apiName;
+        await _updateProviderStatus.UpdateAnimeStatus(detectedAnime, 1);
+
+        _mockApiCallHelpers.Verify(s => s.UpdateAnime(1, 1,
+            expectedStatus, It.IsAny<bool?>(), It.IsAny<int?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
             It.IsAny<AnimeOfflineDatabaseHelpers.OfflineDatabaseResponse>(), It.IsAny<bool?>()), Times.Once);
     }
 
